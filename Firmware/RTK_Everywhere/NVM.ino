@@ -251,13 +251,51 @@ bool nvmCompareSettings(struct Settings * settings1, const char * name1,
 // Used at very first boot to test for resetCounter
 void loadSettingsPartial()
 {
+    bool loadSuccessful;
+    bool settingsAllocated;
+    struct Settings * tempSettings;
+
+    // Allocate the tempSettings structure
+    settingsAllocated = false;
+    loadSuccessful = false;
+    tempSettings = (struct Settings *)rtkMalloc(sizeof(*tempSettings), "loadSettings tempSettings");
+    if (tempSettings)
+    {
+        settingsAllocated = true;
+        if (settings.debugSettings)
+            systemPrintf("Allocated tempSettings: %p\r\n", (void *)tempSettings);
+
+        // Initialize the temporary settings
+        memcpy(tempSettings, &settings, sizeof(settings));
+    }
+    else
+    {
+        systemPrintf("ERROR: loadSettings failed to allocate tempSettings, using settings!\r\n");
+        reportHeapNow(true);
+        tempSettings = &settings;
+    }
+
     // First, look up the last used profile number
     loadProfileNumber();
 
     // Set the settingsFileName used in many places
     setSettingsFileName();
 
-    loadSystemSettingsFromFileLFS(settingsFileName, &settings);
+    // If we have a profile in both LFS and SD, the SD settings will overwrite LFS
+    // This will fail if LFS has been erased, a read error occurs or the file is
+    // corrupt.
+    loadSuccessful = loadSystemSettingsFromFileLFS(settingsFileName, tempSettings);
+    if (settingsAllocated)
+    {
+        // Update the settings with the values read from NVM
+        if (loadSuccessful)
+            memcpy(&settings, tempSettings, sizeof(settings));
+
+        // Done with the tempSettings
+        if (settings.debugSettings)
+            systemPrintf("Freeing tempSettings: %p\r\n", (void *)tempSettings);
+        rtkFree(tempSettings, "loadSettings tempSettings");
+    }
 }
 
 void recordSystemSettings()
