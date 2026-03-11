@@ -15,7 +15,7 @@ void changeProfileNumber(byte newProfileNumber, bool recordSettings)
 
     // We need to load these settings from file so that we can record a profile name change correctly
     bool responseLFS = loadSystemSettingsFromFileLFS(settingsFileName, &settings);
-    bool responseSD = loadSystemSettingsFromFileSD(settingsFileName);
+    bool responseSD = loadSystemSettingsFromFileSD(settingsFileName, &settings);
 
     // If this is an empty/new profile slot, overwrite our current settings with defaults
     if (responseLFS == false && responseSD == false)

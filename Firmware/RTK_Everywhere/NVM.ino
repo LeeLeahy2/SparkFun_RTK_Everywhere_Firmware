@@ -50,7 +50,10 @@ bool loadSystemSettingsFromFileLFS(char *fileName,
                                    const char *findMe = nullptr,
                                    char *found = nullptr,
                                    int len = 0); // Header
-bool loadSystemSettingsFromFileSD(char *fileName, const char *findMe = nullptr, char *found = nullptr,
+bool loadSystemSettingsFromFileSD(char *fileName,
+                                  struct Settings * tempSettings,
+                                  const char *findMe = nullptr,
+                                  char *found = nullptr,
                                   int len = 0); // Header
 
 // We use the LittleFS library to store user profiles in SPIFFs
@@ -69,7 +72,7 @@ void loadSettings()
     uint32_t gnssConfigureRequest = settings.gnssConfigureRequest;
 
     // This will fail if no SD is present. That's OK.
-    loadSystemSettingsFromFileSD(settingsFileName);
+    loadSystemSettingsFromFileSD(settingsFileName, &settings);
 
     settings.resetCount = resetCount; // resetCount from LFS should override SD
 
@@ -633,7 +636,11 @@ void recordSystemSettingsToFile(File *settingsFile)
 // Returns false if a file was not opened/loaded
 // Optionally search for findMe. If findMe is found, return the remainder of the line in found.
 // Don't update settings when searching.
-bool loadSystemSettingsFromFileSD(char *fileName, const char *findMe, char *found, int len)
+bool loadSystemSettingsFromFileSD(char *fileName,
+                                  struct Settings * tempSettings,
+                                  const char *findMe,
+                                  char *found,
+                                  int len)
 {
     if ((findMe != nullptr) && (found != nullptr))
         *found = 0; // If searching, set found to NULL
@@ -723,7 +730,7 @@ bool loadSystemSettingsFromFileSD(char *fileName, const char *findMe, char *foun
                     if (findMe == nullptr)
                     {
                         // parse each line and load into settings
-                        if (parseLine(line, &settings) == false)
+                        if (parseLine(line, tempSettings) == false)
                         {
                             line[strlen(line) - 1] = 0; // Remove \n for printing
                             systemPrintf("Failed to parse SD file %s line %d: %s\r\n", fileName, lineNumber, line);
@@ -1625,7 +1632,7 @@ bool getProfileName(char *fileName, char *profileName, uint8_t profileNameLength
     char profileNameLFS[50];
     loadSystemSettingsFromFileLFS(fileName, nullptr, "profileName=", profileNameLFS, sizeof(profileNameLFS));
     char profileNameSD[50];
-    loadSystemSettingsFromFileSD(fileName, "profileName=", profileNameSD, sizeof(profileNameSD));
+    loadSystemSettingsFromFileSD(fileName, nullptr, "profileName=", profileNameSD, sizeof(profileNameSD));
 
     // Zero terminate the profile name
     *profileName = 0;
