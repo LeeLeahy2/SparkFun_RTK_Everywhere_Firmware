@@ -364,23 +364,9 @@ void menuUserProfiles()
                     }
                 }
 
-                gnssConfigureDefaults(); // Set all bits in the request bitfield to cause the GNSS receiver to go
-                                         // through a full (re)configuration
-
-                recordProfileNumber(0); // Move to Profile1
-
-                setSettingsFileName(); // Update file name with new profileNumber. Also updates station coordinates file
-                                       // names
-
-                // We need to load these settings from file so that we can record a profile name change correctly
-                bool responseLFS = loadSystemSettingsFromFileLFS(settingsFileName);
-                bool responseSD = loadSystemSettingsFromFileSD(settingsFileName);
-
-                // If this is an empty/new profile slot, overwrite our current settings with defaults
-                if (responseLFS == false && responseSD == false)
-                {
-                    settingsToDefaults();
-                }
+                // We need to load these settings from file so that we can
+                // record a profile name change correctly
+                changeProfileNumber(0, false);
 
                 // Get bitmask of active profiles
                 activeProfiles = loadProfileNames();
