@@ -45,7 +45,10 @@ NVM.ino
   edited in the index.html and main.js files.
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
-bool loadSystemSettingsFromFileLFS(char *fileName, const char *findMe = nullptr, char *found = nullptr,
+bool loadSystemSettingsFromFileLFS(char *fileName,
+                                   struct Settings * tempSettings,
+                                   const char *findMe = nullptr,
+                                   char *found = nullptr,
                                    int len = 0); // Header
 bool loadSystemSettingsFromFileSD(char *fileName, const char *findMe = nullptr, char *found = nullptr,
                                   int len = 0); // Header
@@ -59,7 +62,7 @@ void loadSettings()
 {
     // If we have a profile in both LFS and SD, the SD settings will overwrite LFS
     // This will fail if LFS has been erased. That's OK.
-    loadSystemSettingsFromFileLFS(settingsFileName);
+    loadSystemSettingsFromFileLFS(settingsFileName, &settings);
 
     // Temp store any variables from LFS that should override SD
     int resetCount = settings.resetCount;
@@ -251,7 +254,7 @@ void loadSettingsPartial()
     // Set the settingsFileName used in many places
     setSettingsFileName();
 
-    loadSystemSettingsFromFileLFS(settingsFileName);
+    loadSystemSettingsFromFileLFS(settingsFileName, &settings);
 }
 
 void recordSystemSettings()
@@ -795,7 +798,11 @@ bool loadSystemSettingsFromFileSD(char *fileName, const char *findMe, char *foun
 // Returns false if a file was not opened/loaded
 // Optionally search for findMe. If findMe is found, return the remainder of the line in found.
 // Don't update settings when searching.
-bool loadSystemSettingsFromFileLFS(char *fileName, const char *findMe, char *found, int len)
+bool loadSystemSettingsFromFileLFS(char *fileName,
+                                   struct Settings * tempSettings,
+                                   const char *findMe,
+                                   char *found,
+                                   int len)
 {
     if ((findMe != nullptr) && (found != nullptr))
         *found = 0; // If searching, set found to NULL
@@ -867,7 +874,7 @@ bool loadSystemSettingsFromFileLFS(char *fileName, const char *findMe, char *fou
             if (findMe == nullptr)
             {
                 // parse each line and load into settings
-                if (parseLine(line, &settings) == false)
+                if (parseLine(line, tempSettings) == false)
                 {
                     line[strlen(line) - 1] = 0; // Remove \n for printing
                     systemPrintf("Failed to parse LFS file %s line %d: %s\r\n", fileName, lineNumber, line);
@@ -1616,7 +1623,7 @@ void setProfileName(uint8_t ProfileNumber)
 bool getProfileName(char *fileName, char *profileName, uint8_t profileNameLength)
 {
     char profileNameLFS[50];
-    loadSystemSettingsFromFileLFS(fileName, "profileName=", profileNameLFS, sizeof(profileNameLFS));
+    loadSystemSettingsFromFileLFS(fileName, nullptr, "profileName=", profileNameLFS, sizeof(profileNameLFS));
     char profileNameSD[50];
     loadSystemSettingsFromFileSD(fileName, "profileName=", profileNameSD, sizeof(profileNameSD));
 
