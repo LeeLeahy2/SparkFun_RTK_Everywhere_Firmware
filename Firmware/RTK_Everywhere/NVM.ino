@@ -720,7 +720,7 @@ bool loadSystemSettingsFromFileSD(char *fileName, const char *findMe, char *foun
                     if (findMe == nullptr)
                     {
                         // parse each line and load into settings
-                        if (parseLine(line) == false)
+                        if (parseLine(line, &settings) == false)
                         {
                             line[strlen(line) - 1] = 0; // Remove \n for printing
                             systemPrintf("Failed to parse SD file %s line %d: %s\r\n", fileName, lineNumber, line);
@@ -867,7 +867,7 @@ bool loadSystemSettingsFromFileLFS(char *fileName, const char *findMe, char *fou
             if (findMe == nullptr)
             {
                 // parse each line and load into settings
-                if (parseLine(line) == false)
+                if (parseLine(line, &settings) == false)
                 {
                     line[strlen(line) - 1] = 0; // Remove \n for printing
                     systemPrintf("Failed to parse LFS file %s line %d: %s\r\n", fileName, lineNumber, line);
@@ -1005,7 +1005,7 @@ bool printSystemSettingsFromFileLFS(char *fileName)
 // Sets the setting if the name is known
 // The order of variables matches the order found in settings.h
 // Both fgets and getLine leave theLine terminated with \n only (\r is removed)
-bool parseLine(const char *theLine)
+bool parseLine(const char *theLine, struct Settings * tempSettings)
 {
     // Make a copy. Manipulate the copy, not the original
     size_t strLen = strnlen(theLine, 100);
@@ -1164,14 +1164,19 @@ bool parseLine(const char *theLine)
         // Determine if settingName is in the command table
         if (i >= 0)
         {
+            size_t settingsOffset;
             qualifier = rtkSettingsEntries[i].qualifier;
             type = rtkSettingsEntries[i].type;
             var = rtkSettingsEntries[i].var;
+            if (var && (var >= &settings) && (var < &((uint8_t *)&settings)[sizeof(settings)]))
+            {
+                settingsOffset = ((uint8_t *)var) - (uint8_t *)&settings;
+                var = (uint8_t *)tempSettings + settingsOffset;
+            }
 
             // Handle the GNSS specific types
-            if (gnssNewSettingValue(&settings, type, suffix, qualifier, d))
-                knownSetting = true;
-            else
+            knownSetting = gnssNewSettingValue(tempSettings, type, suffix, qualifier, d);
+            if (knownSetting == false)
             {
                 // Handle the generic types
                 switch (type)
@@ -1297,7 +1302,7 @@ bool parseLine(const char *theLine)
                                    &mac[5]) == 6)
                         {
                             for (int i = 0; i < 6; i++)
-                                settings.espnowPeers[suffixNum][i] = mac[i];
+                                tempSettings->espnowPeers[suffixNum][i] = mac[i];
                             knownSetting = true;
                         }
                     }
@@ -1310,8 +1315,8 @@ bool parseLine(const char *theLine)
                     {
                         if (sscanf(suffix, "%dSSID", &network) == 1)
                         {
-                            strncpy(settings.wifiNetworks[network].ssid, settingString,
-                                    sizeof(settings.wifiNetworks[0].ssid));
+                            strncpy(tempSettings->wifiNetworks[network].ssid, settingString,
+                                    sizeof(tempSettings->wifiNetworks[0].ssid));
                             knownSetting = true;
                         }
                     }
@@ -1319,8 +1324,8 @@ bool parseLine(const char *theLine)
                     {
                         if (sscanf(suffix, "%dPassword", &network) == 1)
                         {
-                            strncpy(settings.wifiNetworks[network].password, settingString,
-                                    sizeof(settings.wifiNetworks[0].password));
+                            strncpy(tempSettings->wifiNetworks[network].password, settingString,
+                                    sizeof(tempSettings->wifiNetworks[0].password));
                             knownSetting = true;
                         }
                     }
@@ -1330,7 +1335,7 @@ bool parseLine(const char *theLine)
                     int server;
                     if (sscanf(suffix, "%d", &server) == 1)
                     {
-                        settings.ntripServer_CasterEnabled[server] = d;
+                        tempSettings->ntripServer_CasterEnabled[server] = d;
                         knownSetting = true;
                     }
                 }
@@ -1339,8 +1344,8 @@ bool parseLine(const char *theLine)
                     int server;
                     if (sscanf(suffix, "%d", &server) == 1)
                     {
-                        strncpy(&settings.ntripServer_CasterHost[server][0], settingString,
-                                sizeof(settings.ntripServer_CasterHost[server]));
+                        strncpy(&tempSettings->ntripServer_CasterHost[server][0], settingString,
+                                sizeof(tempSettings->ntripServer_CasterHost[server]));
                         knownSetting = true;
                     }
                 }
@@ -1349,7 +1354,7 @@ bool parseLine(const char *theLine)
                     int server;
                     if (sscanf(suffix, "%d", &server) == 1)
                     {
-                        settings.ntripServer_CasterPort[server] = d;
+                        tempSettings->ntripServer_CasterPort[server] = d;
                         knownSetting = true;
                     }
                 }
@@ -1358,8 +1363,8 @@ bool parseLine(const char *theLine)
                     int server;
                     if (sscanf(suffix, "%d", &server) == 1)
                     {
-                        strncpy(&settings.ntripServer_CasterUser[server][0], settingString,
-                                sizeof(settings.ntripServer_CasterUser[server]));
+                        strncpy(&tempSettings->ntripServer_CasterUser[server][0], settingString,
+                                sizeof(tempSettings->ntripServer_CasterUser[server]));
                         knownSetting = true;
                     }
                 }
@@ -1368,8 +1373,8 @@ bool parseLine(const char *theLine)
                     int server;
                     if (sscanf(suffix, "%d", &server) == 1)
                     {
-                        strncpy(&settings.ntripServer_CasterUserPW[server][0], settingString,
-                                sizeof(settings.ntripServer_CasterUserPW[server]));
+                        strncpy(&tempSettings->ntripServer_CasterUserPW[server][0], settingString,
+                                sizeof(tempSettings->ntripServer_CasterUserPW[server]));
                         knownSetting = true;
                     }
                 }
@@ -1378,8 +1383,8 @@ bool parseLine(const char *theLine)
                     int server;
                     if (sscanf(suffix, "%d", &server) == 1)
                     {
-                        strncpy(&settings.ntripServer_MountPoint[server][0], settingString,
-                                sizeof(settings.ntripServer_MountPoint[server]));
+                        strncpy(&tempSettings->ntripServer_MountPoint[server][0], settingString,
+                                sizeof(tempSettings->ntripServer_MountPoint[server]));
                         knownSetting = true;
                     }
                 }
@@ -1388,8 +1393,8 @@ bool parseLine(const char *theLine)
                     int server;
                     if (sscanf(suffix, "%d", &server) == 1)
                     {
-                        strncpy(&settings.ntripServer_MountPointPW[server][0], settingString,
-                                sizeof(settings.ntripServer_MountPointPW[server]));
+                        strncpy(&tempSettings->ntripServer_MountPointPW[server][0], settingString,
+                                sizeof(tempSettings->ntripServer_MountPointPW[server]));
                         knownSetting = true;
                     }
                 }
@@ -1399,7 +1404,7 @@ bool parseLine(const char *theLine)
                     {
                         if ((suffix[0] == correctionGetName(x)[0]) && (strcmp(suffix, correctionGetName(x)) == 0))
                         {
-                            settings.correctionsSourcesPriority[x] = d;
+                            tempSettings->correctionsSourcesPriority[x] = d;
                             knownSetting = true;
                             break;
                         }
@@ -1410,8 +1415,8 @@ bool parseLine(const char *theLine)
                     int region;
                     if (sscanf(suffix, "%d", &region) == 1)
                     {
-                        strncpy(&settings.regionalCorrectionTopics[region][0], settingString,
-                                sizeof(settings.regionalCorrectionTopics[0]));
+                        strncpy(&tempSettings->regionalCorrectionTopics[region][0], settingString,
+                                sizeof(tempSettings->regionalCorrectionTopics[0]));
                         knownSetting = true;
                     }
                 }
