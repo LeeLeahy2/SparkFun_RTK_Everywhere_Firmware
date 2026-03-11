@@ -61,6 +61,92 @@ bool loadSystemSettingsFromFileSD(char *fileName,
 // We originally used EEPROM but it was limited to 4096 bytes. Each settings struct is ~4000 bytes
 // so multiple user profiles wouldn't fit. Preferences was limited to a single putBytes of ~3000 bytes.
 // So we moved again to SPIFFs. It's being replaced by LittleFS so here we are.
+//
+// Return true if profile name was updated
+bool loadSettingsUsingTempSetting(bool startFromDefault)
+{
+    bool loadSuccessful;
+    bool profileNameUpdate;
+    bool settingsAllocated;
+    struct Settings * tempSettings;
+
+    // Allocate the tempSettings structure
+    settingsAllocated = false;
+    tempSettings = (struct Settings *)rtkMalloc(sizeof(*tempSettings), "loadSettings tempSettings");
+    if (tempSettings)
+    {
+        settingsAllocated = true;
+        if (settings.debugSettings)
+            systemPrintf("Allocated tempSettings: %p\r\n", (void *)tempSettings);
+
+        // Initialize the temporary settings
+        if (startFromDefault)
+            getDefaultSettings(tempSettings);
+        else
+            memcpy(tempSettings, &settings, sizeof(settings));
+    }
+    else
+    {
+        systemPrintf("ERROR: loadSettings failed to allocate tempSettings, using settings!\r\n");
+        reportHeapNow(true);
+        tempSettings = &settings;
+    }
+
+    // If we have a profile in both LFS and SD, the SD settings will overwrite LFS
+    // This will fail if LFS has been erased, a read error occurs or the file is
+    // corrupt.
+    loadSuccessful = loadSystemSettingsFromFileLFS(settingsFileName, tempSettings);
+    if (settingsAllocated)
+    {
+        if (loadSuccessful)
+            // Update the settings
+            memcpy(&settings, tempSettings, sizeof(settings));
+
+        // Restore the temporary settings upon load failure
+        else if (startFromDefault)
+            getDefaultSettings(tempSettings);
+        else
+            memcpy(tempSettings, &settings, sizeof(settings));
+    }
+
+    // Temporarily store any variables from LFS that should override SD
+    int resetCount = tempSettings->resetCount;
+    uint32_t gnssConfigureRequest = tempSettings->gnssConfigureRequest;
+
+    // Load the settings from the SD card
+    // This will fail if no SD is present. That's OK.
+    loadSuccessful = loadSystemSettingsFromFileSD(settingsFileName, tempSettings);
+    if (settingsAllocated)
+    {
+        // Update the settings with the values read from the SD card
+        if (loadSuccessful)
+            memcpy(&settings, tempSettings, sizeof(settings));
+
+        // Done with the tempSettings
+        if (settings.debugSettings)
+            systemPrintf("Freeing tempSettings: %p\r\n", (void *)tempSettings);
+        rtkFree(tempSettings, "loadSettings tempSettings");
+
+        // Restore the LFS settings values that should override SD card values
+        settings.resetCount = resetCount; // resetCount from LFS should override SD
+
+        // Trust gnssConfigureRequest from LittleFS over SD.
+        // LittleFS may have been erased, SD could be stale.
+        settings.gnssConfigureRequest = gnssConfigureRequest;
+    }
+
+    // Change empty profile name to 'Profile1' etc
+    profileNameUpdate = (strlen(settings.profileName) == 0);
+    if (profileNameUpdate)
+        snprintf(settings.profileName, sizeof(settings.profileName), "Profile%d", profileNumber + 1);
+    return profileNameUpdate;
+}
+
+// We use the LittleFS library to store user profiles in SPIFFs
+// Move selected user profile from SPIFFs into settings struct (RAM)
+// We originally used EEPROM but it was limited to 4096 bytes. Each settings struct is ~4000 bytes
+// so multiple user profiles wouldn't fit. Preferences was limited to a single putBytes of ~3000 bytes.
+// So we moved again to SPIFFs. It's being replaced by LittleFS so here we are.
 void loadSettings()
 {
     bool loadSuccessful;
