@@ -113,16 +113,8 @@ void updateLora()
             if (settings.debugLora == true)
                 systemPrintln("LoRa: Moving to TX");
 
-            // Paul's notes:
-            // This is weird. If the code follows this path,
-            // loraSetupTransmit() is never called... I can
-            // only assume that the LoRa defaults to TX (MODE=0)
-            // and that the frequency etc. is somehow already
-            // correct?
-            // TODO: check if we should be calling loraSetupTransmit()
-            //       here?
-            // Also, it would be nice to add proper changeState code
-            // so the loraState changes are more apparent.
+            // Configure LoRa for transmit and move to LORA_TX
+            loraSetupTransmit();
 
             loraState = LORA_TX;
         }
@@ -130,6 +122,8 @@ void updateLora()
         {
             if (settings.debugLora == true)
                 systemPrintln("LoRa: Moving to TX Settling");
+
+            // loraSetupTransmit(); is called in LORA_TX_SETTLING when survey-in is complete
 
             loraState = LORA_TX_SETTLING;
         }
@@ -142,10 +136,9 @@ void updateLora()
             if (settings.debugLora == true)
                 systemPrintln("LoRa: Moving to RX Dedicated");
 
-            loraSetupReceive();
+            // LoRa radio is connected to GNSS in loraSetupReceive()
 
-            // Confirm LoRa radio is directly connected to GNSS
-            gpioExpanderSelectLoraCommunication();
+            loraSetupReceive();
 
             loraState = LORA_RX_DEDICATED;
         }
@@ -674,11 +667,21 @@ void beginLoraFirmwareUpdate()
 
 void loraSetupTransmit()
 {
+     // If platform has a dedicated LoRa UART - i.e. Facet FP
+    // Set the switch(es) to connect the GNSS to LoRa
+    if (present.loraDedicatedUart == true)
+            gpioExpanderSelectLoraCommunication();
+            
     loraSetup(true);
 }
 
 void loraSetupReceive()
 {
+    // If platform has a dedicated LoRa UART - i.e. Facet FP
+    // Set the switch(es) to connect the GNSS to LoRa
+    if (present.loraDedicatedUart == true)
+            gpioExpanderSelectLoraCommunication();
+
     loraSetup(false);
 }
 
@@ -690,15 +693,28 @@ void loraSetup(bool transmit)
         char response[512];
         int responseLength = sizeof(response);
 
+        char command[100];
+
         bool configureSuccess = true;
 
-        // Enable transmit mode
-        // response and responseLength are modified
-        responseLength = sizeof(response);
         if (transmit == true)
+        {
+            // Enable transmit mode
+            // response and responseLength are modified
+            responseLength = sizeof(response);
             configureSuccess &= loraSendCommand("AT+MODE=0", response, &responseLength); // 0 - Transmit, 1 - Receive
+
+            responseLength = sizeof(response);
+            snprintf(command, sizeof(command), "AT+PWR=%d", settings.loraTransmitPower_dBm);
+            configureSuccess &= loraSendCommand(command, response, &responseLength);
+        }
         else
+        {
+            // Enable receive mode
+            // response and responseLength are modified
+            responseLength = sizeof(response);
             configureSuccess &= loraSendCommand("AT+MODE=1", response, &responseLength); // 0 - Transmit, 1 - Receive
+        }
 
         // On Facet FP, we need to send AT+DPRT=0 to set the data port to UART1
         if (productVariant == RTK_FACET_FP)
@@ -709,8 +725,7 @@ void loraSetup(bool transmit)
 
         // Set frequency
         responseLength = sizeof(response);
-        char command[100];
-        snprintf(command, sizeof(command), "AT+FRQ=%0.3f %0.3f\r\n", settings.loraCoordinationFrequency,
+        snprintf(command, sizeof(command), "AT+FRQ=%0.3f %0.3f", settings.loraCoordinationFrequency,
                  settings.loraCoordinationFrequency);
         configureSuccess &= loraSendCommand(command, response, &responseLength);
 
