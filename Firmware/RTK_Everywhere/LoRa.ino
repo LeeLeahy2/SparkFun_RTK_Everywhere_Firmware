@@ -113,8 +113,16 @@ void updateLora()
             if (settings.debugLora == true)
                 systemPrintln("LoRa: Moving to TX");
 
-            // Configure LoRa for transmit and move to LORA_TX
-            loraSetupTransmit();
+            // Paul's notes:
+            // This is weird. If the code follows this path,
+            // loraSetupTransmit() is never called... I can
+            // only assume that the LoRa defaults to TX (MODE=0)
+            // and that the frequency etc. is somehow already
+            // correct?
+            // TODO: check if we should be calling loraSetupTransmit()
+            //       here?
+            // Also, it would be nice to add proper changeState code
+            // so the loraState changes are more apparent.
 
             loraState = LORA_TX;
         }
@@ -122,8 +130,6 @@ void updateLora()
         {
             if (settings.debugLora == true)
                 systemPrintln("LoRa: Moving to TX Settling");
-
-            // loraSetupTransmit(); is called in LORA_TX_SETTLING when survey-in is complete
 
             loraState = LORA_TX_SETTLING;
         }
@@ -136,9 +142,10 @@ void updateLora()
             if (settings.debugLora == true)
                 systemPrintln("LoRa: Moving to RX Dedicated");
 
-            // LoRa radio is connected to GNSS in loraSetupReceive()
-
             loraSetupReceive();
+
+            // Confirm LoRa radio is directly connected to GNSS
+            gpioExpanderSelectLoraCommunication();
 
             loraState = LORA_RX_DEDICATED;
         }
@@ -667,21 +674,11 @@ void beginLoraFirmwareUpdate()
 
 void loraSetupTransmit()
 {
-    // If platform has a dedicated LoRa UART - i.e. Facet FP
-    // Set the switch(es) to connect the GNSS to LoRa
-    if (present.loraDedicatedUart == true)
-            gpioExpanderSelectLoraCommunication();
-            
     loraSetup(true);
 }
 
 void loraSetupReceive()
 {
-    // If platform has a dedicated LoRa UART - i.e. Facet FP
-    // Set the switch(es) to connect the GNSS to LoRa
-    if (present.loraDedicatedUart == true)
-            gpioExpanderSelectLoraCommunication();
-
     loraSetup(false);
 }
 
@@ -708,9 +705,6 @@ void loraSetup(bool transmit)
         {
             responseLength = sizeof(response);
             configureSuccess &= loraSendCommand("AT+DPRT=0", response, &responseLength);
-
-            responseLength = sizeof(response);
-            configureSuccess &= loraSendCommand("AT+PWR=0", response, &responseLength); // TODO: DELETE_ME
         }
 
         // Set frequency
