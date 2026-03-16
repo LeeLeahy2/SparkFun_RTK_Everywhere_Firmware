@@ -866,8 +866,8 @@ function parseIncoming(msg) {
         }
 
         //Convert incoming mm to local meters
-        else if (id.includes("antennaHeight_mm")) {
-            ge("antennaHeight_m").value = val / 1000.0;
+        else if (id.includes("antennaHeight")) {
+            ge("antennaHeightM").value = val / 1000.0;
         }
 
         //enableExtCorrRadio should be bool but is sent as uint8_t because it _could_ be 254
@@ -929,7 +929,7 @@ function parseIncoming(msg) {
         ge("enableExternalHardwareEventLogging").dispatchEvent(new CustomEvent('change'));
         ge("enableEspNow").dispatchEvent(new CustomEvent('change'));
         ge("enableLora").dispatchEvent(new CustomEvent('change'));
-        ge("antennaPhaseCenter_mm").dispatchEvent(new CustomEvent('change'));
+        ge("antennaPhaseCenter").dispatchEvent(new CustomEvent('change')); // Covers antennaHeightM too
         ge("enableLogging").dispatchEvent(new CustomEvent('change'));
         ge("enableLoggingRINEX").dispatchEvent(new CustomEvent('change'));
         ge("enableARPLogging").dispatchEvent(new CustomEvent('change'));
@@ -1316,8 +1316,8 @@ function validateFields() {
             checkLatLong(); //Verify Lat/Long input type
             checkElementValue("fixedAltitude", -11034, 8849, "Must be -11034 to 8849", "collapseBaseConfig");
 
-            checkElementValue("antennaHeight_m", -15, 15, "Must be -15 to 15", "collapseBaseConfig");
-            checkElementValue("antennaPhaseCenter_mm", -200.0, 200.0, "Must be -200.0 to 200.0", "collapseBaseConfig");
+            checkElementValue("antennaHeightM", -15, 15, "Must be -15 to 15", "collapseBaseConfig");
+            checkElementValue("antennaPhaseCenter", -200.0, 200.0, "Must be -200.0 to 200.0", "collapseBaseConfig");
         }
     }
 
@@ -1385,15 +1385,15 @@ function validateFields() {
     //Radio Config
     if (ge("enableLora").checked == true) {
         checkElementValue("loraCoordinationFrequency", 903, 927, "Must be 903 to 927", "collapseRadioConfig");
-        checkElementValue("loraSerialInteractionTimeout_s", 10, 600, "Must be 10 to 600", "collapseRadioConfig");
+        checkElementValue("loraSerialInteractionTimeout", 10, 600, "Must be 10 to 600", "collapseRadioConfig");
     }
 
     //Corrections Config
     checkElementValue("correctionsSourcesLifetime", 5, 120, "Must be 5 to 120", "collapseCorrectionsPriorityConfig");
 
     //Instrument Config
-    checkElementValue("antennaHeight_m", -15, 15, "Must be -15 to 15", "collapseBaseConfig");
-    checkElementValue("antennaPhaseCenter_mm", -200.0, 200.0, "Must be -200.0 to 200.0", "collapseBaseConfig");
+    checkElementValue("antennaHeightM", -15, 15, "Must be -15 to 15", "collapseBaseConfig");
+    checkElementValue("antennaPhaseCenter", -200.0, 200.0, "Must be -200.0 to 200.0", "collapseBaseConfig");
 
     //System Config
     if (ge("enableLogging").checked == true) {
@@ -2132,22 +2132,22 @@ document.addEventListener("DOMContentLoaded", (event) => {
             show("geodeticConfig");
 
             if (platformPrefix == "Facet X5") {
-                ge("antennaPhaseCenter_mm").value = 68.5; //Average of L1/L2
+                ge("antennaPhaseCenter").value = 68.5; //Average of L1/L2
             }
             else if (platformPrefix == "Torch") {
-                ge("antennaPhaseCenter_mm").value = 129.0; //Average of L1/L2
+                ge("antennaPhaseCenter").value = 129.0; //Average of L1/L2
             }
             else if (platformPrefix == "TX2") {
-                ge("antennaPhaseCenter_mm").value = 129.0; //Average of L1/L2
+                ge("antennaPhaseCenter").value = 129.0; //Average of L1/L2
             }
             else if (platformPrefix == "EVK") {
-                ge("antennaPhaseCenter_mm").value = 42.0; //Average of L1/L2
+                ge("antennaPhaseCenter").value = 42.0; //Average of L1/L2
             }
             else if (platformPrefix.substring(0, 2) == "FP") {
-                ge("antennaPhaseCenter_mm").value = 62.0; //APC from drawings - TBC
+                ge("antennaPhaseCenter").value = 62.0; //APC from drawings - TBC
             }
             else {
-                ge("antennaPhaseCenter_mm").value = 0.0;
+                ge("antennaPhaseCenter").value = 0.0;
             }
         }
     });
@@ -2294,11 +2294,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
         adjustHAE();
     });
 
-    ge("antennaHeight_m").addEventListener("change", function () {
+    ge("antennaHeightM").addEventListener("change", function () {
         adjustHAE();
     });
 
-    ge("antennaPhaseCenter_mm").addEventListener("change", function () {
+    ge("antennaPhaseCenter").addEventListener("change", function () {
         adjustHAE();
     });
 
@@ -2511,8 +2511,8 @@ function addGeodetic() {
     checkElementString("nicknameGeodetic", 1, 49, "Must be 1 to 49 characters", "collapseBaseConfig");
     checkLatLong();
     checkElementValue("fixedAltitude", -11034, 8849, "Must be -11034 to 8849", "collapseBaseConfig");
-    checkElementValue("antennaHeight_m", -15, 15, "Must be -15 to 15", "collapseBaseConfig");
-    checkElementValue("antennaPhaseCenter_mm", -200.0, 200.0, "Must be -200.0 to 200.0", "collapseBaseConfig");
+    checkElementValue("antennaHeightM", -15, 15, "Must be -15 to 15", "collapseBaseConfig");
+    checkElementValue("antennaPhaseCenter", -200.0, 200.0, "Must be -200.0 to 200.0", "collapseBaseConfig");
 
     if (errorCount == 0) {
         //Check name against the list
@@ -2520,12 +2520,12 @@ function addGeodetic() {
         for (; index < recordsGeodetic.length; ++index) {
             var parts = recordsGeodetic[index].split(' ');
             if (ge("nicknameGeodetic").value == parts[0]) {
-                recordsGeodetic[index] = nicknameGeodetic.value + ' ' + fixedLatText.value + ' ' + fixedLongText.value + ' ' + fixedAltitude.value + ' ' + antennaHeight_m.value + ' ' + antennaPhaseCenter_mm.value;
+                recordsGeodetic[index] = nicknameGeodetic.value + ' ' + fixedLatText.value + ' ' + fixedLongText.value + ' ' + fixedAltitude.value + ' ' + antennaHeightM.value + ' ' + antennaPhaseCenter.value;
                 break;
             }
         }
         if (index == recordsGeodetic.length)
-            recordsGeodetic.push(nicknameGeodetic.value + ' ' + fixedLatText.value + ' ' + fixedLongText.value + ' ' + fixedAltitude.value + ' ' + antennaHeight_m.value + ' ' + antennaPhaseCenter_mm.value);
+            recordsGeodetic.push(nicknameGeodetic.value + ' ' + fixedLatText.value + ' ' + fixedLongText.value + ' ' + fixedAltitude.value + ' ' + antennaHeightM.value + ' ' + antennaPhaseCenter.value);
     }
 
     updateGeodeticList();
@@ -2551,13 +2551,13 @@ function adjustHAE() {
     if (haeMethod == 1) {
         ge("fixedHAEAPC").disabled = false;
         ge("fixedAltitude").disabled = true;
-        hae = Number(ge("fixedHAEAPC").value) - (Number(ge("antennaHeight_m").value) + Number(ge("antennaPhaseCenter_mm").value) / 1000);
+        hae = Number(ge("fixedHAEAPC").value) - (Number(ge("antennaHeightM").value) + Number(ge("antennaPhaseCenter").value) / 1000);
         ge("fixedAltitude").value = hae.toFixed(3);
     }
     else {
         ge("fixedHAEAPC").disabled = true;
         ge("fixedAltitude").disabled = false;
-        hae = Number(ge("fixedAltitude").value) + (Number(ge("antennaHeight_m").value) + Number(ge("antennaPhaseCenter_mm").value) / 1000);
+        hae = Number(ge("fixedAltitude").value) + (Number(ge("antennaHeightM").value) + Number(ge("antennaPhaseCenter").value) / 1000);
         ge("fixedHAEAPC").value = hae.toFixed(3);
     }
 }
@@ -2583,8 +2583,8 @@ function loadGeodetic() {
                 }
             }
             ge("fixedAltitude").value = parts[numParts - 3];
-            ge("antennaHeight_m").value = parts[numParts - 2];
-            ge("antennaPhaseCenter_mm").value = parts[numParts - 1];
+            ge("antennaHeightM").value = parts[numParts - 2];
+            ge("antennaPhaseCenter").value = parts[numParts - 1];
 
             $("input[name=markRadio][value=1]").prop('checked', false);
             $("input[name=markRadio][value=2]").prop('checked', true);
@@ -2595,8 +2595,8 @@ function loadGeodetic() {
             clearError("fixedLatText");
             clearError("fixedLongText");
             clearError("fixedAltitude");
-            clearError("antennaHeight_m");
-            clearError("antennaPhaseCenter_mm");
+            clearError("antennaHeightM");
+            clearError("antennaPhaseCenter");
         }
         else {
             console.log("stationGeodetic split error");
