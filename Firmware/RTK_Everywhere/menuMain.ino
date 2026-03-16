@@ -513,7 +513,7 @@ void menuRadio()
                     systemPrintf("10) LoRa Radio: Enabled - Firmware v%s\r\n", loraFirmwareVersion);
 
                 systemPrintf("11) LoRa Coordination Frequency: %0.3f\r\n", settings.loraCoordinationFrequency);
-                systemPrintf("12) LoRa Transmit Power: %d\r\n", settings.loraTransmitPower_dBm);
+                systemPrintf("12) LoRa Transmit Power: %ddBm\r\n", settings.loraTransmitPower_dBm);
                 if (present.loraDedicatedUart == false)
                     systemPrintf("13) Seconds without user serial that must elapse before LoRa radio goes "
                                  "into dedicated listening mode: %d\r\n",
