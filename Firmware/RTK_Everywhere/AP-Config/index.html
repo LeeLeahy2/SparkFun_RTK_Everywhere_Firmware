@@ -1829,8 +1829,8 @@
                             </span>
                         </div>
                         <div class="col-sm-4 col-5 ms-3 form-group">
-                            <input type="number" class="form-control mb-2" id="loraSerialInteractionTimeout_s">
-                            <p id="loraSerialInteractionTimeout_sError" class="inlineError"></p>
+                            <input type="number" class="form-control mb-2" id="loraSerialInteractionTimeout">
+                            <p id="loraSerialInteractionTimeoutError" class="inlineError"></p>
                         </div>
 
                     </div>
@@ -1921,9 +1921,9 @@
                     </div>
                 </div>
 
-                <div id="antennaPhaseCenter_mmConfig">
+                <div id="antennaPhaseCenterConfig">
                     <div class="form-group row">
-                        <label for="antennaPhaseCenter_mm" class="col-sm-4 col-6 col-form-label">Antenna Phase
+                        <label for="antennaPhaseCenter" class="col-sm-4 col-6 col-form-label">Antenna Phase
                             Center (mm):
                             <span class="tt" data-bs-placement="right"
                                 title="APC is the distance from the base of the antenna to the antenna phase center. This is usually printed on the side of the antenna and is calculated during antenna calibration. Amount is added to HAE before starting fixed base. Common APCs: Torch(129mm) EVK(42mm) Facet mosaic(69mm)">
@@ -1931,15 +1931,15 @@
                             </span>
                         </label>
                         <div class="col-sm-4 col-6">
-                            <input type="number" class="form-control" id="antennaPhaseCenter_mm">
-                            <p id="antennaPhaseCenter_mmError" class="inlineError"></p>
+                            <input type="number" class="form-control" id="antennaPhaseCenter">
+                            <p id="antennaPhaseCenterError" class="inlineError"></p>
                         </div>
                     </div>
                 </div>
 
-                <div id="antennaHeight_mConfig">
+                <div id="antennaHeightMConfig">
                     <div class="form-group row">
-                        <label for="antennaHeight_m" class="col-sm-4 col-6 col-form-label">Antenna Height (a.k.a.
+                        <label for="antennaHeightM" class="col-sm-4 col-6 col-form-label">Antenna Height (a.k.a.
                             Pole Length) (m):
                             <span class="tt" data-bs-placement="right"
                                 title="This is the length of the prism pole and any included extensions. No additional ARP should be included. Default: 1.8m">
@@ -1947,8 +1947,8 @@
                             </span>
                         </label>
                         <div class="col-sm-4 col-6">
-                            <input type="number" class="form-control" id="antennaHeight_m">
-                            <p id="antennaHeight_mError" class="inlineError"></p>
+                            <input type="number" class="form-control" id="antennaHeightM">
+                            <p id="antennaHeightMError" class="inlineError"></p>
                         </div>
                     </div>
                 </div>

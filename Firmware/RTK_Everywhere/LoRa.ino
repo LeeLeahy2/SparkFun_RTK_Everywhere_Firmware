@@ -113,6 +113,9 @@ void updateLora()
             if (settings.debugLora == true)
                 systemPrintln("LoRa: Moving to TX");
 
+            // Configure LoRa for transmit and move to LORA_TX
+            loraSetupTransmit();
+
             loraState = LORA_TX;
         }
         else if (inBaseMode() && settings.fixedBase == false)
@@ -120,14 +123,22 @@ void updateLora()
             if (settings.debugLora == true)
                 systemPrintln("LoRa: Moving to TX Settling");
 
+            // loraSetupTransmit(); is called in LORA_TX_SETTLING when survey-in is complete
+
             loraState = LORA_TX_SETTLING;
         }
         else if (present.loraDedicatedUart == true)
         {
-            // If we have a dedicated UART, we do not need to test for an attached USB cable
+            // If we have a dedicated UART, we do not need to test for an attached USB cable.
+            // We also don't need the dedicated listening mode. LORA_RX_DEDICATED will ignore
+            // settings.loraSerialInteractionTimeout_s
 
-            // Confirm LoRa radio is directly connected to GNSS
-            gpioExpanderSelectLoraCommunication();
+            if (settings.debugLora == true)
+                systemPrintln("LoRa: Moving to RX Dedicated");
+
+            // LoRa radio is connected to GNSS in loraSetupReceive()
+
+            loraSetupReceive();
 
             loraState = LORA_RX_DEDICATED;
         }
@@ -592,10 +603,11 @@ void beginLoraFirmwareUpdate()
     paintLoRaUpdate();
 
     systemPrintln();
-    systemPrintln("Entering STM32 direct connect for firmware update. Disconnect this terminal connection. Use "
-                  "'STM32CubeProgrammer' to update the "
-                  "firmware. Baudrate: 57600bps. Parity: None. RTS/DTR: High. Press the power button to return "
-                  "to normal operation.");
+    systemPrintln("Entering STM32 direct connect for firmware update");
+    systemPrintln("Disconnect this terminal connection");
+    systemPrintln("Use 'STM32CubeProgrammer' to update the firmware:");
+    systemPrintln("Baudrate: 57600bps. Parity: None. RTS/DTR: High");
+    systemPrintln("Press the power button to return to normal operation");
 
     systemFlush(); // Complete prints
 
@@ -655,11 +667,21 @@ void beginLoraFirmwareUpdate()
 
 void loraSetupTransmit()
 {
+     // If platform has a dedicated LoRa UART - i.e. Facet FP
+    // Set the switch(es) to connect the GNSS to LoRa
+    if (present.loraDedicatedUart == true)
+            gpioExpanderSelectLoraCommunication();
+            
     loraSetup(true);
 }
 
 void loraSetupReceive()
 {
+    // If platform has a dedicated LoRa UART - i.e. Facet FP
+    // Set the switch(es) to connect the GNSS to LoRa
+    if (present.loraDedicatedUart == true)
+            gpioExpanderSelectLoraCommunication();
+
     loraSetup(false);
 }
 
@@ -671,24 +693,43 @@ void loraSetup(bool transmit)
         char response[512];
         int responseLength = sizeof(response);
 
+        char command[100];
+
         bool configureSuccess = true;
 
-        // Enable transmit mode
-        // response and responseLength are modified
-        responseLength = sizeof(response);
         if (transmit == true)
+        {
+            // Enable transmit mode
+            // response and responseLength are modified
+            responseLength = sizeof(response);
             configureSuccess &= loraSendCommand("AT+MODE=0", response, &responseLength); // 0 - Transmit, 1 - Receive
+
+            responseLength = sizeof(response);
+            snprintf(command, sizeof(command), "AT+PWR=%d", settings.loraTransmitPower_dBm);
+            configureSuccess &= loraSendCommand(command, response, &responseLength);
+        }
         else
+        {
+            // Enable receive mode
+            // response and responseLength are modified
+            responseLength = sizeof(response);
             configureSuccess &= loraSendCommand("AT+MODE=1", response, &responseLength); // 0 - Transmit, 1 - Receive
+        }
+
+        // On Facet FP, we need to send AT+DPRT=0 to set the data port to UART1
+        if (productVariant == RTK_FACET_FP)
+        {
+            responseLength = sizeof(response);
+            configureSuccess &= loraSendCommand("AT+DPRT=0", response, &responseLength);
+        }
 
         // Set frequency
         responseLength = sizeof(response);
-
-        char command[100];
-        snprintf(command, sizeof(command), "AT+FRQ=%0.3f %0.3f\r\n", settings.loraCoordinationFrequency,
+        snprintf(command, sizeof(command), "AT+FRQ=%0.3f %0.3f", settings.loraCoordinationFrequency,
                  settings.loraCoordinationFrequency);
         configureSuccess &= loraSendCommand(command, response, &responseLength);
 
+        // Enter TRANSfer
         responseLength = sizeof(response);
         configureSuccess &= loraSendCommand("AT+TRANS", response, &responseLength);
 

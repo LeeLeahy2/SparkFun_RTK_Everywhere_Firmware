@@ -1157,11 +1157,12 @@ struct Settings
 
     bool requestKeyUpdate = false; // Set to true to force a key provisioning attempt
 
+    bool debugLora = false;
     bool enableLora = false;
     float loraCoordinationFrequency = 910.000;
-    bool debugLora = false;
-    int loraSerialInteractionTimeout_s = 30; //Seconds without user serial that must elapse before LoRa radio goes into dedicated listening mode
-    bool enableMultipathMitigation = true; //Multipath mitigation. UM980 specific.
+    int loraSerialInteractionTimeout_s = 30; // Seconds without user serial that must elapse before LoRa radio goes into dedicated listening mode
+    int loraTransmitPower_dBm = 10; // Passed to LoRa as AT+PWR=
+    bool enableMultipathMitigation = true; // Multipath mitigation. UM980 specific.
 
 #ifdef COMPILE_LG290P
     uint8_t lg290pConstellations[MAX_LG290P_CONSTELLATIONS] = {254}; // Mark first record with key so defaults will be applied.
@@ -1333,8 +1334,8 @@ const RTK_Settings_Entry rtkSettingsEntries[] =
 //    i  d  i  v  i  c  r  F    X
 //    g  s  x  k  c  h  d  P    2  Type       Qual                Variable                  Name              afterSetCmd
     // Antenna
-    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, _int16_t,  0, & settings.antennaHeight_mm, "antennaHeight_mm", nullptr, },
-    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, _float,    2, & settings.antennaPhaseCenter_mm, "antennaPhaseCenter_mm", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, _int16_t,  0, & settings.antennaHeight_mm, "antennaHeight", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, _float,    2, & settings.antennaPhaseCenter_mm, "antennaPhaseCenter", nullptr, },
     { 1, 1, 0, 1, 1, 0, 1, ALL, 0, _uint16_t, 0, & settings.ARPLoggingInterval_s, "ARPLoggingInterval", nullptr, },
     { 1, 1, 0, 1, 1, 0, 1, ALL, 0, _bool,     0, & settings.enableARPLogging, "enableARPLogging", nullptr, },
 
@@ -1799,10 +1800,11 @@ const RTK_Settings_Entry rtkSettingsEntries[] =
     { 0, 1, 0, 1, 1, 1, 1, ALL, 1, _bool,     0, & settings.requestKeyUpdate, "requestKeyUpdate", nullptr, },
 
     // LoRa
+    { 0, 0, 0, 0, 0, 1, 0, ALL, 0, _bool,     3, & settings.debugLora, "debugLora", nullptr, },
     { 1, 1, 0, 0, 0, 1, 0, ALL, 0, _bool,     0, & settings.enableLora, "enableLora", nullptr, },
     { 1, 1, 0, 0, 0, 1, 0, ALL, 0, _float,    3, & settings.loraCoordinationFrequency, "loraCoordinationFrequency", nullptr, },
-    { 0, 0, 0, 0, 0, 1, 0, ALL, 0, _bool,     3, & settings.debugLora, "debugLora", nullptr, },
-    { 1, 1, 0, 0, 0, 1, 0, ALL, 0, _int,      3, & settings.loraSerialInteractionTimeout_s, "loraSerialInteractionTimeout_s", nullptr, },
+    { 1, 1, 0, 0, 0, 1, 0, ALL, 0, _int,      0, & settings.loraSerialInteractionTimeout_s, "loraSerialInteractionTimeout", nullptr, },
+    { 0, 0, 0, 0, 0, 1, 0, ALL, 0, _int,      0, & settings.loraTransmitPower_dBm, "loraTransmitPower", nullptr, },
 
 //                F
 //    i           a
@@ -1828,7 +1830,7 @@ const RTK_Settings_Entry rtkSettingsEntries[] =
     { 1, 1, 0, 1, 1, 1, 1, ALL, 1, _bool,     0, & settings.enableNtripCaster, "enableNtripCaster", nullptr, },
     { 0, 1, 0, 1, 1, 1, 1, ALL, 1, _bool,     0, & settings.baseCasterOverride, "baseCasterOverride", nullptr, },
     { 0, 0, 0, 1, 1, 1, 1, ALL, 1, _bool,     0, & settings.debugCLI, "debugCLI", nullptr, },
-    { 0, 0, 0, 1, 1, 1, 1, ALL, 1, _uint16_t, 0, & settings.cliBlePrintDelay_ms, "cliBlePrintDelay_ms", nullptr, },
+    { 0, 0, 0, 1, 1, 1, 1, ALL, 1, _uint16_t, 0, & settings.cliBlePrintDelay_ms, "cliBlePrintDelay", nullptr, },
     { 0, 0, 0, 1, 1, 1, 1, ALL, 1, _uint32_t, 0, & settings.gnssConfigureRequest, "gnssConfigureRequest", nullptr, },
 
     { 1, 1, 0, 0, 0, 1, 1, HAS, 1, _int,      0, & settings.pppMode, "pppMode", nullptr, },

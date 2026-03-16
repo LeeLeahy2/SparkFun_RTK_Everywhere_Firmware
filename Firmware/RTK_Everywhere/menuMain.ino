@@ -513,9 +513,11 @@ void menuRadio()
                     systemPrintf("10) LoRa Radio: Enabled - Firmware v%s\r\n", loraFirmwareVersion);
 
                 systemPrintf("11) LoRa Coordination Frequency: %0.3f\r\n", settings.loraCoordinationFrequency);
-                systemPrintf("12) Seconds without user serial that must elapse before LoRa radio goes into dedicated "
-                             "listening mode: %d\r\n",
-                             settings.loraSerialInteractionTimeout_s);
+                systemPrintf("12) LoRa Transmit Power: %ddBm\r\n", settings.loraTransmitPower_dBm);
+                if (present.loraDedicatedUart == false)
+                    systemPrintf("13) Seconds without user serial that must elapse before LoRa radio goes "
+                                 "into dedicated listening mode: %d\r\n",
+                                 settings.loraSerialInteractionTimeout_s);
             }
         }
 
@@ -672,6 +674,12 @@ void menuRadio()
                           &settings.loraCoordinationFrequency);
         }
         else if (present.radio_lora == true && settings.enableLora == true && incoming == 12)
+        {
+            getNewSetting("Enter the transmit power in dBm",
+                          0, 13, &settings.loraTransmitPower_dBm);
+        }
+        else if (present.radio_lora == true && settings.enableLora == true 
+                 && present.loraDedicatedUart == false && incoming == 13)
         {
             getNewSetting("Enter the number of seconds without user serial that must elapse before LoRa radio goes "
                           "into dedicated listening mode",
