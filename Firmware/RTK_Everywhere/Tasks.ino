@@ -1606,8 +1606,13 @@ void handleGnssDataTask(void *e)
 
         sendRTCMToConsumers();
 
-        if ((millis() - startMillis) > settings.networkClientWriteTimeout_ms)
-            slowConsumer = "RTCM Consumers";
+        if ((millis() - startMillis) > RTCM_CORRECTION_WRITE_TIMEOUT)
+        {
+            uint32_t milliseconds = millis() - startMillis;
+            uint32_t seconds = milliseconds / MILLISECONDS_IN_A_SECOND;
+            milliseconds -= seconds * MILLISECONDS_IN_A_SECOND;
+            systemPrintf("\aWARNING: RTCM writes took %d.%03d seconds!\r\n", seconds, milliseconds);
+        }
 
         usedSpace = 0;
 
