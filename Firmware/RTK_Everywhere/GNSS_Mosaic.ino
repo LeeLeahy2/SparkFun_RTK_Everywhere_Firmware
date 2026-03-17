@@ -932,7 +932,7 @@ uint32_t GNSS_MOSAIC::getCOMBaudRate(uint8_t port) // returns 0 if the get fails
 }
 
 //----------------------------------------
-// Mosaic COM3 is connected to the Data connector - via the multiplexer
+// On Facet Mosaic: COM3 is connected to the Data connector - via the multiplexer
 // Outputs:
 //   Returns 0 if the get fails
 //----------------------------------------
@@ -1136,7 +1136,7 @@ uint8_t GNSS_MOSAIC::getMonth()
 uint32_t GNSS_MOSAIC::getNanosecond()
 {
     // mosaicX5 does not have nanosecond, but it does have millisecond (from ToW)
-    return _millisecond * 1000L; // Convert to ns
+    return _millisecond * 1000000L; // Convert to ns
 }
 
 //----------------------------------------
@@ -2550,8 +2550,37 @@ bool GNSS_MOSAIC::setRate(double secondsBetweenSolutions)
 //----------------------------------------
 bool GNSS_MOSAIC::setTilt()
 {
-    // Not yet supported on this platform
-    return (true); // Return true to clear gnssConfigure test
+    // Only supported on Facet FP
+    // We need to output NMEA GGA+GST+RMC at 5Hz on COM3 at 115200 baud
+
+    bool response = true; // Default to true to clear gnssConfigure test
+
+    if (variantHousingProperties->tiltPossible == true && present.imu_im19 == true)
+    {
+        if (settings.enableTiltCompensation == true)
+        {
+            // Configure COM3 for NMEA and RTCMv3 output. Not encapsulated.
+            // For now, disable input on COM3 just in case the IM19 is outputting fmi messages
+            // that could confused the mosaic
+            response &= sendWithResponse("sdio,COM3,none,RTCMv3+NMEA\n\r", "DataInOut");
+
+            // Configure COM3 for 115200 baud
+            response &= sendWithResponse("scs,COM3,baud115200,bits8,No,bit1,none\n\r", "COMSettings");
+
+            // Configure Stream9 for GGA+GST+RMC at 5Hz on COM3
+            String setting =
+                String("sno,Stream" + String(MOSAIC_TILT_NMEA_STREAM) + ",COM3,GGA+GST+RMC,msec200\n\r");
+            response &= sendWithResponse(setting, "NMEAOutput");
+        }
+        else
+        {
+            String setting =
+                String("sno,Stream" + String(MOSAIC_TILT_NMEA_STREAM) + ",COM3,none,off\n\r");
+            response &= sendWithResponse(setting, "NMEAOutput");
+        }
+    }
+
+    return (response);
 }
 
 //----------------------------------------
