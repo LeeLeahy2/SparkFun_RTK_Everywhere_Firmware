@@ -845,7 +845,7 @@ const char *stateToRtkMode(SystemState state)
             return "Base Caster";
     }
 
-    return modeName;
+    return (const char *)modeName;
 }
 
 bool inRoverMode()
