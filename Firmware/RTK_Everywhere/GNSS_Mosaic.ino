@@ -3726,9 +3726,15 @@ bool mosaicIsPresentOnFacetFP()
     // Check with 115200 initially. If that succeeds, increase to 460800
     serialTestGNSS.begin(115200, SERIAL_8N1, pin_GnssUart_RX, pin_GnssUart_TX);
 
-    // Only try 3 times. LG290P detection will have been done first. X5 should have booted. Baud rate could be wrong.
+    // With 3 retries:
+    //   With X5 firmware 4.14.4:    isPresentOnSerial detects the GNSS - just
+    //   With X5 firmware 4.14.10.1: isPresentOnSerial fails to detect the GNSS
+    // With 4 retries:
+    //   With X5 firmware 4.14.10.1: isPresentOnSerial detects the GNSS
+
+    // Only try 4 times. LG290P detection will have been done first. X5 should have booted. Baud rate could be wrong.
     if (mosaic.isPresentOnSerial(&serialTestGNSS, "sdio,COM1,auto,RTCMv3+SBF+NMEA+Encapsulate\n\r", "DataInOut",
-                                 "COM1>", 3) == true)
+                                 "COM1>", 4) == true)
     {
         if (settings.debugGnss)
             systemPrintln("mosaic-X5 detected at 115200 baud");
@@ -3747,9 +3753,9 @@ bool mosaicIsPresentOnFacetFP()
     serialTestGNSS.end();
     serialTestGNSS.begin(460800, SERIAL_8N1, pin_GnssUart_RX, pin_GnssUart_TX);
 
-    // Only try 3 times, so we fail and pass on to the next Facet GNSS detection
+    // Only try 4 times, so we fail and pass on to the next Facet GNSS detection
     if (mosaic.isPresentOnSerial(&serialTestGNSS, "sdio,COM1,auto,RTCMv3+SBF+NMEA+Encapsulate\n\r", "DataInOut",
-                                 "COM1>", 3) == true)
+                                 "COM1>", 4) == true)
     {
         // serialGNSS and serial2GNSS have not yet been begun. We need to saveConfiguration manually
         unsigned long start = millis();
