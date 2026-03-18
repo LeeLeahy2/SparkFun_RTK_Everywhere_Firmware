@@ -217,14 +217,14 @@ void GNSS_MOSAIC::baseRtcmLowDataRate()
 //----------------------------------------
 void GNSS_MOSAIC::begin()
 {
-    // On Facet mosaic:
+    // On Facet mosaic (X5):
     //   COM1 is connected to the ESP32 for: Encapsulated RTCMv3 + SBF + NMEA, plus L-Band
     //   COM2 is connected to the RADIO port
     //   COM3 is connected to the DATA port
     //   COM4 is connected to the ESP32 for config
     //   (The comments on the schematic are out of date)
 
-    // On Flex (with Ethernet):
+    // On Flex (X5 without IMU, with Ethernet):
     //   COM1 is connected to the ESP32 UART1 for: Encapsulated RTCMv3 + SBF + NMEA
     //   COM2 is connected to LoRa or 4-pin JST (switched by SW4)
     //   COM3 can be connected to ESP32 UART2 (switched by SW3)
@@ -233,11 +233,21 @@ void GNSS_MOSAIC::begin()
     // We need to Encapsulate RTCMv3 and NMEA in SBF format. Both SBF and NMEA messages start with "$".
     // The alternative would be to add a 'hybrid' parser to the SEMP which can disambiguate SBF and NMEA
 
-    // On Flex (with IMU):
+    // On Flex (X5 with IMU):
     //   COM1 is connected to the ESP32 UART1 for: Encapsulated RTCMv3 + SBF + NMEA
     //   COM2 is connected to LoRa or 4-pin JST (switched by SW4)
     //   COM3 is N/C (ESP32 UART2 is connected to the IMU)
-    //   COM4 TX provides data to the IMU - TODO
+    //   COM4 TX provides data to the IMU - configured by setTilt
+
+    // On Flex G5 P3 - with or without tilt - we have some big challenges to solve...
+    // The G5 P3 has only two accessible UARTs:
+    //   COM2 is dedicated to Radio
+    //   We need to use COM1 for everything else
+    // On Flex G5 P3 with Tilt: UART1 TX is connected to IM19 UART2 RX
+    //   So we need to output GGA, GST and RMC at 5Hz on COM1 at 115200 baud
+    //   and hope that the IM19 can tolerate any other enabled messages.
+    //   It won't be a great user experience...
+    // Adding support for G5 P3 is TODO
 
     if (productVariant != RTK_FACET_FP) // productVariant == RTK_FACET_MOSAIC
     {
