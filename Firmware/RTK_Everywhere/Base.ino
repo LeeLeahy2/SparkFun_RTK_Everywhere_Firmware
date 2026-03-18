@@ -1,4 +1,5 @@
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
 Base.ino
 
          RTCM Buffers
@@ -30,6 +31,36 @@ Base.ino
         |             |   |
         |             |   V
         '-------------'  ---  rtcmConsumerBufferEntries
+
+Data Flow:
+          GNSS Receiver
+                |
+                V
+    Tasks.ino/gnssReadTask
+                |
+                V
+        sempBeginParser
+                |
+                V
+    Tasks.ino/processUart1Message
+                |
+                V
+    Base.ino/processRTCM
+                |
+                V
+    Base.ino/storeRTCMForConsumers(rtcmData, dataLength);
+                |
+                V
+        Into buffers above
+                |
+                V
+    Tasks.ino/handleGnssDataTask
+                |
+                V
+    Base.ino/sendRTCMToConsumers
+                |
+                V
+    Consumers(NTRIP Server, LARA, ESP-NOW)
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
