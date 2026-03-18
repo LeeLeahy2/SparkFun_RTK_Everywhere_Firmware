@@ -532,7 +532,7 @@ unsigned long rtcmLastPacketReceived; // Time stamp of RTCM coming in (from BT, 
 
 bool usbSerialIncomingRtcm; // Incoming RTCM over the USB serial port
 #define RTCM_CORRECTION_INPUT_TIMEOUT (2 * 1000)
-#define RTCM_CORRECTION_WRITE_TIMEOUT (5 * 1000)
+#define RTCM_CORRECTION_WRITE_TIMEOUT (3 * 1000)
 
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
