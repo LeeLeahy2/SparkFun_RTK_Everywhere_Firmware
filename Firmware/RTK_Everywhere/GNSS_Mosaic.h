@@ -30,8 +30,10 @@ const mosaicExpectedID mosaicExpectedIDs[] = {
 // Allocate this many streams for NMEA messages: Stream1, Stream2
 // We actually need four times this many as COM1, COM2, USB1 and DSK1 all need their own individual streams
 // COM1 uses streams 1 & 2; COM2 uses 3 & 4; USB1 uses 5 & 6; DSK1 uses 7 & 8
+// On Facet FP, we need stream 9 for NMEA GGA+GST+RMC at 5Hz for the IM19
 #define MOSAIC_NUM_NMEA_STREAMS 2 // X5 supports 10 streams in total
 #define MOSAIC_DEFAULT_NMEA_STREAM_INTERVALS {MOSAIC_MSG_RATE_MSEC500, MOSAIC_MSG_RATE_SEC1}
+#define MOSAIC_TILT_NMEA_STREAM ((4 * MOSAIC_NUM_NMEA_STREAMS) + 1)
 
 // Output SBF PVTGeodetic and ReceiverTime on this stream - on COM1 only
 // The SBFOutput streams are separate to the NMEAOutput streams. It is OK to start at Stream1.

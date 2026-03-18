@@ -217,14 +217,14 @@ void GNSS_MOSAIC::baseRtcmLowDataRate()
 //----------------------------------------
 void GNSS_MOSAIC::begin()
 {
-    // On Facet mosaic:
+    // On Facet mosaic (X5):
     //   COM1 is connected to the ESP32 for: Encapsulated RTCMv3 + SBF + NMEA, plus L-Band
     //   COM2 is connected to the RADIO port
     //   COM3 is connected to the DATA port
     //   COM4 is connected to the ESP32 for config
     //   (The comments on the schematic are out of date)
 
-    // On Flex (with Ethernet):
+    // On Flex (X5 without IMU, with Ethernet):
     //   COM1 is connected to the ESP32 UART1 for: Encapsulated RTCMv3 + SBF + NMEA
     //   COM2 is connected to LoRa or 4-pin JST (switched by SW4)
     //   COM3 can be connected to ESP32 UART2 (switched by SW3)
@@ -233,11 +233,21 @@ void GNSS_MOSAIC::begin()
     // We need to Encapsulate RTCMv3 and NMEA in SBF format. Both SBF and NMEA messages start with "$".
     // The alternative would be to add a 'hybrid' parser to the SEMP which can disambiguate SBF and NMEA
 
-    // On Flex (with IMU):
+    // On Flex (X5 with IMU):
     //   COM1 is connected to the ESP32 UART1 for: Encapsulated RTCMv3 + SBF + NMEA
     //   COM2 is connected to LoRa or 4-pin JST (switched by SW4)
     //   COM3 is N/C (ESP32 UART2 is connected to the IMU)
-    //   COM4 TX provides data to the IMU - TODO
+    //   COM4 TX provides data to the IMU - configured by setTilt
+
+    // On Flex G5 P3 - with or without tilt - we have some big challenges to solve...
+    // The G5 P3 has only two accessible UARTs:
+    //   COM2 is dedicated to Radio
+    //   We need to use COM1 for everything else
+    // On Flex G5 P3 with Tilt: UART1 TX is connected to IM19 UART2 RX
+    //   So we need to output GGA, GST and RMC at 5Hz on COM1 at 115200 baud
+    //   and hope that the IM19 can tolerate any other enabled messages.
+    //   It won't be a great user experience...
+    // Adding support for G5 P3 is TODO
 
     if (productVariant != RTK_FACET_FP) // productVariant == RTK_FACET_MOSAIC
     {
@@ -368,13 +378,16 @@ bool GNSS_MOSAIC::beginExternalEvent()
 //----------------------------------------
 bool GNSS_MOSAIC::setPPS()
 {
-    if (settings.dataPortChannel != MUX_PPS_EVENTTRIGGER)
+    if ((productVariant == RTK_FACET_MOSAIC) && (settings.dataPortChannel != MUX_PPS_EVENTTRIGGER))
         return (true); // No need to configure PPS if port is not selected
 
     // Call setPPSParameters
 
-    // Are pulses enabled?
-    if (settings.enableExternalPulse)
+    // Note: on Facet FP, we should probably always enable PPS as it is linked to the green LED.
+    // But, for now, only enable it if needed.
+
+    // Are pulses enabled / needed?
+    if (settings.enableExternalPulse || settings.enableTiltCompensation) // IM19 needs PPS
     {
         // Find the current pulse Interval
         int i;
@@ -932,7 +945,7 @@ uint32_t GNSS_MOSAIC::getCOMBaudRate(uint8_t port) // returns 0 if the get fails
 }
 
 //----------------------------------------
-// Mosaic COM3 is connected to the Data connector - via the multiplexer
+// On Facet Mosaic: COM3 is connected to the Data connector - via the multiplexer
 // Outputs:
 //   Returns 0 if the get fails
 //----------------------------------------
@@ -1136,7 +1149,7 @@ uint8_t GNSS_MOSAIC::getMonth()
 uint32_t GNSS_MOSAIC::getNanosecond()
 {
     // mosaicX5 does not have nanosecond, but it does have millisecond (from ToW)
-    return _millisecond * 1000L; // Convert to ns
+    return _millisecond * 1000000L; // Convert to ns
 }
 
 //----------------------------------------
@@ -2550,8 +2563,41 @@ bool GNSS_MOSAIC::setRate(double secondsBetweenSolutions)
 //----------------------------------------
 bool GNSS_MOSAIC::setTilt()
 {
-    // Not yet supported on this platform
-    return (true); // Return true to clear gnssConfigure test
+    // Only supported on Facet FP
+    // We need to output NMEA GGA+GST+RMC at 5Hz on COM3 at 115200 baud
+
+    bool response = true; // Default to true to clear gnssConfigure test
+
+    if (variantHousingProperties->tiltPossible == true && present.imu_im19 == true)
+    {
+        if (settings.enableTiltCompensation == true)
+        {
+            // Configure COM4 for NMEA output only. Not encapsulated.
+            // Disable input on COM4, just in case. COM4 RX is not connected though
+            response &= sendWithResponse("sdio,COM4,none,NMEA\n\r", "DataInOut");
+
+            // Configure COM4 for 115200 baud
+            response &= sendWithResponse("scs,COM4,baud115200,bits8,No,bit1,none\n\r", "COMSettings");
+
+            // Configure Stream9 for GGA+GST+RMC at 5Hz on COM4
+            String setting =
+                String("sno,Stream" + String(MOSAIC_TILT_NMEA_STREAM) + ",COM4,GGA+GST+RMC,msec200\n\r");
+            response &= sendWithResponse(setting, "NMEAOutput");
+        }
+        else
+        {
+            String setting =
+                String("sno,Stream" + String(MOSAIC_TILT_NMEA_STREAM) + ",COM4,none,off\n\r");
+            response &= sendWithResponse(setting, "NMEAOutput");
+        }
+
+        // I'm seeing RTCM 1006,1074,1084,1094,1124,1230 becoming enabled on COM4 at 1Hz
+        // I don't know how that is happening. sr3o should be limited to COM1+COM2+USB1
+        // Ensure RTCMv3 output is disabled on COM4
+        response &= sendWithResponse("sr3o,COM4,none\n\r", "RTCMv3Output");
+    }
+
+    return (response);
 }
 
 //----------------------------------------
@@ -3687,9 +3733,15 @@ bool mosaicIsPresentOnFacetFP()
     // Check with 115200 initially. If that succeeds, increase to 460800
     serialTestGNSS.begin(115200, SERIAL_8N1, pin_GnssUart_RX, pin_GnssUart_TX);
 
-    // Only try 3 times. LG290P detection will have been done first. X5 should have booted. Baud rate could be wrong.
+    // With 3 retries:
+    //   With X5 firmware 4.14.4:    isPresentOnSerial detects the GNSS - just
+    //   With X5 firmware 4.14.10.1: isPresentOnSerial fails to detect the GNSS
+    // With 4 retries:
+    //   With X5 firmware 4.14.10.1: isPresentOnSerial detects the GNSS
+
+    // Only try 4 times. LG290P detection will have been done first. X5 should have booted. Baud rate could be wrong.
     if (mosaic.isPresentOnSerial(&serialTestGNSS, "sdio,COM1,auto,RTCMv3+SBF+NMEA+Encapsulate\n\r", "DataInOut",
-                                 "COM1>", 3) == true)
+                                 "COM1>", 4) == true)
     {
         if (settings.debugGnss)
             systemPrintln("mosaic-X5 detected at 115200 baud");
@@ -3708,9 +3760,9 @@ bool mosaicIsPresentOnFacetFP()
     serialTestGNSS.end();
     serialTestGNSS.begin(460800, SERIAL_8N1, pin_GnssUart_RX, pin_GnssUart_TX);
 
-    // Only try 3 times, so we fail and pass on to the next Facet GNSS detection
+    // Only try 4 times, so we fail and pass on to the next Facet GNSS detection
     if (mosaic.isPresentOnSerial(&serialTestGNSS, "sdio,COM1,auto,RTCMv3+SBF+NMEA+Encapsulate\n\r", "DataInOut",
-                                 "COM1>", 3) == true)
+                                 "COM1>", 4) == true)
     {
         // serialGNSS and serial2GNSS have not yet been begun. We need to saveConfiguration manually
         unsigned long start = millis();
