@@ -28,7 +28,7 @@ Tilt.ino
       The IM19 gets GGA, RMC and GST at >= 5Hz at 115200 baud. Messages are enabled by setMessagesNMEA()
     mosaic-X5 with Tilt:
       The IM19 UART2 is fed by the X5 UART4
-      mosaic-X5 setTilt() is TODO. We need to create a Stream and output GGA, RMC and GST at 5Hz at 115200 baud
+      mosaic-X5 setTilt() creates a Stream and outputs GGA, RMC and GST at 5Hz at 115200 baud
     ZED-X20P with Tilt:
       The IM19 UART2 is fed by the X20P UART1 - which also feeds ESP32 UART1
       The message rates and baud rate need to be configured according to what the IM19 needs

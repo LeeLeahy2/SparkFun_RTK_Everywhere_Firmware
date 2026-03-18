@@ -378,13 +378,16 @@ bool GNSS_MOSAIC::beginExternalEvent()
 //----------------------------------------
 bool GNSS_MOSAIC::setPPS()
 {
-    if (settings.dataPortChannel != MUX_PPS_EVENTTRIGGER)
+    if ((productVariant == RTK_FACET_MOSAIC) && (settings.dataPortChannel != MUX_PPS_EVENTTRIGGER))
         return (true); // No need to configure PPS if port is not selected
 
     // Call setPPSParameters
 
-    // Are pulses enabled?
-    if (settings.enableExternalPulse)
+    // Note: on Facet FP, we should probably always enable PPS as it is linked to the green LED.
+    // But, for now, only enable it if needed.
+
+    // Are pulses enabled / needed?
+    if (settings.enableExternalPulse || settings.enableTiltCompensation) // IM19 needs PPS
     {
         // Find the current pulse Interval
         int i;
@@ -2569,25 +2572,29 @@ bool GNSS_MOSAIC::setTilt()
     {
         if (settings.enableTiltCompensation == true)
         {
-            // Configure COM3 for NMEA and RTCMv3 output. Not encapsulated.
-            // For now, disable input on COM3 just in case the IM19 is outputting fmi messages
-            // that could confused the mosaic
-            response &= sendWithResponse("sdio,COM3,none,RTCMv3+NMEA\n\r", "DataInOut");
+            // Configure COM4 for NMEA output only. Not encapsulated.
+            // Disable input on COM4, just in case. COM4 RX is not connected though
+            response &= sendWithResponse("sdio,COM4,none,NMEA\n\r", "DataInOut");
 
-            // Configure COM3 for 115200 baud
-            response &= sendWithResponse("scs,COM3,baud115200,bits8,No,bit1,none\n\r", "COMSettings");
+            // Configure COM4 for 115200 baud
+            response &= sendWithResponse("scs,COM4,baud115200,bits8,No,bit1,none\n\r", "COMSettings");
 
-            // Configure Stream9 for GGA+GST+RMC at 5Hz on COM3
+            // Configure Stream9 for GGA+GST+RMC at 5Hz on COM4
             String setting =
-                String("sno,Stream" + String(MOSAIC_TILT_NMEA_STREAM) + ",COM3,GGA+GST+RMC,msec200\n\r");
+                String("sno,Stream" + String(MOSAIC_TILT_NMEA_STREAM) + ",COM4,GGA+GST+RMC,msec200\n\r");
             response &= sendWithResponse(setting, "NMEAOutput");
         }
         else
         {
             String setting =
-                String("sno,Stream" + String(MOSAIC_TILT_NMEA_STREAM) + ",COM3,none,off\n\r");
+                String("sno,Stream" + String(MOSAIC_TILT_NMEA_STREAM) + ",COM4,none,off\n\r");
             response &= sendWithResponse(setting, "NMEAOutput");
         }
+
+        // I'm seeing RTCM 1006,1074,1084,1094,1124,1230 becoming enabled on COM4 at 1Hz
+        // I don't know how that is happening. sr3o should be limited to COM1+COM2+USB1
+        // Ensure RTCMv3 output is disabled on COM4
+        response &= sendWithResponse("sr3o,COM4,none\n\r", "RTCMv3Output");
     }
 
     return (response);
