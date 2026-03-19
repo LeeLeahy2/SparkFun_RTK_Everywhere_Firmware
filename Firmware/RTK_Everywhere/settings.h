@@ -1803,8 +1803,8 @@ const RTK_Settings_Entry rtkSettingsEntries[] =
     { 0, 0, 0, 0, 0, 1, 0, ALL, 0, _bool,     3, & settings.debugLora, "debugLora", nullptr, },
     { 1, 1, 0, 0, 0, 1, 0, ALL, 0, _bool,     0, & settings.enableLora, "enableLora", nullptr, },
     { 1, 1, 0, 0, 0, 1, 0, ALL, 0, _float,    3, & settings.loraCoordinationFrequency, "loraCoordinationFrequency", nullptr, },
-    { 1, 1, 0, 0, 0, 1, 0, ALL, 0, _int,      0, & settings.loraSerialInteractionTimeout_s, "loraSerialInteractionTimeout", nullptr, },
-    { 0, 0, 0, 0, 0, 1, 0, ALL, 0, _int,      0, & settings.loraTransmitPower_dBm, "loraTransmitPower", nullptr, },
+    { 1, 1, 0, 0, 0, 1, 0, NON, 0, _int,      0, & settings.loraSerialInteractionTimeout_s, "loraSerialInteractionTimeout", nullptr, },
+    { 0, 1, 0, 0, 0, 1, 0, ALL, 0, _int,      0, & settings.loraTransmitPower_dBm, "loraTransmitPower", nullptr, },
 
 //                F
 //    i           a
