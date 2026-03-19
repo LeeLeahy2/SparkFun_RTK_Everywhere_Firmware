@@ -103,7 +103,8 @@
 
     <div class="container">
 
-        <div align="center" class="col-sm-12"><img id="pageLogo" src="src/sparkpnt_device_setup.png" alt="Device Setup"></div>
+        <div align="center" class="col-sm-12"><img id="pageLogo" src="src/sparkpnt_device_setup.png" alt="Device Setup">
+        </div>
 
     </div>
 
@@ -1821,18 +1822,19 @@
                             <p id="loraCoordinationFrequencyError" class="inlineError"></p>
                         </div>
 
-                        <div class="form-check">
-                            Seconds before dedicated listening mode:
-                            <span class="tt" data-bs-placement="right"
-                                title="After this number of seconds, incoming serial over USB is ignored so that LoRa serial can flow between devices. Reset the device to re-enable serial over USB. Default: 30s. Limits: 10 to 600s.">
-                                <span class="icon-info-circle text-primary ms-2"></span>
-                            </span>
+                        <div id="loraSerialInteractionTimeoutConfig" class="collapse mb-2" style="display:none">
+                            <div class="form-check">
+                                Seconds before dedicated listening mode:
+                                <span class="tt" data-bs-placement="right"
+                                    title="After this number of seconds, incoming serial over USB is ignored so that LoRa serial can flow between devices. Reset the device to re-enable serial over USB. Default: 30s. Limits: 10 to 600s.">
+                                    <span class="icon-info-circle text-primary ms-2"></span>
+                                </span>
+                            </div>
+                            <div class="col-sm-4 col-5 ms-3 form-group">
+                                <input type="number" class="form-control mb-2" id="loraSerialInteractionTimeout">
+                                <p id="loraSerialInteractionTimeoutError" class="inlineError"></p>
+                            </div>
                         </div>
-                        <div class="col-sm-4 col-5 ms-3 form-group">
-                            <input type="number" class="form-control mb-2" id="loraSerialInteractionTimeout">
-                            <p id="loraSerialInteractionTimeoutError" class="inlineError"></p>
-                        </div>
-
                     </div>
                 </div>
 

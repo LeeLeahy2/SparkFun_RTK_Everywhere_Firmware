@@ -96,6 +96,8 @@ var divTables = {
     constellationNavic: ["constellation_NavIC"],
     constellationGlonass: ["constellation_GLONASS"],
     tiltConfig: ["enableTiltCompensation"],
+    loraConfig: ["enableLora"],
+    loraSerialInteractionTimeoutConfig: ["loraSerialInteractionTimeout"],
 };
 
 function showHideDivs() {
@@ -252,8 +254,6 @@ function parseIncoming(msg) {
                 hide("externalPortOptions");
 
                 show("measurementRateInput");
-
-                show("loraConfig");
 
                 select = ge("dynamicModel");
                 let newOption = new Option('Survey', '0');
@@ -1385,7 +1385,9 @@ function validateFields() {
     //Radio Config
     if (ge("enableLora").checked == true) {
         checkElementValue("loraCoordinationFrequency", 903, 927, "Must be 903 to 927", "collapseRadioConfig");
-        checkElementValue("loraSerialInteractionTimeout", 10, 600, "Must be 10 to 600", "collapseRadioConfig");
+        
+        if(platformPrefix == "Torch")
+            checkElementValue("loraSerialInteractionTimeout", 10, 600, "Must be 10 to 600", "collapseRadioConfig");
     }
 
     //Corrections Config
