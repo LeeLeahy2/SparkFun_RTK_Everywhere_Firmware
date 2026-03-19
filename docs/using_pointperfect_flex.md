@@ -15,10 +15,11 @@ Compatibility Icons
 - Facet mosaic: :material-radiobox-marked:{ .support-full title="Feature Supported" }
 - Postcard: :material-radiobox-marked:{ .support-full title="Feature Supported" }
 - Torch: :material-radiobox-marked:{ .support-full title="Feature Supported" }
+- TX2: :material-radiobox-marked:{ .support-full title="Feature Supported" }
 
 </div>
 
-To get millimeter accuracy we need to provide the RTK unit with correction values. Corrections, often called RTCM, help the RTK unit refine its position calculations. There are multiple options for [correction sources](http://docs.sparkfun.com/SparkFun_RTK_Everywhere_Firmware/correction_sources/), but this tutorial focuses on PointPerfect. PointPerfect Flex over NTRIP is $15 per month and is an [SSR based service](https://docs.sparkfun.com/SparkFun_RTK_Everywhere_Firmware/correction_sources/#osr-vs-ssr) meaning there are no base stations or 'dead-air' gaps in the coverage map. The contiguous 48 states in the USA, EU, Japan, and parts of Australia are covered by this service. See the coverage map [here](https://www.u-blox.com/en/pointperfect-service-coverage).
+To get millimeter accuracy we need to provide the RTK unit with correction values. Corrections, often called RTCM, help the RTK unit refine its position calculations. There are multiple options for [correction sources](http://docs.sparkfun.com/SparkFun_RTK_Everywhere_Firmware/correction_sources/), but this tutorial focuses on PointPerfect. PointPerfect Flex over NTRIP is $15 per month and is an [SSR based service](https://docs.sparkfun.com/SparkFun_RTK_Everywhere_Firmware/correction_sources/#osr-vs-ssr) meaning there are no base stations or 'dead-air' gaps in the coverage map. The PointPerfect Flex service is available for various areas of the globe including the Europe, the contiguous USA, Canada, Brazil regions, South Korea, and Australia regions, including up to 12 nautical miles (roughly 22 kilometers) off coastlines. See the [coverage map](https://www.u-blox.com/en/pointperfect-service-coverage) for specifics.
 
 <figure markdown>
 [![PointPerfect Flex Coverage Map](./img/PointPerfect/SparkFun RTK Everywhere - PointPerfect Coverage Map Small.png)](https://www.u-blox.com/en/pointperfect-service-coverage)
