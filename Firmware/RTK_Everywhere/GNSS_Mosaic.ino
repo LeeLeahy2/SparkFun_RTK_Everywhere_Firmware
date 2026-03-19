@@ -2234,7 +2234,8 @@ bool GNSS_MOSAIC::setMessagesNMEA()
     bool gpzdaEnabled = false;
     bool gpgstEnabled = false;
 
-    String streams[MOSAIC_NUM_NMEA_STREAMS];                                          // Build a string for each stream
+    String streams[MOSAIC_NUM_NMEA_STREAMS]; // Build a string for each stream
+
     for (int messageNumber = 0; messageNumber < MAX_MOSAIC_NMEA_MSG; messageNumber++) // For each NMEA message
     {
         int stream = settings.mosaicMessageStreamNMEA[messageNumber];
@@ -2260,6 +2261,13 @@ bool GNSS_MOSAIC::setMessagesNMEA()
             if (strcmp(mosaicMessagesNMEA[messageNumber].msgTextName, "GST") == 0)
                 gpgstEnabled = true;
         }
+    }
+
+    // Record if any messages are enabled by settings, before we add GGA, ZDA, GST
+    bool somethingEnabled[MOSAIC_NUM_NMEA_STREAMS];
+    for (int stream = 0; stream < MOSAIC_NUM_NMEA_STREAMS; stream++)
+    {
+        somethingEnabled[stream] = (streams[stream].length() > 0);
     }
 
     if (pointPerfectIsEnabled())
@@ -2316,40 +2324,30 @@ bool GNSS_MOSAIC::setMessagesNMEA()
                                 String(mosaicMsgRates[settings.mosaicStreamIntervalsNMEA[stream]].name) + "\n\r");
         response &= sendWithResponse(setting, "NMEAOutput");
 
-        if (settings.enableNmeaOnRadio)
+        if (settings.enableNmeaOnRadio && somethingEnabled[stream]) // Ignore GGA, ZDA, GST if they were added for COM1
             setting = String("sno,Stream" + String(stream + MOSAIC_NUM_NMEA_STREAMS + 1) + ",COM2," + streams[stream] +
                              "," + String(mosaicMsgRates[settings.mosaicStreamIntervalsNMEA[stream]].name) + "\n\r");
         else
             setting = String("sno,Stream" + String(stream + MOSAIC_NUM_NMEA_STREAMS + 1) + ",COM2,none,off\n\r");
         response &= sendWithResponse(setting, "NMEAOutput");
 
-        if (settings.enableGnssToUsbSerial)
-        {
+        if (settings.enableGnssToUsbSerial && somethingEnabled[stream]) // Ignore GGA, ZDA, GST if they were added for COM1
             setting =
                 String("sno,Stream" + String(stream + (2 * MOSAIC_NUM_NMEA_STREAMS) + 1) + ",USB1," + streams[stream] +
                        "," + String(mosaicMsgRates[settings.mosaicStreamIntervalsNMEA[stream]].name) + "\n\r");
-            response &= sendWithResponse(setting, "NMEAOutput");
-        }
         else
-        {
             // Disable the USB1 NMEA streams if settings.enableGnssToUsbSerial is not enabled
             setting = String("sno,Stream" + String(stream + (2 * MOSAIC_NUM_NMEA_STREAMS) + 1) + ",USB1,none,off\n\r");
-            response &= sendWithResponse(setting, "NMEAOutput");
-        }
+        response &= sendWithResponse(setting, "NMEAOutput");
 
-        if (settings.enableLogging)
-        {
+        if (settings.enableLogging && somethingEnabled[stream]) // Ignore GGA, ZDA, GST if they were added for COM1
             setting =
                 String("sno,Stream" + String(stream + (3 * MOSAIC_NUM_NMEA_STREAMS) + 1) + ",DSK1," + streams[stream] +
                        "," + String(mosaicMsgRates[settings.mosaicStreamIntervalsNMEA[stream]].name) + "\n\r");
-            response &= sendWithResponse(setting, "NMEAOutput");
-        }
         else
-        {
             // Disable the DSK1 NMEA streams if settings.enableLogging is not enabled
             setting = String("sno,Stream" + String(stream + (3 * MOSAIC_NUM_NMEA_STREAMS) + 1) + ",DSK1,none,off\n\r");
-            response &= sendWithResponse(setting, "NMEAOutput");
-        }
+        response &= sendWithResponse(setting, "NMEAOutput");
     }
 
     return (response);
