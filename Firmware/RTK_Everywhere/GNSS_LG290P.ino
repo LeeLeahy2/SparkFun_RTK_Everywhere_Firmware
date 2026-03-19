@@ -1954,8 +1954,10 @@ bool GNSS_LG290P::setCorrRadioExtPort(bool enable, bool force)
 
         if (force || (enable != _corrRadioExtPortEnabled))
         {
-            // Set UART3 InputProt: RTCM3 (4) vs NMEA (1)
-            if (_lg290p->setPortInputProtocols(3, enable ? 4 : 1))
+            // On Postcard: set UART3 InputProt: RTCM3 (4) vs NMEA (1)
+            // On Facet FP: set UART2 InputProt: RTCM3 (4) vs NMEA (1)
+            int port = (productVariant == RTK_POSTCARD) ? 3 : 2;
+            if (_lg290p->setPortInputProtocols(port, enable ? 4 : 1))
             {
                 if ((settings.debugCorrections == true) && !inMainMenu)
                 {
