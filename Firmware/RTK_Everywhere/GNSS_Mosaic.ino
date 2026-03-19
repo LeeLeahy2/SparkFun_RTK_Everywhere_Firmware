@@ -3032,14 +3032,14 @@ bool GNSS_MOSAIC::isPresent()
     {
         // Set COM4 to: CMD input (only), SBF output (only)
         // Mosaic could still be starting up, so allow many retries
-        return isPresentOnSerial(serial2GNSS, "sdio,COM4,CMD,SBF\n\r", "DataInOut", "COM4>", 5);
+        return isPresentOnSerial(serial2GNSS, "sdio,COM4,CMD,SBF\n\r", "DataInOut", "COM4>", 10);
     }
     else // productVariant == RTK_FACET_FP
     {
         // Set COM1 to: auto input, RTCMv3+SBF+NMEA+Encapsulate output
         // Mosaic could still be starting up, so allow many retries
         return isPresentOnSerial(serialGNSS, "sdio,COM1,auto,RTCMv3+SBF+NMEA+Encapsulate\n\r", "DataInOut", "COM1>",
-                                 5);
+                                 10);
     }
 }
 
