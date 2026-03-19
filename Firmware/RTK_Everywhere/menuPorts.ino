@@ -73,8 +73,9 @@ void menuPortsNoMux()
         systemPrintf("3) Output GNSS data to USB serial: %s\r\n",
                      settings.enableGnssToUsbSerial ? "Enabled" : "Disabled");
 
-        // EVK has no mux. Postcard has no mux.
-        if (productVariant == RTK_EVK)
+        // EVK has no mux. Postcard has no mux. Facet FP has no mux.
+
+        if ((productVariant == RTK_EVK) || (productVariant == RTK_FACET_FP))
         {
             systemPrintf("4) Allow incoming corrections on UART2: %s\r\n",
                          settings.enableExtCorrRadio ? "Enabled" : "Disabled");
@@ -83,6 +84,8 @@ void menuPortsNoMux()
         {
             systemPrintf("4) Allow incoming corrections on RADIO port: %s\r\n",
                          settings.enableExtCorrRadio ? "Enabled" : "Disabled");
+
+            // TODO: Add the same on other Facet FP platforms. Could be useful
             systemPrintf("5) Limit RADIO port output to RTCM: %s\r\n",
                          settings.enableNmeaOnRadio ? "Disabled"
                                                     : "Enabled"); // Reverse disabled/enabled to align with prompt

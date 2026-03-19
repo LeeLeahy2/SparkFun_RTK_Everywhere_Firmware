@@ -2119,6 +2119,7 @@ bool GNSS_LG290P::setMessagesNMEA()
                 // On TX2: disable NMEA output on UART3 CH342 Channel A
                 // On Facet FP LG290P with Tilt: UART3 feeds the IMU. GGA/GST/RMC will be enabled below.
                 //                               It is OK to disable it here.
+                // TODO: on Facet FP we may want to disable NMEA on portNumber 2 also...?
                 if ((portNumber == 3) && (settings.enableNmeaOnRadio == false))
                     msgRate = 0;
 
