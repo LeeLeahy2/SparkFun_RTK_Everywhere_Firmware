@@ -193,6 +193,7 @@ void updateLora()
     case (LORA_TX):
         // Nothing to do but print debug statements.
         // Incoming RTCM to send out over LoRa is handled by processUart1Message() task and loraProcessRTCM()
+        // On Facet FP, GNSS UART2 is connected directly to LoRa
 
         if (inMainMenu == false)
         {
@@ -202,7 +203,9 @@ void updateLora()
                 if ((millis() - lastReport) > 3000)
                 {
                     lastReport = millis();
-                    systemPrintf("LoRa transmitted %d RTCM bytes\r\n", loraBytesSent);
+                    systemPrintf("LoRa %stransmitted %d RTCM bytes\r\n",
+                        (productVariant == RTK_FACET_FP) ? "should have " : "",
+                        loraBytesSent);
                     loraBytesSent = 0;
                 }
             }
@@ -433,7 +436,8 @@ void muxSelectUsb()
     }
 }
 
-// Connect ESP32 to LoRa for regular transmissions
+// Connect ESP32 to LoRa for regular transmissions on Torch
+// On Facet, startLoRaConfigureCommunicationOnFacet() is called separately
 void muxSelectLoRaCommunication()
 {
     if (productVariant == RTK_TORCH)
@@ -444,23 +448,40 @@ void muxSelectLoRaCommunication()
 
         usbSerialIsSelected = false; // Let other print operations know we are not connected to the CH34x
     }
-    else if (productVariant == RTK_FACET_FP)
-    {
-        // Connect ESP to LoRa for sending config commands
-        // Connect ESP32 UART2 -> SW3 -> LoRa UART2
-        // The OTA traffic goes direct from GNSS UART2 <-> LoRa UART0
-        gpioExpanderSelectLoraConfigure();
-    }
 }
 
 // Connect ESP32 to LoRa for configuration and bootloading
+// This is only called by beginLoraFirmwareUpdate()
 void muxSelectLoRaConfigure()
 {
     if (productVariant == RTK_TORCH)
         digitalWrite(pin_muxA, HIGH); // Control U12: Connect ESP UART1 to LoRa UART0. Control U11: Connect U18-B1 to UM980 UART1
     else if (productVariant == RTK_FACET_FP)
+        startLoRaConfigureCommunicationOnFacet();
+}
+
+void endLoRaConfigureCommunicationOnFacet()
+{
+    if (productVariant == RTK_FACET_FP)
+    {
+        // On Facet FP only:
+        // We are done talking to LoRa, so it is time to
+        // connect ESP32 UART2 -> SW3 -> GNSS UART3 (IM19 UART1 for Tilt)
+        // The OTA traffic goes direct from GNSS UART2 <-> LoRa UART0
+        gpioExpanderSelectImu();
+    }
+}
+
+void startLoRaConfigureCommunicationOnFacet()
+{
+    if (productVariant == RTK_FACET_FP)
+    {
+        // On Facet FP only:
+        // Connect ESP to LoRa for sending config commands or for firmware update
         // Connect ESP32 UART2 -> SW3 -> LoRa UART2
+        // The OTA traffic goes direct from GNSS UART2 <-> LoRa UART0
         gpioExpanderSelectLoraConfigure();
+    }
 }
 
 void loraEnterBootloader()
@@ -669,8 +690,13 @@ void loraSetupTransmit()
 {
      // If platform has a dedicated LoRa UART - i.e. Facet FP
     // Set the switch(es) to connect the GNSS to LoRa
+    // And override the baud rate
+    // TODO: improve this so it works better with settings.radioPortBaud and GNSS_CONFIG_BAUD_RATE_RADIO
     if (present.loraDedicatedUart == true)
-            gpioExpanderSelectLoraCommunication();
+    {
+        gnss->setBaudRateRadio(115200);
+        gpioExpanderSelectLoraCommunication();
+    }
             
     loraSetup(true);
 }
@@ -679,8 +705,13 @@ void loraSetupReceive()
 {
     // If platform has a dedicated LoRa UART - i.e. Facet FP
     // Set the switch(es) to connect the GNSS to LoRa
+    // And override the baud rate
+    // TODO: improve this so it works better with settings.radioPortBaud and GNSS_CONFIG_BAUD_RATE_RADIO
     if (present.loraDedicatedUart == true)
-            gpioExpanderSelectLoraCommunication();
+    {
+        gnss->setBaudRateRadio(115200);
+        gpioExpanderSelectLoraCommunication();
+    }
 
     loraSetup(false);
 }
@@ -761,6 +792,7 @@ bool loraSendCommand(const char *command, char *response, int *responseSize)
     systemFlush(); // Complete prints
 
     muxSelectLoRaCommunication(); // Connect the LoRa radio to ESP32 UART0 (shared with USB)
+    startLoRaConfigureCommunicationOnFacet(); // Connect ESP32 to LoRa
 
     loraPrintf("%s\r\n", command);
     while (loraAvailable() == 0)
@@ -769,7 +801,9 @@ bool loraSendCommand(const char *command, char *response, int *responseSize)
         responseTime++;
         if (responseTime > 2000)
         {
-            responseSize = 0;
+            *responseSize = 0;
+            muxSelectUsb(); // Connect USB
+            endLoRaConfigureCommunicationOnFacet();
             return (false); // Timeout
         }
     }
@@ -788,6 +822,7 @@ bool loraSendCommand(const char *command, char *response, int *responseSize)
     *responseSize = responseSpot;
 
     muxSelectUsb(); // Connect USB
+    endLoRaConfigureCommunicationOnFacet();
 
     if (strnstr(response, "OK", *responseSize) != NULL)
         return (true);
@@ -811,6 +846,7 @@ bool loraEnterCommandMode()
     systemFlush(); // Complete prints
 
     muxSelectLoRaCommunication(); // Connect the LoRa radio to ESP32 UART0 (shared with USB)
+    startLoRaConfigureCommunicationOnFacet();
 
     delay(50); // Wait for incoming serial to complete
     while (loraAvailable())
@@ -829,6 +865,7 @@ bool loraEnterCommandMode()
             response[responseSpot] = '\0';
 
             muxSelectUsb(); // Connect USB
+            endLoRaConfigureCommunicationOnFacet();
             return (true);
         }
 
@@ -852,6 +889,7 @@ bool loraEnterCommandMode()
             response[responseSpot] = '\0';
 
             muxSelectUsb(); // Connect USB
+            endLoRaConfigureCommunicationOnFacet();
             return (true);
         }
 
@@ -859,6 +897,7 @@ bool loraEnterCommandMode()
     }
 
     muxSelectUsb(); // Connect USB
+    endLoRaConfigureCommunicationOnFacet();
     systemPrintln("LoRa Error: Unable to enter command mode");
     return (false);
 }
@@ -924,6 +963,9 @@ void loraProcessRTCM(uint8_t *rtcmData, uint16_t dataLength)
             muxSelectUsb(); // Connect USB
         }
 
+        // Keep a record of how many LoRa bytes _should_ be being sent
+        // Note: on Facet FP, this may not represent reality since it is difficult to know
+        //       what is being output on GNSS UART2
         loraBytesSent += dataLength;
     }
 }

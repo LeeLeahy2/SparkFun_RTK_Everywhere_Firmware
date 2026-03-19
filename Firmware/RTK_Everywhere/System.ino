@@ -1175,21 +1175,25 @@ void gpioExpanderSelectImu()
         gpioExpanderSwitches->digitalWrite(gpioExpanderSwitch_S3, LOW);
 }
 
-// Connect ESP32 UART2 to LoRa UART2 for configuration and bootloading/firmware updates
+// Connect ESP32 UART2 to LoRa UART2 via SW3 for configuration and bootloading/firmware updates
 void gpioExpanderSelectLoraConfigure()
 {
     if (online.gpioExpanderSwitches == true)
         gpioExpanderSwitches->digitalWrite(gpioExpanderSwitch_S3, HIGH);
 }
 
-// Connect Facet FP GNSS receiver UART2 to LoRa UART0 for normal TX/RX of corrections and data
+// Connect Facet FP GNSS receiver UART2 to LoRa UART0 via SW4 for normal TX/RX of corrections and data
 void gpioExpanderSelectLoraCommunication()
 {
     if (online.gpioExpanderSwitches == true)
         gpioExpanderSwitches->digitalWrite(gpioExpanderSwitch_S4, HIGH);
 }
 
-// Connect Facet FP GNSS UART2 to 4-pin JST RADIO port
+// Connect Facet FP GNSS UART2 to 4-pin JST RADIO port via SW4 (Default)
+// Currently never called... But that is probably OK. SW4 defaults to JST RADIO.
+// Selecting LoRa TX or RX will switch SW4 to LoRa, and leave it there.
+// If LoRa is enabled and then disabled, we should then gpioExpanderSelectRadioPort
+// to select JST RADIO again. And reset the baud rate to settings.radioPortBaud
 void gpioExpanderSelectRadioPort()
 {
     if (online.gpioExpanderSwitches == true)
