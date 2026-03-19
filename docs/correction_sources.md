@@ -15,6 +15,7 @@ Compatibility Icons
 - Facet mosaic: :material-radiobox-marked:{ .support-full title="Feature Supported" }
 - Postcard: :material-radiobox-marked:{ .support-full title="Feature Supported" }
 - Torch: :material-radiobox-marked:{ .support-full title="Feature Supported" }
+- TX2: :material-radiobox-marked:{ .support-full title="Feature Supported" }
 
 </div>
 
@@ -26,7 +27,7 @@ These companies set up a large number of reference stations that cover entire re
 
 - [PointPerfect](https://docs.sparkfun.com/SparkFun_RTK_Everywhere_Firmware/quickstart-torch/#pointperfect-corrections) ($15/month) - US, EU, as well as parts of Australia, Brazil, and South Korea. Note: This is an [SSR service](https://docs.sparkfun.com/SparkFun_RTK_Everywhere_Firmware/correction_sources/#osr-vs-ssr).
 - [Onocoy](https://console.onocoy.com/explorer) ($25/month) - US, EU, Australia, and many other partial areas
-- [PointOneNav](https://app.pointonenav.com/trial?src=sparkfun) ($125/month for "True RTK") - US, UK, EU, KOR, AUS, NZ, and JP
+- [PointOneNav](https://app.pointonenav.com/trial?src=sparkfun) ($150/month for "True RTK") - US, UK, EU, KOR, AUS, NZ, and JP
 - [Skylark](https://www.swiftnav.com/skylark) ($29 to $69/month) - US, EU, Japan, Australia
 - [SensorCloud RTK](https://rtk.sensorcloud.com/pricing/) ($100/month) partial US, EU
 - [Premium Positioning](https://www.premium-positioning.com) (~$315/month) partial EU
@@ -71,9 +72,9 @@ State Wide Network of Continuously Operating Reference Stations (CORS)
 [PointOne Nav](https://app.pointonenav.com/trial?src=sparkfun), and [Skylark Nx RTK](https://www.swiftnav.com/products/skylark) are examples of an OSR.
 
 <figure markdown>
-[![PointPerfect Coverage map including L-Band and IP delivery methods](./img/PointPerfect/SparkFun RTK Everywhere - PointPerfect Coverage Map Small.png)](https://www.u-blox.com/en/pointperfect-service-coverage)
+[![PointPerfect Coverage map](./img/PointPerfect/SparkFun RTK Everywhere - PointPerfect Coverage Map Small.png)](https://www.u-blox.com/en/pointperfect-service-coverage)
 <figcaption markdown>
-PointPerfect Coverage map including L-Band and IP delivery methods
+PointPerfect Coverage map
 </figcaption>
 </figure>
 
@@ -98,6 +99,7 @@ Compatibility Icons
 - Facet mosaic: :material-radiobox-indeterminate-variant:{ .support-partial title="Feature Partially Supported" }
 - Postcard: :material-radiobox-indeterminate-variant:{ .support-partial title="Feature Partially Supported" }
 - Torch: :material-radiobox-marked:{ .support-full title="Feature Supported" }
+- TX2: :material-radiobox-marked:{ .support-full title="Feature Supported" }
 
 </div>
 
@@ -114,7 +116,7 @@ Various SparkFun RTK products support this new GNSS band (E6):
 
 Some companies broadcast an extra signal over geosynchronous satellites in something called the 'L-Band' which is really just a catch-all name for any broadcast between 1GHz and 2GHz. Because GNSS satellites broadcast their signal at ~1.57GHz (L1) and ~1.23GHz (L2), it is beneficial to broadcast an extra signal near these frequencies because the GNSS receiver hardware can be adapted to pick up this extra signal. Depending on the company, this signal adds additional correction data that can allow a GNSS receiver to obtain much higher accuracy than L1/L2/L5 positioning alone. But because broadcasting on satellites is exorbitantly expensive, the signal is often encrypted to force users to pay a subscription fee. The benefit of L-Band corrections is that they can cover an entire country or continent with corrections, without the need for internet connectivity, allowing for remote location to be surveyed, or scientific research conducted.
 
-For many years, u-blox provided a service called PointPerfect L-Band that was compatible with certain SparkFun RTK products (specifically [RTK Facet mosaic L-Band](https://www.sparkfun.com/sparkpnt-rtk-facet-mosaic-l-band.html), and [RTK Facet L-Band](https://www.sparkfun.com/sparkfun-rtk-facet-l-band.html)). Unfortunately, in July of 2025 u-blox announced the L-Band service to North America would be discontinued on December 31st, 2025. These products still function as high precision receivers, but they will need to switch to an internet based correction services to obtain an RTK Fix.
+For many years, u-blox provided a service called PointPerfect L-Band that was compatible with certain SparkFun RTK products (specifically [RTK Facet mosaic L-Band](https://www.sparkfun.com/sparkpnt-rtk-facet-mosaic-l-band.html), and [RTK Facet L-Band](https://www.sparkfun.com/sparkfun-rtk-facet-l-band.html)). Unfortunately, in July of 2025 u-blox announced the L-Band service to North America would be discontinued on December 31st, 2025. These products still function as high precision receivers, but they will need to switch to an internet based correction services to obtain an RTK Fix. See [Using PointPerfect Flex](using_pointperfect_flex.md) for more information.
 
 ## Remote Corrections
 

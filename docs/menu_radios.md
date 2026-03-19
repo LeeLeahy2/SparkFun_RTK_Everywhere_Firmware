@@ -2,6 +2,12 @@
 
 Pressing 'r' from the main menu will open the Configure Radios menu. This allows a user to configure various radios that are available on a given RTK platform.
 
+![alt text](<img/Radios/SparkFun RTK Everywhere - Radios Menu.png>)
+
+<figcaption markdown>
+Radio menu
+</figcaption>
+
 ## ESP-NOW
 
 <!--
@@ -19,10 +25,13 @@ Compatibility Icons
 - Facet mosaic: :material-radiobox-marked:{ .support-full title="Feature Supported" }
 - Postcard: :material-radiobox-marked:{ .support-full title="Feature Supported" }
 - Torch: :material-radiobox-marked:{ .support-full title="Feature Supported" }
+- TX2: :material-radiobox-marked:{ .support-full title="Feature Supported" }
 
 </div>
 
-Note: All SparkFun RTK devices contain a radio capable of direct Rover-Base communication over 2.4GHz called ESP-NOW. The RTK Torch is currently the only RTK device with a built-in Long Range (LoRa) radio. 
+
+!!! info
+	All SparkFun RTK devices contain a radio capable of direct Rover-Base communication over 2.4GHz called ESP-NOW. The RTK Torch is currently the only RTK device with a built-in Long Range (LoRa) radio.
 
 <figure markdown>
 ![Radio menu showing ESP-NOW](./img/Terminal/SparkFun RTK Everywhere - Radios Menu.png)
@@ -114,8 +123,14 @@ Compatibility Icons
 - Facet mosaic: :material-radiobox-blank:{ .support-none title="Feature Not Supported" }
 - Postcard: :material-radiobox-blank:{ .support-none title="Feature Not Supported" }
 - Torch: :material-radiobox-marked:{ .support-full title="Feature Supported" }
+- TX2: :material-radiobox-blank:{ .support-none title="Feature Not Supported" }
 
 </div>
+
+
+!!! warning
+    While the Torch X2 is the latest generation of the Torch product line, it does not support LoRa communication.
+
 
 <figure markdown>
 ![RTK Torch's combination GNSS, 2.4GHz, and 915MHz antenna](./img/SparkFun_RTK_Torch_Open_Antenna.png)
@@ -167,3 +182,24 @@ The *Seconds without user serial that must elapse before LoRa radio goes into de
 
 !!! note
 	If a timeout has occurred, USB communication can be restored by unplugging and plugging the cable back in.
+
+## Bluetooth Mode
+
+The device can operate in a variety of Bluetooth modes. Use this menu to select between the following:
+
+* **Dual (Default)** - Broadcast over Classic Bluetooth (SPP) and Bluetooth Low Energy (BLE)
+* **Classic** - Broadcast over Classic Bluetooth (SPP) only
+* **BLE** - Broadcast over Bluetooth Low Energy (BLE) only
+* **Off** - Disable the Bluetooth radio
+
+## Accessory Time Offset
+
+This setting applies only to devices that are connecting to iOS phones and tablets. GNSS has extremely accurate time, sometimes more accurate than cellular based time. On some version of iOS, the phone's time is behind GNSS causing the GIS app to discard GNSS updates because they appear to be from the future. This is most prevalent in ArcGIS apps. By delaying the GNSS reports by this amount of time (-1 second is default) the GIS app will use all incoming GNSS reports.
+
+## Clear BT Pairings
+
+Issuing this command will cause the Bluetooth module to erase the MAC addresses of all previously paired devices (tablets, phones, computers, etc). This is rarely needed, but can be helpful when diagnosing a pairing problem.
+
+## EA Protocol Name
+
+This setting applies only to devices that are connecting to iOS phones and tablets. To get the GNSS data from the device into a GIS app on iOS, the app needs to be aware of the External Accessory's protocol name. The protocol name can be modified here to allow the RTK device to work with apps that may not be aware of the SparkPNT/SparkFun device.

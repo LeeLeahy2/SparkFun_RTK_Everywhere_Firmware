@@ -15,14 +15,15 @@ Compatibility Icons
 - Facet mosaic: :material-radiobox-marked:{ .support-full title="Feature Supported" }
 - Postcard: :material-radiobox-marked:{ .support-full title="Feature Supported" }
 - Torch: :material-radiobox-marked:{ .support-full title="Feature Supported" }
+- TX2: :material-radiobox-marked:{ .support-full title="Feature Supported" }
 
 </div>
 
-While we recommend [SW Maps for Android](gis_software_android/#sw-maps), there are a variety of 3rd party apps available for GIS and surveying for [Android](gis_software_android.md), [iOS](gis_software_ios.md), and [Windows](gis_software_windows.md). We will cover a few examples below that should give you an idea of how to get the incoming NMEA data into the software of your choice.
+While we recommend [SW Maps for Android](#sw-maps), there are a variety of 3rd party apps available for GIS and surveying for [Android](gis_software_android.md), [iOS](gis_software_ios.md), and [Windows](gis_software_windows.md). We will cover a few examples below that should give you an idea of how to get the incoming NMEA data into the software of your choice.
 
 ## ArcGIS Field Maps
 
-[ArcGIS Field Maps](https://play.google.com/store/apps/details?id=com.esri.fieldmaps&hl=en_US) by Esri is a popular GIS app. Unfortunately it does not have a built in NTRIP Client to allow high precision corrections down to the RTK device. To enable high-precision, a [mock location](connecting_bluetooth.md/#enable-mock-location) and an intermediary app such as [GNSS Master](gis_software_android.md/#gnss-master) or [Lefebure](gis_software_android.md/#lefebure) is needed.
+[ArcGIS Field Maps](https://play.google.com/store/apps/details?id=com.esri.fieldmaps&hl=en_US) by Esri is a popular GIS app. Unfortunately it does not have a built in NTRIP Client to allow high precision corrections down to the RTK device. To enable high-precision, a [mock location](connecting_bluetooth.md/#enable-mock-location) and an intermediary app such as [GNSS Master](#gnss-master) or [Lefebure](#lefebure) is needed.
 
 Once a [mock location](connecting_bluetooth.md/#enable-mock-location) provider is setup, open Field Maps.
 
@@ -41,11 +42,11 @@ ArcGIS Field Maps with 12mm accuracy
 </figcaption>
 </figure>
 
-Field Maps will use the device's internal location as its default location provider. With [GNSS Master](gis_software_android.md/#gnss-master) or [Lefebure](gis_software_android.md/#lefebure) providing the mock location to the phone, Field Maps will have a super precise GNSS location and data collection can begin.
+Field Maps will use the device's internal location as its default location provider. With [GNSS Master](#gnss-master) or [Lefebure](#lefebure) providing the mock location to the phone, Field Maps will have a super precise GNSS location and data collection can begin.
 
 ## ArcGIS QuickCapture
 
-[ArcGIS QuickCapture](https://play.google.com/store/apps/details?id=com.esri.arcgisquickcapture&hl=en_US) by Esri is a popular GIS app. Unfortunately it does not allow Bluetooth connections to 3rd party RTK devices. To enable a connection to a SparkFun RTK device, a [mock location](connecting_bluetooth.md/#enable-mock-location) and an intermediary app such as [GNSS Master](gis_software_android.md/#gnss-master) or [Lefebure](gis_software_android.md/#lefebure) is needed.
+[ArcGIS QuickCapture](https://play.google.com/store/apps/details?id=com.esri.arcgisquickcapture&hl=en_US) by Esri is a popular GIS app. Unfortunately it does not allow Bluetooth connections to 3rd party RTK devices. To enable a connection to a SparkFun RTK device, a [mock location](connecting_bluetooth.md/#enable-mock-location) and an intermediary app such as [GNSS Master](#gnss-master) or [Lefebure](#lefebure) is needed.
 
 Once a [mock location](connecting_bluetooth.md/#enable-mock-location) provider is setup, open QuickCapture.
 
@@ -89,11 +90,11 @@ Click the map icon in the upper right.
 </figcaption>
 </figure>
 
-The location of the receiver is shown on a map. With [GNSS Master](gis_software_android.md/#gnss-master) or [Lefebure](gis_software_android.md/#lefebure) providing the mock location to the phone, QuickCapture will have a very precise GNSS location and data collection can begin.
+The location of the receiver is shown on a map. With [GNSS Master](#gnss-master) or [Lefebure](#lefebure) providing the mock location to the phone, QuickCapture will have a very precise GNSS location and data collection can begin.
 
 ## ArcGIS Survey123
 
-[ArcGIS Survey123](https://play.google.com/store/apps/details?id=com.esri.survey123&hl=en_US) by Esri is a popular GIS app. Unfortunately it does not allow Bluetooth connections to 3rd party RTK devices. To enable a connection to a SparkFun RTK device, a [mock location](connecting_bluetooth.md/#enable-mock-location) and an intermediary app such as [GNSS Master](gis_software_android.md/#gnss-master) or [Lefebure](gis_software_android.md/#lefebure) is needed.
+[ArcGIS Survey123](https://play.google.com/store/apps/details?id=com.esri.survey123&hl=en_US) by Esri is a popular GIS app. Unfortunately it does not allow Bluetooth connections to 3rd party RTK devices. To enable a connection to a SparkFun RTK device, a [mock location](connecting_bluetooth.md/#enable-mock-location) and an intermediary app such as [GNSS Master](#gnss-master) or [Lefebure](#lefebure) is needed.
 
 Once a [mock location](connecting_bluetooth.md/#enable-mock-location) provider is setup, open Survey123.
 
@@ -127,7 +128,7 @@ If the mock location provider app is running, you should see the Lat/Lon/Alt fro
 </figcaption>
 </figure>
 
-The location of the receiver is shown on a map. With [GNSS Master](gis_software_android.md/#gnss-master) or [Lefebure](gis_software_android.md/#lefebure) providing the mock location to the phone, Survey123 will have a very precise GNSS location and data collection can begin.
+The location of the receiver is shown on a map. With [GNSS Master](#gnss-master) or [Lefebure](#lefebure) providing the mock location to the phone, Survey123 will have a very precise GNSS location and data collection can begin.
 
 ## Diamond Maps
 
@@ -169,7 +170,7 @@ Once a receiver is selected, its status will be shown in the GPS Setup window. A
 
 **NTRIP Client**
 
-If you’re using a serial radio to connect a Base to a Rover for your correction data, or if you're using the RTK Facet L-Band with built-in corrections, you can skip this part.
+If you’re using a serial radio to connect a Base to a Rover for your correction data.
 
 <figure markdown>
 ![NTRIP Settings](./img/DiamondMaps/SparkFun RTK Diamond Maps - NTRIP Settings.png)
@@ -244,7 +245,7 @@ You will be shown a list of paired devices. Select the RTK device you'd like to 
 
 **NTRIP Client**
 
-If you’re using a serial radio to connect a Base to a Rover for your correction data, or if you're using the RTK Facet L-Band with built-in corrections, you can skip this part.
+If you’re using a serial radio to connect a Base to a Rover for your correction data.
 
 <figure markdown>
 ![Set up corrections](./img/FieldGenius/Field%20Genius%208.png)
@@ -624,7 +625,7 @@ Survey Master expects many more NMEA sentences than most GIS software. We must e
 
 Note above: There are 9 enabled messages and GSV is set to '1'.
 
-Connect to the RTK device either over [WiFi AP config](/configure_with_wifi/) or via [Serial](/configure_with_serial/). Above is shown the serial method.
+Connect to the RTK device either over [WiFi AP config](configure_with_wifi.md) or via [Serial](configure_with_serial.md). Above is shown the serial method.
 
 Open a terminal at 115200bps and press a key to open the serial configuration menu. Press '2' for GNSS Messages, press '1' for NMEA messages, now be sure to enable 9 messages to a rate of 1:
 
@@ -756,7 +757,7 @@ You can open the GNSS Status sub-menu to view the current data.
 
 **NTRIP Client**
 
-If you’re using a serial radio to connect a Base to a Rover for your correction data, or if you're using the RTK Facet L-Band with built-in corrections, you can skip this part.
+If you’re using a serial radio to connect a Base to a Rover for your correction data.
 
 We need to send RTCM correction data from the phone back to the RTK device so that it can improve its fix accuracy. This is the amazing power of the SparkFun RTK products and SW Maps. Your phone can be the radio link! From the main SW Maps menu select NTRIP Client. Not there? Be sure the 'SparkFun RTK' instrument was automatically selected connecting. Disconnect and change the instrument to 'SparkFun RTK' to enable the NTRIP Connection option.
 
@@ -846,10 +847,8 @@ Be sure to see [Correction Sources](correction_sources.md).
 
 Don't have access to an NTRIP Caster or other RTCM correction source? There are a few options.
 
-The [SparkFun RTK Facet L-Band](https://www.sparkfun.com/products/20000) gets corrections via an encrypted signal from geosynchronous satellites. This device gets RTK Fix without the need for a WiFi or cellular connection.
-
-Also, you can use a 2nd RTK product operating in Base mode to provide the correction data. Check out [Creating a Permanent Base](permanent_base.md).
+You can use a 2nd RTK product operating in Base mode to provide the correction data. Check out [Creating a Permanent Base](permanent_base.md).
 
 If you're the DIY sort, you can create your own low-cost base station using an ESP32 and a ZED-F9P breakout board. Check out [How to Build a DIY GNSS Reference Station](https://learn.sparkfun.com/tutorials/how-to-build-a-diy-gnss-reference-station).
 
-There are services available as well. [Syklark](https://www.swiftnav.com/skylark) provides RTCM coverage for $49 a month (as of writing) and is extremely easy to set up and use. [Point One](https://app.pointonenav.com/trial?utm_source=sparkfun) also offers RTK NTRIP service with a free 14 day trial and easy to use front end.
+There are services available as well. See [Using PointPerfect Flex](using_pointperfect_flex.md) for a $15/month option. [Syklark](https://www.swiftnav.com/skylark) provides RTCM coverage for $49 a month (as of writing) and is extremely easy to set up and use. [Point One](https://app.pointonenav.com/trial?utm_source=sparkfun) also offers RTK NTRIP service with a free 14 day trial and easy to use front end.

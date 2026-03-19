@@ -149,6 +149,9 @@ plugins:
   # Default search plugin
   - search
 
+  # Needed for including content in quickstart guides
+  - include-markdown
+
   # Allows formatting (code block, icons, etc.) in headings and titles
   - typeset
 
@@ -402,6 +405,7 @@ nav:
     - quickstart-facet-mosaic.md
     - quickstart-postcard.md
     - quickstart-torch.md
+    - quickstart-tx2.md
   - connecting_bluetooth.md
   - GIS Software:
       - gis_software_android.md
@@ -411,6 +415,7 @@ nav:
       - configure_with_bluetooth.md
       - configure_with_browser.md
       - configure_with_cli.md
+      - configure_from_display.md
       - configure_with_ethernet.md
       - configure_with_ethernet_over_usb.md
       - configure_with_rxtools.md
@@ -434,6 +439,8 @@ nav:
       - menu_tilt.md
       - menu_userprofiles.md
       - menu_wifi.md
+      - Debug Menus:
+        - menu_debug_hardware.md
   - Hardware:
       - Update EVK:
         - firmware_update_esp32.md
@@ -448,6 +455,9 @@ nav:
         - firmware_update_esp32.md
         - firmware_update_um980.md
         - firmware_update_stm32.md
+      - Update TX2:
+        - firmware_update_esp32.md
+        - firmware_update_lg290p.md
       - displays.md
       - embeddedsystem_connection.md
       - repair.md
@@ -455,7 +465,7 @@ nav:
   - RTK Corrections:
       - correction_sources.md
       - correction_transport.md
-      - permanent_base.md
+      - local_base.md
       - using_pointperfect_flex.md
       - accuracy_verification.md
   - reference_documents.md
