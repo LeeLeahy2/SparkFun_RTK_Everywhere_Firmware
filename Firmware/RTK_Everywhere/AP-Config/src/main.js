@@ -2146,7 +2146,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
                 ge("antennaPhaseCenter").value = 42.0; //Average of L1/L2
             }
             else if (platformPrefix.substring(0, 2) == "FP") {
-                ge("antennaPhaseCenter").value = 62.0; //APC from drawings - TBC
+                ge("antennaPhaseCenter").value = 58.3; //Average of L1/L2
             }
             else {
                 ge("antennaPhaseCenter").value = 0.0;
