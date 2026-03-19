@@ -22,18 +22,19 @@ ARG WARNINGS=default
 
 # If you have your own u-blox PointPerfect token(s), define them here
 # or pass in as args when building the Dockerfile
-# POINTPERFECT_LBAND_TOKEN is the token for the deprecated u-blox L-band SPARTN service
 # POINTPERFECT_IP_TOKEN is the token for the deprecated u-blox IP SPARTN service
-# POINTPERFECT_LBAND_IP_TOKEN is the token for the deprecated u-blox combined L-band and IP SPARTN service
 # POINTPERFECT_RTCM_TOKEN is the token for the u-blox RTCM over NTRIP service
-ARG POINTPERFECT_LBAND_TOKEN=0xAA,0xBB,0xCC,0xDD,0x00,0x11,0x22,0x33,0x0A,0x0B,0x0C,0x0D,0x00,0x01,0x02,0x03
 ARG POINTPERFECT_IP_TOKEN=0xAA,0xBB,0xCC,0xDD,0x00,0x11,0x22,0x33,0x0A,0x0B,0x0C,0x0D,0x00,0x01,0x02,0x03
-ARG POINTPERFECT_LBAND_IP_TOKEN=0xAA,0xBB,0xCC,0xDD,0x00,0x11,0x22,0x33,0x0A,0x0B,0x0C,0x0D,0x00,0x01,0x02,0x03
 ARG POINTPERFECT_RTCM_TOKEN=0xAA,0xBB,0xCC,0xDD,0x00,0x11,0x22,0x33,0x0A,0x0B,0x0C,0x0D,0x00,0x01,0x02,0x03
+
+# Enable Accessory / Authentication functionality
+ARG COMPILE_AUTHENTICATION=false
+ARG DEPLOY_ACCESSORY_LIBRARY
+ARG DEPLOY_AUTHENTICATION_LIBRARY
 
 # Get curl and python3
 RUN apt-get update \
-    && apt-get install -y curl python3 python3-pip python3-venv \
+    && apt-get install -y curl python3 python3-pip python3-venv git \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -64,29 +65,33 @@ RUN arduino-cli lib update-index
 RUN arduino-cli core install "esp32:esp32@${CORE_VERSION}"
 
 # Get Known Libraries
-RUN arduino-cli lib install ArduinoJson@7.4.2
 RUN arduino-cli lib install ESP32Time@2.0.0
 #RUN arduino-cli lib install ESP32_BleSerial@3.0.0
 RUN arduino-cli lib install "ESP32-OTA-Pull"@1.0.0
 RUN arduino-cli lib install JC_Button@2.1.2
 RUN arduino-cli lib install PubSubClient@2.8.0
 RUN arduino-cli lib install "SdFat"@2.1.1
-RUN arduino-cli lib install "SparkFun LIS2DH12 Arduino Library"@1.0.3
 RUN arduino-cli lib install "SparkFun MAX1704x Fuel Gauge Arduino Library"@1.0.4
 RUN arduino-cli lib install "SparkFun u-blox GNSS v3"@3.1.10
 RUN arduino-cli lib install "SparkFun Qwiic OLED Arduino Library"@1.0.15
 RUN arduino-cli lib install SSLClientESP32@2.0.0
-RUN arduino-cli lib install "SparkFun Extensible Message Parser"@1.0.8
 RUN arduino-cli lib install "SparkFun BQ40Z50 Battery Manager Arduino Library"@1.0.0
 RUN arduino-cli lib install "ArduinoMqttClient"@0.1.8
 RUN arduino-cli lib install "SparkFun u-blox PointPerfect Library"@1.11.4
 RUN arduino-cli lib install "SparkFun IM19 IMU Arduino Library"@1.0.1
-RUN arduino-cli lib install "SparkFun UM980 Triband RTK GNSS Arduino Library"@1.0.10
-RUN arduino-cli lib install "SparkFun LG290P Quadband RTK GNSS Arduino Library"@2.0.1
+RUN arduino-cli lib install "SparkFun UM980 Triband RTK GNSS Arduino Library"@2.0.1
+RUN arduino-cli lib install "SparkFun LG290P Quadband RTK GNSS Arduino Library"@3.0.1
 RUN arduino-cli lib install "SparkFun I2C Expander Arduino Library"@1.0.1
-RUN arduino-cli lib install "SparkFun Apple Accessory Arduino Library"@3.1.2
-RUN arduino-cli lib install "SparkFun Authentication Coprocessor Arduino Library"@1.0.0
-RUN arduino-cli lib install "SparkFun Toolkit"@1.0.6
+
+# Install the depends last. See:
+# https://community.sparkfun.com/t/rtk-everywhere-firmware-no-longer-builds-for-me/68045
+
+# "ESP32-OTA-Pull"@1.0.0 depends=ArduinoJson
+RUN arduino-cli lib install ArduinoJson@7.4.2
+
+# "SparkFun UM980 Triband RTK GNSS Arduino Library"@2.0.0 depends=SparkFun Extensible Message Parser (>=2.0.0)
+# "SparkFun LG290P Quadband RTK GNSS Arduino Library"@3.0.1 depends=SparkFun Extensible Message Parser (>=2.0.0)
+RUN arduino-cli lib install "SparkFun Extensible Message Parser"@2.0.2
 
 # Enable external libs
 RUN arduino-cli config set library.enable_unsafe_install true
@@ -94,11 +99,54 @@ RUN arduino-cli config set library.enable_unsafe_install true
 # Install SparkFun fork of ESP32_BleSerial
 RUN arduino-cli lib install --git-url https://github.com/sparkfun/ESP32_BleSerial.git
 
+# The Accessory and Authentication Coprocessor libraries depends=SparkFun Toolkit (>=1.0.6)
+RUN arduino-cli lib install "SparkFun Toolkit"@1.0.6
+
+# ===========================================================================================
+
 # Copy RTK_Everywhere and build deployment image
 FROM upstream AS deployment
 
 # Add the source files
 ADD . .
+
+# Install private accessory and authentication coprocessor libraries
+RUN if [ "$COMPILE_AUTHENTICATION" = "false" ] ; \
+    then echo 'Skipping COMPILE_AUTHENTICATION'; \
+    else \
+    cd ./RTK_Everywhere \
+    && sed -i 's|//#define COMPILE_AUTHENTICATION|#define COMPILE_AUTHENTICATION|g' RTK_Everywhere.ino \
+    && cd .. \
+    && rm -rf ~/.ssh \
+    && if [ -d "~/.ssh" ] ; then rmdir ~/.ssh ; else echo 'No .ssh' ; fi \
+    && mkdir -pm0700 ~/.ssh \
+    && touch ~/.ssh/id_ed25519_accessory \
+    && chmod 600 ~/.ssh/id_ed25519_accessory \
+    && echo "$DEPLOY_ACCESSORY_LIBRARY" > ~/.ssh/id_ed25519_accessory \
+    && touch ~/.ssh/id_ed25519_authentication \
+    && chmod 600 ~/.ssh/id_ed25519_authentication \
+    && echo "$DEPLOY_AUTHENTICATION_LIBRARY" > ~/.ssh/id_ed25519_authentication \
+    && touch ~/.ssh/config \
+    && echo 'Host gitaccessorylib' > ~/.ssh/config \
+    && echo '  HostName github.com' >> ~/.ssh/config \
+    && echo '  User git' >> ~/.ssh/config \
+    && echo '  IdentityFile ~/.ssh/id_ed25519_accessory' >> ~/.ssh/config \
+    && echo '  IdentitiesOnly yes' >> ~/.ssh/config \
+    && echo '  StrictHostKeyChecking no' >> ~/.ssh/config \
+    && cd /root/Arduino/libraries \
+    && rm -rf SparkFun_Apple_Accessory_Arduino_Library \
+    && git clone git@gitaccessorylib:sparkfun/SparkFun_Apple_Accessory_Arduino_Library.git \
+    && rm ~/.ssh/config \
+    && touch ~/.ssh/config \
+    && echo 'Host gitauthenticationlib' > ~/.ssh/config \
+    && echo '  HostName github.com' >> ~/.ssh/config \
+    && echo '  User git' >> ~/.ssh/config \
+    && echo '  IdentityFile ~/.ssh/id_ed25519_authentication' >> ~/.ssh/config \
+    && echo '  IdentitiesOnly yes' >> ~/.ssh/config \
+    && echo '  StrictHostKeyChecking no' >> ~/.ssh/config \
+    && rm -rf SparkFun_Authentication_Coprocessor_Arduino_Library \
+    && git clone git@gitauthenticationlib:sparkfun/SparkFun_Authentication_Coprocessor_Arduino_Library.git \
+    ; fi
 
 # Patch libmbedtls and libbt
 RUN cd ./RTK_Everywhere/Patch \
@@ -132,14 +180,14 @@ RUN cd ./RTK_Everywhere \
     --build-property build.partitions=RTKEverywhere \
     --build-property upload.maximum_size=4055040 \
     --build-property "compiler.cpp.extra_flags=-MMD -c \
-    \"-DPOINTPERFECT_LBAND_TOKEN=${POINTPERFECT_LBAND_TOKEN}\" \
     \"-DPOINTPERFECT_IP_TOKEN=${POINTPERFECT_IP_TOKEN}\" \
-    \"-DPOINTPERFECT_LBAND_IP_TOKEN=${POINTPERFECT_LBAND_IP_TOKEN}\" \
     \"-DPOINTPERFECT_RTCM_TOKEN=${POINTPERFECT_RTCM_TOKEN}\"  \
     \"-DFIRMWARE_VERSION_MAJOR=${FIRMWARE_VERSION_MAJOR}\" \
     \"-DFIRMWARE_VERSION_MINOR=${FIRMWARE_VERSION_MINOR}\" \
     \"-DENABLE_DEVELOPER=${ENABLE_DEVELOPER}\"" \
     --export-binaries
+
+# ===========================================================================================
 
 # Copy the compile output. List the files
 FROM deployment AS output

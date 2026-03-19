@@ -489,18 +489,19 @@ static void esp_sdp_callback(esp_sdp_cb_event_t event, esp_sdp_cb_param_t *param
             record.type = ESP_SDP_TYPE_RAW;
 
 #ifdef COMPILE_AUTHENTICATION
-            record.uuid.len = sizeof(UUID_IAP2);
-            memcpy(record.uuid.uuid.uuid128, UUID_IAP2, sizeof(UUID_IAP2));
+            size_t sizeofUuidIap2;
+            const uint8_t *uuidIap2 = appleAccessory->getAccessoryUUID(sizeofUuidIap2);
+            record.uuid.len = sizeofUuidIap2;
+            memcpy(record.uuid.uuid.uuid128, uuidIap2, sizeofUuidIap2);
             // The service_name isn't critical. But we can't not set one.
             // (If we don't set a name, the record doesn't get created.)
             record.service_name_length = strlen(sdp_service_name) + 1;
             record.service_name = (char *)sdp_service_name;
             record.rfcomm_channel_number = rfcommChanneliAP2; // RFCOMM channel
-#endif
-
             record.l2cap_psm = -1;
             record.profile_version = -1;
             esp_sdp_create_record((esp_bluetooth_sdp_record_t *)&record);
+#endif
         }
         break;
     case ESP_SDP_DEINIT_EVT:

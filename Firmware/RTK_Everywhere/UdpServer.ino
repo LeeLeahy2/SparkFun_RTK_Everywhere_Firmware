@@ -155,38 +155,40 @@ bool udpServerEnabled(const char ** line)
 int32_t udpServerSendData(uint16_t dataHead)
 {
     int32_t usedSpace = 0;
-
     int32_t bytesToSend;
-
     uint16_t tail;
 
     tail = udpServerTail;
-
-    // Determine the amount of UDP data in the buffer
-    bytesToSend = dataHead - tail;
-    if (bytesToSend < 0)
-        bytesToSend += settings.gnssHandlerBufferSize;
-    if (bytesToSend > 0)
+    if (!settings.enableUdpServer)
+        tail = dataHead;
+    else
     {
-        // Reduce bytes to send if we have more to send then the end of the buffer
-        // We'll wrap next loop
-        if ((tail + bytesToSend) > settings.gnssHandlerBufferSize)
-            bytesToSend = settings.gnssHandlerBufferSize - tail;
-
-        // Send the data
-        bytesToSend = udpServerSendDataBroadcast(&ringBuffer[tail], bytesToSend);
-
-        // Assume all data was sent, wrap the buffer pointer
-        tail += bytesToSend;
-        if (tail >= settings.gnssHandlerBufferSize)
-            tail -= settings.gnssHandlerBufferSize;
-
-        // Update space available for use in UART task
+        // Determine the amount of UDP data in the buffer
         bytesToSend = dataHead - tail;
         if (bytesToSend < 0)
             bytesToSend += settings.gnssHandlerBufferSize;
-        if (usedSpace < bytesToSend)
-            usedSpace = bytesToSend;
+        if (bytesToSend > 0)
+        {
+            // Reduce bytes to send if we have more to send then the end of the buffer
+            // We'll wrap next loop
+            if ((tail + bytesToSend) > settings.gnssHandlerBufferSize)
+                bytesToSend = settings.gnssHandlerBufferSize - tail;
+
+            // Send the data
+            bytesToSend = udpServerSendDataBroadcast(&ringBuffer[tail], bytesToSend);
+
+            // Assume all data was sent, wrap the buffer pointer
+            tail += bytesToSend;
+            if (tail >= settings.gnssHandlerBufferSize)
+                tail -= settings.gnssHandlerBufferSize;
+
+            // Update space available for use in UART task
+            bytesToSend = dataHead - tail;
+            if (bytesToSend < 0)
+                bytesToSend += settings.gnssHandlerBufferSize;
+            if (usedSpace < bytesToSend)
+                usedSpace = bytesToSend;
+        }
     }
 
     udpServerTail = tail;

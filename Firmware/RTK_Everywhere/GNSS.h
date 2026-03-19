@@ -14,6 +14,7 @@ typedef enum
     GNSS_RECEIVER_MOSAIC_X5,
     GNSS_RECEIVER_X20P,
     GNSS_RECEIVER_UM980,
+    GNSS_RECEIVER_F9P,
     // Add new values above this line
     GNSS_RECEIVER_UNKNOWN,
 } gnssReceiverType_e;
@@ -21,7 +22,7 @@ typedef enum
 class GNSS
 {
   protected:
-    double _altitude;           // Altitude in meters
+    double _altitude;          // Altitude in meters
     double _geoidalSeparation; // Geoidal separation in meters
     float _horizontalAccuracy; // Horizontal position accuracy in meters
     double _latitude;          // Latitude in degrees
@@ -62,7 +63,6 @@ class GNSS
     }
 
     // If we have decryption keys, configure module
-    // Note: don't check online.lband_neo here. We could be using ip corrections
     virtual void applyPointPerfectKeys();
 
     // Set RTCM for base mode to defaults (1005/1074/1084/1094/1124 1Hz & 1230 0.1Hz)
@@ -144,7 +144,7 @@ class GNSS
 
     virtual bool fixRateIsAllowed(uint32_t fixRateMs);
 
-    //Return min/max rate in ms
+    // Return min/max rate in ms
     virtual uint32_t fixRateGetMinimumMs();
 
     virtual uint32_t fixRateGetMaximumMs();
@@ -247,7 +247,7 @@ class GNSS
     // Returns full year, ie 2023, not 23.
     virtual uint16_t getYear();
 
-    // Helper functions for the current mode as read from the GNSS receiver 
+    // Helper functions for the current mode as read from the GNSS receiver
     // Not to be confused with inRoverMode() and inBaseMode() used in States.ino
     virtual bool gnssInBaseFixedMode();
     virtual bool gnssInBaseSurveyInMode();
@@ -271,10 +271,9 @@ class GNSS
     // Return true if GNSS receiver has a higher quality DGPS fix than 3D
     virtual bool isDgpsFixed();
 
-    // Some functions (L-Band area frequency determination) merely need
-    // to know if we have a valid fix, not what type of fix
-    // This function checks to see if the given platform has reached
-    // sufficient fix type to be considered valid
+    // Some functions merely need to know if we have an RTK Float.
+    // This function checks to see if the given platform has reached sufficient
+    // fix type to be considered valid.
     virtual bool isFixed();
 
     // Used in tpISR() for time pulse synchronization
@@ -284,15 +283,14 @@ class GNSS
 
     virtual bool isPppConverging();
 
-    // Some functions (L-Band area frequency determination) merely need
-    // to know if we have an RTK Fix.  This function checks to see if the
-    // given platform has reached sufficient fix type to be considered valid
+    // Some functions merely need to know if we have an RTK Float.
+    // This function checks to see if the given platform has reached sufficient
+    // fix type to be considered valid.
     virtual bool isRTKFix();
 
-    // Some functions (L-Band area frequency determination) merely need
-    // to know if we have an RTK Float.  This function checks to see if
-    // the given platform has reached sufficient fix type to be considered
-    // valid
+    // Some functions merely need to know if we have an RTK Float.
+    // This function checks to see if the given platform has reached sufficient
+    // fix type to be considered valid.
     virtual bool isRTKFloat();
 
     // Determine if the survey-in operation is complete
@@ -364,7 +362,7 @@ class GNSS
     //   elevationDegrees: The elevation value in degrees
     virtual bool setElevation(uint8_t elevationDegrees);
 
-    virtual bool setHighAccuracyService(bool enableGalileoHas);
+    virtual bool setPppService();
 
     // Configure any logging settings - currently mosaic-X5 specific
     virtual bool setLogging();
@@ -377,6 +375,9 @@ class GNSS
 
     // Enable/disable messages according to the NMEA array
     virtual bool setMessagesRTCMRover();
+
+    // Turn on all the enabled Extra/Other messages
+    virtual bool setMessagesOther();
 
     // Set the minimum satellite signal level for navigation.
     virtual bool setMinCN0(uint8_t cnoValue);
@@ -431,51 +432,38 @@ bool gnssCmdUpdateConstellations(const char *settingName, void *settingData, int
 bool gnssCmdUpdateMessageRates(const char *settingName, void *settingData, int settingType);
 
 // Determine if the GNSS receiver is present
-typedef bool (* GNSS_PRESENT)();
+typedef bool (*GNSS_PRESENT)();
 
 // Create the GNSS class instance
-typedef void (* GNSS_NEW_CLASS)();
+typedef void (*GNSS_NEW_CLASS)();
 
 // List available settings, their type in CSV, and value
-typedef bool (* GNSS_COMMAND_LIST)(RTK_Settings_Types type,
-                                   int settingsIndex,
-                                   bool inCommands,
-                                   int qualifier,
-                                   char * settingName,
-                                   char * settingValue);
+typedef bool (*GNSS_COMMAND_LIST)(RTK_Settings_Types type, int settingsIndex, bool inCommands, int qualifier,
+                                  char *settingName, char *settingValue);
 
 // Add types to a JSON array
-typedef void (* GNSS_COMMAND_TYPE_JSON)(JsonArray &command_types);
+typedef void (*GNSS_COMMAND_TYPE_JSON)(JsonArray &command_types);
 
 // Create string for settings
-typedef bool (* GNSS_CREATE_STRING)(RTK_Settings_Types type,
-                                    int settingsIndex,
-                                    char * newSettings);
+typedef bool (*GNSS_CREATE_STRING)(RTK_Settings_Types type, int settingsIndex, char *newSettings);
 
 // Return setting value as a string
-typedef bool (* GNSS_GET_SETTING_VALUE)(RTK_Settings_Types type,
-                                        const char * suffix,
-                                        int settingsIndex,
-                                        int qualifier,
-                                        char * settingValueStr);
+typedef bool (*GNSS_GET_SETTING_VALUE)(RTK_Settings_Types type, const char *suffix, int settingsIndex, int qualifier,
+                                       char *settingValueStr);
 
 // Update a setting value
-typedef bool (* GNSS_NEW_SETTING_VALUE)(RTK_Settings_Types type,
-                                        const char * suffix,
-                                        int qualifier,
-                                        double d);
+typedef bool (*GNSS_NEW_SETTING_VALUE)(RTK_Settings_Types type, const char *suffix, int qualifier, double d);
 
 // Write settings to a file
-typedef bool (* GNSS_SETTING_TO_FILE)(File *settingsFile,
-                                      RTK_Settings_Types type,
-                                      int settingsIndex);
+typedef bool (*GNSS_SETTING_TO_FILE)(File *settingsFile, RTK_Settings_Types type, int settingsIndex);
 
 typedef struct _GNSS_SUPPORT_ROUTINES
 {
-    const char * name;
-    const char * gnssModelIdentifier;
+    const char *name;
+    const char *gnssModelIdentifier;
     gnssReceiverType_e _receiver;
     GNSS_PRESENT _present;
+    int8_t _presentPriority; // -1 : no priority; 0 : highest priority; 1 : next highest
     GNSS_NEW_CLASS _newClass;
     GNSS_COMMAND_LIST _commandList;
     GNSS_COMMAND_TYPE_JSON _commandTypeJson;

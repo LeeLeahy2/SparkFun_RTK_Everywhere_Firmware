@@ -1182,7 +1182,7 @@ SettingValueResponse updateSettingWithValue(bool inCommands, const char *setting
     // setProfile was used in the original Web Config interface
     else if (strcmp(settingName, "setProfile") == 0)
     {
-        char * settingsCsvList;
+        char *settingsCsvList;
 
         // Change to new profile
         if (settings.debugWebServer == true)
@@ -1229,7 +1229,7 @@ SettingValueResponse updateSettingWithValue(bool inCommands, const char *setting
 
     else if (strcmp(settingName, "resetProfile") == 0)
     {
-        char * settingsCsvList;
+        char *settingsCsvList;
 
         settingsToDefaults(); // Overwrite our current settings with defaults
 
@@ -1453,6 +1453,8 @@ void createSettingsString(char *newSettings)
     RTK_Settings_Types type;
 
     newSettings[0] = '\0'; // Erase current settings string
+
+    stringRecord(newSettings, "productBrand", (char *)getBrandAttributeFromProductVariant(productVariant)->name);
 
     // System Info
     char apPlatformPrefix[80];
@@ -1787,44 +1789,50 @@ void createSettingsString(char *newSettings)
     stringRecord(newSettings, "minCN0", settings.minCN0);
     stringRecord(newSettings, "enableRCFirmware", enableRCFirmware);
 
-    // Add SD Characteristics
-    char sdCardSizeChar[20];
-    String cardSize;
-    char sdFreeSpaceChar[20];
-    String freeSpace;
     if (present.microSd)
     {
-        stringHumanReadableSize(cardSize, sdCardSize);
-        cardSize.toCharArray(sdCardSizeChar, sizeof(sdCardSizeChar));
-        stringHumanReadableSize(freeSpace, sdFreeSpace);
-        freeSpace.toCharArray(sdFreeSpaceChar, sizeof(sdFreeSpaceChar));
-    }
-    else if (present.mosaicMicroSd)
-    {
-        stringHumanReadableSize(cardSize, mosaicSdCardSize);
-        cardSize.toCharArray(sdCardSizeChar, sizeof(sdCardSizeChar));
-        stringHumanReadableSize(freeSpace, mosaicSdFreeSpace);
-        freeSpace.toCharArray(sdFreeSpaceChar, sizeof(sdFreeSpaceChar));
-    }
+        stringRecord(newSettings, "sdMounted", online.microSD);
+        
+        if (online.microSD)
+        {
+            // Add SD Characteristics
+            char sdCardSizeChar[20];
+            String cardSize;
+            char sdFreeSpaceChar[20];
+            String freeSpace;
+            if (present.microSd)
+            {
+                stringHumanReadableSize(cardSize, sdCardSize);
+                cardSize.toCharArray(sdCardSizeChar, sizeof(sdCardSizeChar));
+                stringHumanReadableSize(freeSpace, sdFreeSpace);
+                freeSpace.toCharArray(sdFreeSpaceChar, sizeof(sdFreeSpaceChar));
+            }
+            else if (present.mosaicMicroSd)
+            {
+                stringHumanReadableSize(cardSize, mosaicSdCardSize);
+                cardSize.toCharArray(sdCardSizeChar, sizeof(sdCardSizeChar));
+                stringHumanReadableSize(freeSpace, mosaicSdFreeSpace);
+                freeSpace.toCharArray(sdFreeSpaceChar, sizeof(sdFreeSpaceChar));
+            }
 
-    stringRecord(newSettings, "sdFreeSpace", sdFreeSpaceChar);
-    stringRecord(newSettings, "sdSize", sdCardSizeChar);
-    stringRecord(newSettings, "sdMounted", online.microSD);
+            stringRecord(newSettings, "sdFreeSpace", sdFreeSpaceChar);
+            stringRecord(newSettings, "sdSize", sdCardSizeChar);
+        }
+    }
 
     // Add Device ID used for corrections
     stringRecord(newSettings, "hardwareID", (char *)printDeviceId());
 
-    // Add Days Remaining for corrections
-    char apDaysRemaining[20];
-    if (strlen(settings.pointPerfectCurrentKey) > 0)
-    {
-        int daysRemaining = daysFromEpoch(settings.pointPerfectNextKeyStart + settings.pointPerfectNextKeyDuration + 1);
-        snprintf(apDaysRemaining, sizeof(apDaysRemaining), "%d", daysRemaining);
-    }
-    else
-        snprintf(apDaysRemaining, sizeof(apDaysRemaining), "No Keys");
-
-    stringRecord(newSettings, "daysRemaining", apDaysRemaining);
+    // Add Days Remaining for these keys
+    // char apDaysRemaining[20];
+    // if (strlen(settings.pointPerfectCurrentKey) > 0)
+    // {
+    //     int daysRemaining = daysFromEpoch(settings.pointPerfectNextKeyStart + settings.pointPerfectNextKeyDuration + 1);
+    //     snprintf(apDaysRemaining, sizeof(apDaysRemaining), "%d", daysRemaining);
+    // }
+    // else
+    //     snprintf(apDaysRemaining, sizeof(apDaysRemaining), "No Keys");
+    // stringRecord(newSettings, "daysRemaining", apDaysRemaining);
 
     // Current coordinates come from HPPOSLLH call back
     stringRecord(newSettings, "geodeticLat", gnss->getLatitude(), haeNumberOfDecimals);
@@ -2865,10 +2873,6 @@ bool settingAvailableOnPlatform(int i)
         // Verify that the command is available on the platform
         if ((productVariant == RTK_EVK) && rtkSettingsEntries[i].platEvk)
             break;
-        if ((productVariant == RTK_FACET_V2) && rtkSettingsEntries[i].platFacetV2)
-            break;
-        if ((productVariant == RTK_FACET_V2_LBAND) && rtkSettingsEntries[i].platFacetV2LBand)
-            break;
         if ((productVariant == RTK_FACET_MOSAIC) && rtkSettingsEntries[i].platFacetMosaic)
             break;
         if ((productVariant == RTK_TORCH) && rtkSettingsEntries[i].platTorch)
@@ -2884,6 +2888,16 @@ bool settingAvailableOnPlatform(int i)
             if ((rtkSettingsEntries[i].platFacetFP == L29) && (settings.detectedGnssReceiver == GNSS_RECEIVER_LG290P))
                 break;
             if ((rtkSettingsEntries[i].platFacetFP == MX5) && (settings.detectedGnssReceiver == GNSS_RECEIVER_MOSAIC_X5))
+                break;
+            if ((rtkSettingsEntries[i].platFacetFP == ZED)
+                && ((settings.detectedGnssReceiver == GNSS_RECEIVER_F9P)
+                    || (settings.detectedGnssReceiver == GNSS_RECEIVER_X20P)))
+                break;
+            if ((rtkSettingsEntries[i].platFacetFP == ZF9)
+                && (settings.detectedGnssReceiver == GNSS_RECEIVER_F9P))
+                break;
+            if ((rtkSettingsEntries[i].platFacetFP == ZX2)
+                && (settings.detectedGnssReceiver == GNSS_RECEIVER_X20P))
                 break;
         }
         if ((productVariant == RTK_TORCH_X2) && rtkSettingsEntries[i].platTorchX2)
@@ -2921,10 +2935,6 @@ bool settingPossibleOnPlatform(int i)
     {
         // Verify that the command is available on the platform
         if ((productVariant == RTK_EVK) && rtkSettingsEntries[i].platEvk)
-            break;
-        if ((productVariant == RTK_FACET_V2) && rtkSettingsEntries[i].platFacetV2)
-            break;
-        if ((productVariant == RTK_FACET_V2_LBAND) && rtkSettingsEntries[i].platFacetV2LBand)
             break;
         if ((productVariant == RTK_FACET_MOSAIC) && rtkSettingsEntries[i].platFacetMosaic)
             break;

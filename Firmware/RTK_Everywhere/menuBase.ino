@@ -94,7 +94,7 @@ void menuBase()
                 systemPrint(settings.observationSeconds);
                 systemPrintln(" seconds");
 
-                if (present.gnss_zedf9p) // UM980 does not support survey in minimum deviation
+                if (present.gnss_zedf9p  || present.gnss_zedx20p) // UM980 does not support survey in minimum deviation
                 {
                     systemPrint("3) Set required Mean 3D Standard Deviation: ");
                     systemPrint(settings.observationPositionAccuracy, 2);
@@ -277,11 +277,18 @@ void menuBase()
         }
         else if (settings.fixedBase == true && settings.fixedBaseCoordinateType == COORD_TYPE_GEODETIC && incoming == 6)
         {
-            if (getNewSetting(
-                    "Enter the antenna phase center (the distance between the ARP and the APC) in millimeters. "
-                    "Common antennas "
-                    "Torch/X2=116.5, Facet mosaic=68.5, EVK=42.0, Postcard=37.5, Facet FP=62.5",
-                    -200.0, 200.0, &settings.antennaPhaseCenter_mm) == INPUT_RESPONSE_VALID)
+            char arpPrompt[300];
+            snprintf(arpPrompt, sizeof(arpPrompt),
+                    "Enter the antenna phase center (the distance between the ARP and the APC) in millimeters\r\n"
+                    "Common antennas: "
+                    "Torch/X2=%.1f, Facet mosaic=%.1f, EVK=%.1f, Postcard=%.1f, Facet FP=%.1f\r\n",
+                    getProductHousingPropertiesFromVariant(RTK_TORCH)->antennaPhaseCenter_mm,
+                    getProductHousingPropertiesFromVariant(RTK_FACET_MOSAIC)->antennaPhaseCenter_mm,
+                    getProductHousingPropertiesFromVariant(RTK_EVK)->antennaPhaseCenter_mm,
+                    getProductHousingPropertiesFromVariant(RTK_POSTCARD)->antennaPhaseCenter_mm,
+                    getProductHousingPropertiesFromVariant(RTK_FACET_FP)->antennaPhaseCenter_mm);
+            if (getNewSetting((const char *)&arpPrompt[0], -200.0, 200.0,
+                &settings.antennaPhaseCenter_mm) == INPUT_RESPONSE_VALID)
             {
                 // Change GNSS receiver configuration if the receiver is in Base mode, otherwise, just change setting
                 // This prevents a user, while in Rover mode but changing a Base setting, from entering Base mode
@@ -303,7 +310,7 @@ void menuBase()
             }
         }
         else if (settings.fixedBase == false && incoming == 3 &&
-                 present.gnss_zedf9p) // UM980 does not support survey in minimum deviation
+                 (present.gnss_zedf9p || present.gnss_zedx20p)) // UM980 does not support survey in minimum deviation
         {
             // Arbitrary 1m minimum
             if (getNewSetting("Enter the number of meters for survey-in required position accuracy", 1.0,
@@ -694,11 +701,23 @@ bool menuCommonBaseCoords()
             {
                 systemPrintln("Enter the Antenna Phase Center in mm.");
                 systemPrintln("APC is the distance from the base of the antenna to the antenna phase center.");
-                systemPrintln("This is usually printed on the side of the antenna and is calculated during antenna calibration.");
-                systemPrintln("Common APCs: Torch(117mm) EVK(42mm) Facet mosaic(69mm) Facet L-Band v2(69mm) Facet v2(70mm):");
-                double apc;
-                if (getUserInputDouble(&apc) == INPUT_RESPONSE_VALID)
-                    antennaPhaseCenter_mm = apc;
+                systemPrintln(
+                    "This is usually printed on the side of the antenna and is calculated during antenna calibration.");
+
+                char apcPrompt[300];
+                snprintf(apcPrompt, sizeof(apcPrompt),
+                         "Common APCs: EVK=%.1f, Facet FP=%.1f, Facet mosaic=%.1f, Postcard=%.1f, Torch/X2=%.1f\r\n",
+                         getProductHousingPropertiesFromVariant(RTK_EVK)->antennaPhaseCenter_mm,
+                         getProductHousingPropertiesFromVariant(RTK_FACET_FP)->antennaPhaseCenter_mm,
+                         getProductHousingPropertiesFromVariant(RTK_FACET_MOSAIC)->antennaPhaseCenter_mm,
+                         getProductHousingPropertiesFromVariant(RTK_POSTCARD)->antennaPhaseCenter_mm,
+                         getProductHousingPropertiesFromVariant(RTK_TORCH)->antennaPhaseCenter_mm);
+
+                if (getNewSetting((const char *)&apcPrompt[0], -200.0, 200.0, &antennaPhaseCenter_mm) ==
+                    INPUT_RESPONSE_VALID)
+                {
+                    // Nothing to do. antennaPhaseCenter_mm was modified if the input was inbounds.
+                }
             }
         }
         else if ((incoming >= (COMMON_COORDINATES_MAX_STATIONS + 1))

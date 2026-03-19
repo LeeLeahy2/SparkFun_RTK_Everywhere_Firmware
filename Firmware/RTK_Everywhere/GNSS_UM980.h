@@ -112,7 +112,7 @@ class GNSS_UM980 : GNSS
     //   Returns true if successfully configured and false upon failure
     bool configure();
 
-    // Turn off all NMEA and RTCM
+    // Turn off all NMEA and RTCM on all ports
     void disableAllOutput();
 
     uint8_t getActiveNmeaMessageCount();
@@ -130,7 +130,7 @@ class GNSS_UM980 : GNSS
     // Controls the messages that get broadcast over Bluetooth and logged (if enabled)
     void menuMessagesSubtype(float *localMessageRate, const char *messageType);
 
-    bool setHighAccuracyService(bool enableGalileoHas);
+    bool setPppService();
 
     // Set the minimum satellite signal level for navigation.
     bool setMinCN0(uint8_t cnoValue);
@@ -142,7 +142,6 @@ class GNSS_UM980 : GNSS
     }
 
     // If we have decryption keys, configure module
-    // Note: don't check online.lband_neo here. We could be using ip corrections
     void applyPointPerfectKeys();
 
     // Set RTCM for base mode to defaults (1005/1074/1084/1094/1124 1Hz & 1230 0.1Hz)
@@ -211,7 +210,7 @@ class GNSS_UM980 : GNSS
 
     bool fixRateIsAllowed(uint32_t fixRateMs);
 
-    //Return min/max rate in ms
+    // Return min/max rate in ms
     uint32_t fixRateGetMinimumMs();
 
     uint32_t fixRateGetMaximumMs();
@@ -315,7 +314,7 @@ class GNSS_UM980 : GNSS
     // Returns full year, ie 2023, not 23.
     uint16_t getYear();
 
-    // Helper functions for the current mode as read from the GNSS receiver 
+    // Helper functions for the current mode as read from the GNSS receiver
     bool gnssInBaseFixedMode();
     bool gnssInBaseSurveyInMode();
     bool gnssInRoverMode();
@@ -337,10 +336,9 @@ class GNSS_UM980 : GNSS
     // Return true if GNSS receiver has a higher quality DGPS fix than 3D
     bool isDgpsFixed();
 
-    // Some functions (L-Band area frequency determination) merely need
-    // to know if we have a valid fix, not what type of fix
-    // This function checks to see if the given platform has reached
-    // sufficient fix type to be considered valid
+    // Some functions merely need to know if we have an RTK Float.
+    // This function checks to see if the given platform has reached sufficient
+    // fix type to be considered valid.
     bool isFixed();
 
     // Used in tpISR() for time pulse synchronization
@@ -350,15 +348,14 @@ class GNSS_UM980 : GNSS
 
     bool isPppConverging();
 
-    // Some functions (L-Band area frequency determination) merely need
-    // to know if we have an RTK Fix.  This function checks to see if the
-    // given platform has reached sufficient fix type to be considered valid
+    // Some functions merely need to know if we have an RTK Float.
+    // This function checks to see if the given platform has reached sufficient
+    // fix type to be considered valid.
     bool isRTKFix();
 
-    // Some functions (L-Band area frequency determination) merely need
-    // to know if we have an RTK Float.  This function checks to see if
-    // the given platform has reached sufficient fix type to be considered
-    // valid
+    // Some functions merely need to know if we have an RTK Float.
+    // This function checks to see if the given platform has reached sufficient
+    // fix type to be considered valid.
     bool isRTKFloat();
 
     // Determine if the survey-in operation is complete
@@ -447,6 +444,9 @@ class GNSS_UM980 : GNSS
     // Turn on all the enabled RTCM Base messages on COM3
     bool setMessagesRTCMBase();
 
+    // Turn on all the enabled Extra/Other messages
+    bool setMessagesOther();
+
     // Set the dynamic model to use for RTK
     // Inputs:
     //   modelNumber: Number of the model to use, provided by radio library
@@ -499,28 +499,14 @@ class GNSS_UM980 : GNSS
 };
 
 // Forward routine declarations
-bool um980CommandList(RTK_Settings_Types type,
-                      int settingsIndex,
-                      bool inCommands,
-                      int qualifier,
-                      char * settingName,
-                      char * settingValue);
+bool um980CommandList(RTK_Settings_Types type, int settingsIndex, bool inCommands, int qualifier, char *settingName,
+                      char *settingValue);
 void um980CommandTypeJson(JsonArray &command_types);
-bool um980CreateString(RTK_Settings_Types type,
-                       int settingsIndex,
-                       char * newSettings);
-bool um980GetSettingValue(RTK_Settings_Types type,
-                          const char * suffix,
-                          int settingsIndex,
-                          int qualifier,
-                          char * settingValueStr);
-bool um980NewSettingValue(RTK_Settings_Types type,
-                          const char * suffix,
-                          int qualifier,
-                          double d);
-bool um980SettingsToFile(File *settingsFile,
-                         RTK_Settings_Types type,
-                         int settingsIndex);
+bool um980CreateString(RTK_Settings_Types type, int settingsIndex, char *newSettings);
+bool um980GetSettingValue(RTK_Settings_Types type, const char *suffix, int settingsIndex, int qualifier,
+                          char *settingValueStr);
+bool um980NewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifier, double d);
+bool um980SettingsToFile(File *settingsFile, RTK_Settings_Types type, int settingsIndex);
 
 #endif // COMPILE_UM980
 #endif // __GNSS_UM980_H__

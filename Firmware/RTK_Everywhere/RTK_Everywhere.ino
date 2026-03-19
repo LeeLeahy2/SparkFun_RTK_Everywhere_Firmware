@@ -89,7 +89,7 @@ RTK_Everywhere.ino
 #define COMPILE_LORA     // COmment out to remove LoRa functionality
 
 #ifdef COMPILE_BT
-#define COMPILE_AUTHENTICATION // Comment out to disable MFi authentication
+//#define COMPILE_AUTHENTICATION // Uncomment to enable MFi authentication (uses Private libraries)
 #endif
 
 #ifdef COMPILE_ETHERNET
@@ -106,12 +106,8 @@ RTK_Everywhere.ino
 #define COMPILE_UM980 // Comment out to remove UM980 functionality
 #define COMPILE_ZED      // Comment out to remove ZED-F9x functionality
 
-#ifdef  COMPILE_ZED
-#define COMPILE_L_BAND   // Comment out to remove L-Band functionality
-#endif                   // COMPILE_ZED
-
 #define COMPILE_IM19_IMU             // Comment out to remove IM19_IMU functionality
-#define COMPILE_POINTPERFECT_LIBRARY // Comment out to remove PPL support
+// #define COMPILE_POINTPERFECT_LIBRARY // Comment out to remove PPL support
 #define COMPILE_BQ40Z50              // Comment out to remove BQ40Z50 functionality
 #define COMPILE_MP2762A_CHARGER      // Comment out to remove MP2762A charger functionality
 
@@ -156,10 +152,10 @@ RTK_Everywhere.ino
 
 // If no token is available at compile time, mark this firmware as version 'd99.99'
 // TOKENS are passed in from compiler extra flags
-#ifndef POINTPERFECT_LBAND_TOKEN
+#ifndef POINTPERFECT_IP_TOKEN
 #define FIRMWARE_VERSION_MAJOR 99
 #define FIRMWARE_VERSION_MINOR 99
-#endif // POINTPERFECT_LBAND_TOKEN
+#endif // POINTPERFECT_IP_TOKEN
 
 // Define the RTK board identifier:
 //  This is an int which is unique to this variant of the RTK hardware which allows us
@@ -379,6 +375,7 @@ SdFat *sd;
 
 #define productVariantProperties getProductPropertiesFromVariant(productVariant)
 #define platformFilePrefix getProductPropertiesFromVariant(productVariant)->filePrefix // Sets the prefix for logs and settings files
+#define variantHousingProperties getProductHousingPropertiesFromVariant(productVariant)
 
 SdFile *logFile;                  // File that all GNSS messages sentences are written to
 unsigned long lastUBXLogSyncTime; // Used to record to SD every half second
@@ -421,10 +418,8 @@ LoggingType loggingType = LOGGING_UNKNOWN;
 SdFile *managerTempFile = nullptr; // File used for uploading or downloading in the file manager section of AP config
 bool managerFileOpen = false;
 
-TaskHandle_t sdSizeCheckTaskHandle;        // Store handles so that we can delete the task once the size is found
 const uint8_t sdSizeCheckTaskPriority = 0; // 3 being the highest, and 0 being the lowest
 const int sdSizeCheckStackSize = 3000;
-bool sdSizeCheckTaskComplete;
 
 char logFileName[sizeof("SFE_Reference_Station_230101_120101.ubx_plusExtraSpace")] = {0};
 
@@ -515,12 +510,6 @@ GNSS *gnss;
 
 char neoFirmwareVersion[20]; // Output to system status menu.
 
-#ifdef COMPILE_L_BAND
-static SFE_UBLOX_GNSS_SUPER i2cLBand; // NEO-D9S
-
-void checkRXMCOR(UBX_RXM_COR_data_t *ubxDataStruct);
-#endif
-
 volatile struct timeval
     gnssSyncTv; // This holds the time the RTC was sync'd to GNSS time via Time Pulse interrupt - used by NTP
 struct timeval previousGnssSyncTv; // This holds the time of the previous RTC sync
@@ -543,6 +532,7 @@ unsigned long rtcmLastPacketReceived; // Time stamp of RTCM coming in (from BT, 
 
 bool usbSerialIncomingRtcm; // Incoming RTCM over the USB serial port
 #define RTCM_CORRECTION_INPUT_TIMEOUT (2 * 1000)
+#define RTCM_CORRECTION_WRITE_TIMEOUT (3 * 1000)
 
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -846,11 +836,6 @@ SparkFunAppleAccessoryDriver *appleAccessory; // Instantiated by beginAuthCoPro
 
 const char *sdp_service_name = "iAP2";
 
-// UUID : Big-Endian
-//static const uint8_t  UUID_IAP2[] = {0x00, 0x00, 0x00, 0x00, 0xDE, 0xCA, 0xFA, 0xDE, 0xDE, 0xCA, 0xDE, 0xAF, 0xDE, 0xCA, 0xCA, 0xFF};
-// UUID : Little-Endian
-static const uint8_t  UUID_IAP2[] = {0xFF, 0xCA, 0xCA, 0xDE, 0xAF, 0xDE, 0xCA, 0xDE, 0xDE, 0xFA, 0xCA, 0xDE, 0x00, 0x00, 0x00, 0x00};
-
 #endif
 
 // Storage for the latest NMEA GPGGA/GPRMC/GPGST - to be passed to the MFi Apple device
@@ -950,8 +935,6 @@ uint8_t setupSelectedButton =
     0; // In Display Setup, start displaying at this button. This is the selected (highlighted) button.
 std::vector<setupButton> setupButtons; // A vector (linked list) of the setup 'buttons'
 
-bool firstRoverStart; // Used to detect if the user is toggling the power button at POR to enter the test menu
-
 bool newEventToRecord;     // Goes true when INT pin goes high. Currently this is ZED-specific.
 uint32_t triggerCount;     // Global copy - TM2 event counter
 uint32_t triggerTowMsR;    // Global copy - Time Of Week of rising edge (ms)
@@ -961,9 +944,8 @@ uint32_t triggerAccEst;    // Global copy - Accuracy estimate in nanoseconds
 unsigned long splashStart; // Controls how long the splash is displayed for. Currently min of 2s.
 
 unsigned long startTime;       // Used for checking longest-running functions
-bool lbandCorrectionsReceived; // Used to display L-Band SIV icon when corrections are successfully decrypted (NEO-D9S
-                               // only)
-unsigned long lastLBandDecryption;   // Timestamp of last successfully decrypted PMP message from NEO-D9S
+bool lbandCorrectionsReceived; // Used to display L-Band SIV icon when corrections are successfully decrypted
+unsigned long lastLBandDecryption;   // Timestamp of last successfully decrypted message
 volatile bool mqttMessageReceived;   // Goes true when the subscribed MQTT channel reports back
 unsigned long systemTestDisplayTime; // Timestamp for swapping the graphic during testing
 uint8_t systemTestDisplayNumber;     // Tracks which test screen we're looking at
@@ -1451,11 +1433,14 @@ void setup()
     DMW_b("beginCharger");
     beginCharger(); // Configure battery charger
 
-    DMW_b("beginExternalEvent");
-    gnss->beginExternalEvent(); // Configure the event input
+    if (online.gnss) // TODO: Add online.gnss protection in the GNSS classes
+    {
+        DMW_b("beginExternalEvent");
+        gnss->beginExternalEvent(); // Configure the event input
 
-    DMW_b("setPPS");
-    gnss->setPPS(); // Configure the pulse per second pin
+        DMW_b("setPPS");
+        gnss->setPPS(); // Configure the pulse per second pin
+    }
 
     DMW_b("beginInterrupts");
     beginInterrupts(); // Begin the TP interrupts
@@ -1581,11 +1566,8 @@ void loop()
     DMW_l("updateAuthCoPro");
     updateAuthCoPro(); // Update the Apple Accessory
 
-    DMW_l("updateLBand");
-    updateLBand(); // Update L-Band
-
-    DMW_l("updateLBandCorrections");
-    updateLBandCorrections(); // Check if we've recently received PointPerfect corrections or not
+    //DMW_l("updateLBand");
+    //updateLBand(); // Update L-Band
 
     DMW_l("tiltUpdate");
     tiltUpdate(); // Check if new lat/lon/alt have been calculated
@@ -1622,7 +1604,7 @@ void loop()
 void waitingForMenuInput()
 {
     // Don't call stateUpdate() here. Wait until we exit the menu before changing state.
-    
+
     DMW_w("updateBattery");
     updateBattery();
 
@@ -1863,7 +1845,8 @@ void rtcUpdate()
                     if ((millis() - lastErrorMsec) > (30 * 1000))
                     {
                         lastErrorMsec = millis();
-                        systemPrintln("No GNSS date/time available for system RTC.");
+                        if(!inMainMenu)
+                            systemPrintln("No GNSS date/time available for system RTC.");
                     }
                 } // End timeValid
             } // End lastRTCAttempt
@@ -2011,5 +1994,37 @@ void getSemaphoreFunction(char *functionName)
     case FUNCTION_ARPWRITE:
         strcpy(functionName, "ARP Write");
         break;
+    case FUNCTION_FILE_EXISTS:
+        strcpy(functionName, "File Exists");
+        break;
+    case FUNCTION_FILE_DUMP:
+        strcpy(functionName, "File Dump");
+        break;
+    }
+}
+
+//----------------------------------------
+// Output a buffer of data
+//
+// Inputs:
+//   buffer: Address of a buffer of data to output
+//   length: Number of bytes of data to output
+//----------------------------------------
+void output(uint8_t * buffer, size_t length)
+{
+    size_t bytesWritten;
+
+    if (Serial)
+    {
+        while (length)
+        {
+            // Wait until space is available in the FIFO
+            while (Serial.availableForWrite() == 0);
+
+            // Output the character
+            bytesWritten = Serial.write(buffer, length);
+            buffer += bytesWritten;
+            length -= bytesWritten;
+        }
     }
 }

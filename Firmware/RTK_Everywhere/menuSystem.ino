@@ -62,32 +62,6 @@ void menuSystem()
                 systemPrintln("Offline");
         }
 
-        if (present.lband_neo == true)
-        {
-            systemPrint("NEO-D9S L-Band: ");
-
-            if (online.lband_neo == true)
-                systemPrintln("Online - ");
-            else
-                systemPrintln("Offline - ");
-
-            if (online.pointPerfectKeysApplied == true)
-                systemPrint("Keys Good");
-            else
-                systemPrint("No Keys");
-
-            systemPrint(" / Corrections Received");
-            if (lbandCorrectionsReceived == false)
-                systemPrint(" Failed");
-
-            if (zedCorrectionsSource == 1) // Only print for L-Band
-                systemPrintf(" / Eb/N0[dB] (>9 is good): %0.2f", lBandEBNO);
-
-            systemPrint(" - ");
-
-            printNEOInfo();
-        }
-
         if (present.gnss_mosaicX5 == true)
         {
             systemPrint("mosaic-X5 L-Band: ");
@@ -227,6 +201,10 @@ void menuSystem()
 
         systemPrintln("h) Debug hardware");
 
+#ifdef  COMPILE_MENU_USER_PROFILES
+        systemPrintln("l) Debug LFS and SD card files");
+#endif  // COMPILE_MENU_USER_PROFILES
+
         systemPrintln("n) Debug network");
 
         systemPrintln("o) Configure operation");
@@ -308,6 +286,12 @@ void menuSystem()
         }
         else if (incoming == 'h')
             menuDebugHardware();
+
+#ifdef  COMPILE_MENU_USER_PROFILES
+        else if (incoming == 'l')
+            menuDebugFiles();
+#endif  // COMPILE_MENU_USER_PROFILES
+
         else if (incoming == 'n')
             menuDebugNetwork();
         else if (incoming == 'o')
@@ -436,6 +420,162 @@ void menuSystem()
     clearBuffer(); // Empty buffer of any newline chars
 }
 
+#ifdef  COMPILE_MENU_USER_PROFILES
+
+// Debug LFS and SD card files
+void menuDebugFiles()
+{
+    char fileName[60];
+    bool filePresent;
+    bool gotSemaphore;
+    uint8_t profile = profileNumber;
+    const char * profileNumberFileName = "/profileNumber.txt";
+    bool sdActive = false;
+    bool wasSdCardOnline = false;
+    int x;
+
+    while (1)
+    {
+        systemPrintln();
+        systemPrintln("Menu: Debug NVM and SD card files");
+
+        // Try to gain access the SD card
+        gotSemaphore = false;
+        if (sdActive)
+        {
+            wasSdCardOnline = online.microSD;
+            if (online.microSD == false)
+                beginSD();
+
+            if (online.microSD)
+            {
+                // Attempt to access file system. This avoids collisions with file writing from other functions like
+                // recordSystemSettingsToFile() and gnssSerialReadTask()
+                if (xSemaphoreTake(sdCardSemaphore, fatSemaphore_longWait_ms) == pdPASS)
+                {
+                    gotSemaphore = true;
+                    markSemaphore(FUNCTION_FILE_EXISTS);
+                }
+            }
+        }
+
+        // List available profiles
+        for (x = 0; x < MAX_PROFILE_COUNT; x++)
+        {
+            // Get the file name
+            getProfileFileName(x, fileName, sizeof(fileName));
+
+            // Determine if the file is present
+            filePresent = false;
+            if (sdActive)
+            {
+                if (online.microSD && gotSemaphore)
+                    filePresent = sd->exists(fileName);
+            }
+            else
+                filePresent = LittleFS.exists(fileName);
+            if (filePresent)
+                systemPrintf("%d) Select %s%s%s\r\n",
+                             x, sdActive ? "SD" : "NVM", fileName,
+                             (x == profile) ? " <- Current" : "");
+        }
+
+        // Check for profileNumber.txt
+        strcpy(fileName, profileNumberFileName);
+        filePresent = false;
+        if (sdActive)
+        {
+            if (online.microSD && gotSemaphore)
+                filePresent = sd->exists(fileName);
+        }
+        else
+            filePresent = LittleFS.exists(fileName);
+        if (filePresent)
+            systemPrintf("%d) Dump %s%s\r\n",
+                         x, sdActive ? "SD" : "NVM", fileName);
+        x += 1;
+
+        // *** Start of menu ***
+        // Support file dumping
+        getProfileFileName(profile, fileName, sizeof(fileName));
+        systemPrintf("d) Dump file: %s%s\r\n",
+                     sdActive ? "SD" : "NVM", fileName);
+
+        // Support directory listings
+        systemPrintf("l) List %s files\r\n", sdActive ? "SD" : "NVM");
+
+        // Toggle between NVM and SD card
+        if (online.microSD)
+            systemPrintf("t) Toggle between NVM and SD\r\n");
+
+        // Release access the SD card
+        if (sdActive)
+        {
+            if (online.microSD && (!wasSdCardOnline))
+                endSD(gotSemaphore, true);
+            else if (gotSemaphore)
+                xSemaphoreGive(sdCardSemaphore);
+        }
+
+        // Exit
+        // *** End of menu ***
+        systemPrintln("x) Exit");
+
+        // Get menu choice
+        byte incoming = getUserInputCharacterNumber();
+
+        // Check for a profile number
+        if ((incoming >= 0) && (incoming < MAX_PROFILE_COUNT))
+            profile = incoming;
+
+        // Dump profileNumber.txt
+        if (incoming == MAX_PROFILE_COUNT)
+        {
+            if (sdActive)
+                sdCardDumpFile(profileNumberFileName);
+            else
+                nvmDumpFile(profileNumberFileName);
+        }
+
+        // Dump the file if requested
+        else if (incoming == 'd')
+        {
+            getProfileFileName(profile, fileName, sizeof(fileName));
+            if (sdActive)
+                sdCardDumpFile(fileName);
+            else
+                nvmDumpFile(fileName);
+        }
+
+        // List the files in the file system
+        else if (incoming == 'l')
+        {
+            if (sdActive)
+                sdCardDirectoryListing();
+            else
+                nvmDirectoryListing();
+        }
+
+        // Toggle the selection between NVM and the SD card
+        else if (incoming == 't')
+            sdActive = ! sdActive;
+
+        // All done with this menu
+        else if (incoming == 'x')
+            break;
+        else if (incoming == INPUT_RESPONSE_GETNUMBER_EXIT)
+            break;
+        else if (incoming == INPUT_RESPONSE_GETNUMBER_TIMEOUT)
+            break;
+        else
+            printUnknown(incoming);
+    }
+
+    clearBuffer(); // Empty buffer of any newline chars
+}
+
+#endif  // COMPILE_MENU_USER_PROFILES
+
 // Toggle debug settings for hardware
 void menuDebugHardware()
 {
@@ -481,20 +621,20 @@ void menuDebugHardware()
         // On Postcard: firmware can be updated over USB and the CH342 B connection to GNSS
         //              UART1. A hardware GNSS reset may be beneficial, but it is possible
         //              to reset over USB / UART too ($PQTMSRR*4B).
-        // On Facet FP:     mosaic-X5 can be updated over USB via the USB Hub.
-        //              A direct connection can be created from USB to USB Hub to CH342 B to
-        //              ESP32 UART0 to ESP32 UART1 to GNSS UART1.
-        //              ZED-X20P will need a direct connection. Update via USB is not possible.
-        //              LG290P needs a direct connection.
+        // On Facet FP: a direct connection can be created from USB to USB Hub to CH342 A to
+        //              GNSS UART1.
+        //              mosaic-X5 can also be updated over USB via the USB Hub
+        //              ZED-X20P needs the direct connection. Update via USB is not possible.
+        //              LG290P needs the direct connection.
         //              A future UM980 variant will also need a direct connection.
         //              Updates via the 4-pin JST RADIO connector and GNSS UART2 may also be possible.
 
-        if (present.gnss_um980)
-            systemPrintln("13) UM980 direct connect for firmware upgrade");
-        else if ((productVariant == RTK_FACET_FP) && (present.gnss_lg290p || present.gnss_zedx20p))
+        if (productVariant == RTK_FACET_FP)
             systemPrintln("13) GNSS direct connect for firmware update");
+        else if (present.gnss_um980)
+            systemPrintln("13) UM980 direct connect for firmware upgrade"); // Torch
         else if (present.gnss_lg290p)
-            systemPrintln("13) LG290P reset for firmware update");
+            systemPrintln("13) LG290P reset for firmware update"); // Torch X2 / Postcard
 
         systemPrint("14) PSRAM (");
         if (ESP.getPsramSize() == 0)
@@ -522,7 +662,6 @@ void menuDebugHardware()
         //           ESP32 UART1 to LoRa UART0.
         // On Facet FP:  we need a direct connection from USB to USB Hub to ESP32 UART0 to
         //           ESP32 UART2 to LoRa UART2.
-        //           TODO: check STM32 can be updated via UART2!!
 
         if (present.radio_lora)
             systemPrintln("17) STM32 direct connect for LoRa firmware upgrade");
@@ -541,9 +680,11 @@ void menuDebugHardware()
 
         systemPrintln("23) Reset GNSS Config");
 
-        systemPrintln("e) Erase LittleFS");
+        systemPrintf("24) EA Protocol name: %s\r\n", settings.eaProtocol);
 
-        systemPrintln("t) Test Screen");
+        systemPrintf("25) RTCM buffer debugging: %s\r\n", settings.debugRtcmBuffers ? "Enabled" : "Disabled");
+
+        systemPrintln("e) Erase LittleFS");
 
         systemPrintln("r) Force system reset");
 
@@ -585,25 +726,25 @@ void menuDebugHardware()
         }
         else if (incoming == 13)
         {
-            if (present.gnss_um980)
-            {
-                // Create a file in LittleFS
-                if (um980CreatePassthrough() == true)
-                {
-                    systemPrintln();
-                    systemPrintln("UM980 passthrough mode has been recorded to LittleFS. Device will now reset.");
-                    systemFlush(); // Complete prints
-
-                    ESP.restart();
-                }
-            }
-            else if ((productVariant == RTK_FACET_FP) && (present.gnss_lg290p || present.gnss_zedx20p))
+            if (productVariant == RTK_FACET_FP)
             {
                 // Create a file in LittleFS
                 if (createGNSSPassthrough() == true)
                 {
                     systemPrintln();
                     systemPrintln("GNSS passthrough mode has been recorded to LittleFS. Device will now reset.");
+                    systemFlush(); // Complete prints
+
+                    ESP.restart();
+                }
+            }
+            else if (present.gnss_um980)
+            {
+                // Create a file in LittleFS
+                if (um980CreatePassthrough() == true)
+                {
+                    systemPrintln();
+                    systemPrintln("UM980 passthrough mode has been recorded to LittleFS. Device will now reset.");
                     systemFlush(); // Complete prints
 
                     ESP.restart();
@@ -690,15 +831,22 @@ void menuDebugHardware()
             gnssConfigureDefaults();
         }
 
+        else if (incoming == 24)
+        {
+            systemPrint("Enter new protocol name: ");
+            getUserInputString(settings.eaProtocol, sizeof(settings.eaProtocol));
+            recordSystemSettings();
+            systemPrintln("\r\n** Please reconnect to the Device to apply the changes **");
+        }
+
+        else if (incoming == 25)
+            settings.debugRtcmBuffers ^= 1;
+
         else if (incoming == 'e')
         {
             systemPrintln("Erasing LittleFS and resetting");
             LittleFS.format();
             ESP.restart();
-        }
-        else if (incoming == 't')
-        {
-            requestChangeState(STATE_TEST); // We'll enter test mode once exiting all serial menus
         }
 
         // Menu exit control
@@ -994,7 +1142,9 @@ void menuDebugSoftware()
         // Menu exit control
         else if (incoming == 'r')
         {
-            recordSystemSettings();
+            tasksStopGnssUart(); // Stop tasks writing data to SD
+
+            recordSystemSettings(); // Save settings now SD writing is stopped
 
             ESP.restart();
         }
@@ -1037,13 +1187,6 @@ void menuOperation()
 
         systemPrint("4) GNSS Serial RX Full Threshold: ");
         systemPrintln(settings.serialGNSSRxFullThreshold);
-
-        // L-Band
-        systemPrint("5) Set L-Band RTK Fix Timeout (seconds): ");
-        if (settings.lbandFixTimeout_seconds > 0)
-            systemPrintln(settings.lbandFixTimeout_seconds);
-        else
-            systemPrintln("Disabled - no resets");
 
         // SPI
         systemPrint("6) SPI/SD Interface Frequency: ");
@@ -1131,11 +1274,7 @@ void menuOperation()
         {
             getNewSetting("Enter Serial GNSS RX Full Threshold", 1, 127, &settings.serialGNSSRxFullThreshold);
         }
-        else if (incoming == 5)
-        {
-            getNewSetting("Enter number of seconds in RTK float before hot-start", 0, 3600,
-                          &settings.lbandFixTimeout_seconds); // Arbitrary 60 minute limit
-        }
+
         else if (incoming == 6)
         {
             getNewSetting("Enter SPI frequency in MHz", 1, 16, &settings.spiFrequency);

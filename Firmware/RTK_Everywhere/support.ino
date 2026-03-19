@@ -86,8 +86,7 @@ size_t systemWriteGnssDataToUsbSerial(const uint8_t *buffer, uint16_t length)
 // Ensure all serial output has been transmitted, FIFOs are empty
 void systemFlush()
 {
-    if ((printEndpoint == PRINT_ENDPOINT_SERIAL)
-        || (printEndpoint == PRINT_ENDPOINT_ALL))
+    if ((printEndpoint == PRINT_ENDPOINT_SERIAL) || (printEndpoint == PRINT_ENDPOINT_ALL))
     {
         if (forwardGnssDataToUsbSerial == false)
         {
@@ -620,15 +619,19 @@ int AsciiToNibble(int data)
 }
 
 // Dump a buffer in hex and ASCII
-void dumpBuffer(uint8_t *buffer, uint16_t length)
+void dumpBuffer(uint8_t *buffer, size_t length)
+{
+    dumpBuffer(0, buffer, length);
+}
+
+// Dump a buffer in hex and ASCII
+void dumpBuffer(size_t offset, uint8_t *buffer, size_t length)
 {
     int bytes;
     uint8_t *end;
     int index;
-    uint16_t offset;
 
     end = &buffer[length];
-    offset = 0;
     while (buffer < end)
     {
         // Determine the number of bytes to display on the line
@@ -714,7 +717,7 @@ void checkArrayDefaults()
 void verifyTables()
 {
     // Verify the product properties table
-    if (productPropertiesEntries != (RTK_UNKNOWN + 1))
+    if (productPropertiesEntries != productVariantCount)
         reportFatalError("Fix productPropertiesTable to match ProductVariant");
 
     // Verify the measurement scales
@@ -1197,16 +1200,6 @@ void WeekToWToUnixEpoch(uint64_t *unixEpoch, uint16_t GPSWeek, uint32_t GPSToW)
     *unixEpoch += 315964800;
 }
 
-const char *configPppSpacesToCommas(const char *config)
-{
-    static char commas[sizeof(settings.configurePPP)];
-    snprintf(commas, sizeof(commas), "%s", config);
-    for (size_t i = 0; i < strlen(commas); i++)
-        if (commas[i] == ' ')
-            commas[i] = ',';
-    return (const char *)commas;
-}
-
 void assembleDeviceName()
 {
     snprintf(serialNumber, sizeof(serialNumber), "%02X%02X%02d", btMACAddress[4], btMACAddress[5], productVariant);
@@ -1229,20 +1222,20 @@ void assembleDeviceName()
             }
         }
 
-        // Form the Tilt identifier
+        // Form the Tilt identifier.
         if (settings.detectedTilt)
             snprintf(tiltIdentifier, sizeof(tiltIdentifier), "T");
     }
 
     // Set the display name for the OLED: "TX2", "FPLT", "Facet LB"
     snprintf(displayName, sizeof(displayName), "%s%s%s",
-                productVariantProperties->displayName,
-                gnssModelIdentifier, tiltIdentifier);
+             productVariantProperties->displayName,
+             gnssModelIdentifier, tiltIdentifier);
 
     // Set the prefix for broadcast names: "TX2", "FPLT"
     snprintf(platformPrefix, sizeof(platformPrefix), "%s%s%s",
-                productVariantProperties->name,
-                gnssModelIdentifier, tiltIdentifier);
+             productVariantProperties->name,
+             gnssModelIdentifier, tiltIdentifier);
 
     // Set the accessory name for MFi: "SparkPNT TX2", "SparkPNT FPLT"
     snprintf(accessoryName, sizeof(accessoryName), "%s %s", brandAttributes->name,
@@ -1259,27 +1252,39 @@ void assembleDeviceName()
             deviceName, strlen(deviceName));
         reportFatalError("Bluetooth device name is longer than 28 characters.");
     }
-
 }
 
 const productProperties * getProductPropertiesFromVariant(ProductVariant variant) {
-    for (int i = 0; i < (int)RTK_UNKNOWN; i++) {
+    for (int i = 0; i < productPropertiesEntries; i++) {
         if (productPropertiesTable[i].productVariant == variant)
             return &productPropertiesTable[i];
     }
     return getProductPropertiesFromVariant(RTK_UNKNOWN);
 }
 
-RTKBrandAttribute * getBrandAttributeFromBrand(RTKBrands_e brand) {
-    for (int i = 0; i < (int)RTKBrands_e::BRAND_NUM; i++) {
+RTKBrandAttribute *getBrandAttributeFromBrand(RTKBrands_e brand)
+{
+    for (int i = 0; i < (int)RTKBrands_e::BRAND_NUM; i++)
+    {
         if (RTKBrandAttributes[i].brand == brand)
             return &RTKBrandAttributes[i];
     }
     return getBrandAttributeFromBrand(DEFAULT_BRAND);
 }
 
-RTKBrandAttribute * getBrandAttributeFromProductVariant(ProductVariant variant) {
-    const productProperties * properties = getProductPropertiesFromVariant(variant);
+RTKBrandAttribute *getBrandAttributeFromProductVariant(ProductVariant variant)
+{
+    const productProperties *properties = getProductPropertiesFromVariant(variant);
     return getBrandAttributeFromBrand(properties->brand);
 }
 
+const productHousingProperties *getProductHousingPropertiesFromVariant(ProductVariant variant)
+{
+    const productProperties *properties = getProductPropertiesFromVariant(variant);
+    for (int i = 0; i < productHousingEntries; i++)
+    {
+        if (productHousingPropertiesTable[i].housing == properties->housing)
+            return &productHousingPropertiesTable[i];
+    }
+    return getProductHousingPropertiesFromVariant(RTK_UNKNOWN);
+}

@@ -46,7 +46,8 @@ void printMosaicCardSpace()
         // On Flex mosaic-X5, the internal mosaic SD card is not accessible
         char myString[70];
         snprintf(myString, sizeof(myString), "SD card size: %s / Free space: %s", sdCardSizeChar, sdFreeSpaceChar);
-        systemPrintln(myString);
+        if(!inMainMenu)
+            systemPrintln(myString);
     }
 }
 
@@ -162,7 +163,6 @@ void menuLogMosaic()
 
 //----------------------------------------
 // If we have decryption keys, configure module
-// Note: don't check online.lband_neo here. We could be using ip corrections
 //----------------------------------------
 void GNSS_MOSAIC::applyPointPerfectKeys()
 {
@@ -217,14 +217,14 @@ void GNSS_MOSAIC::baseRtcmLowDataRate()
 //----------------------------------------
 void GNSS_MOSAIC::begin()
 {
-    // On Facet mosaic:
+    // On Facet mosaic (X5):
     //   COM1 is connected to the ESP32 for: Encapsulated RTCMv3 + SBF + NMEA, plus L-Band
     //   COM2 is connected to the RADIO port
     //   COM3 is connected to the DATA port
     //   COM4 is connected to the ESP32 for config
     //   (The comments on the schematic are out of date)
 
-    // On Flex (with Ethernet):
+    // On Flex (X5 without IMU, with Ethernet):
     //   COM1 is connected to the ESP32 UART1 for: Encapsulated RTCMv3 + SBF + NMEA
     //   COM2 is connected to LoRa or 4-pin JST (switched by SW4)
     //   COM3 can be connected to ESP32 UART2 (switched by SW3)
@@ -233,11 +233,21 @@ void GNSS_MOSAIC::begin()
     // We need to Encapsulate RTCMv3 and NMEA in SBF format. Both SBF and NMEA messages start with "$".
     // The alternative would be to add a 'hybrid' parser to the SEMP which can disambiguate SBF and NMEA
 
-    // On Flex (with IMU):
+    // On Flex (X5 with IMU):
     //   COM1 is connected to the ESP32 UART1 for: Encapsulated RTCMv3 + SBF + NMEA
     //   COM2 is connected to LoRa or 4-pin JST (switched by SW4)
     //   COM3 is N/C (ESP32 UART2 is connected to the IMU)
-    //   COM4 TX provides data to the IMU - TODO
+    //   COM4 TX provides data to the IMU - configured by setTilt
+
+    // On Flex G5 P3 - with or without tilt - we have some big challenges to solve...
+    // The G5 P3 has only two accessible UARTs:
+    //   COM2 is dedicated to Radio
+    //   We need to use COM1 for everything else
+    // On Flex G5 P3 with Tilt: UART1 TX is connected to IM19 UART2 RX
+    //   So we need to output GGA, GST and RMC at 5Hz on COM1 at 115200 baud
+    //   and hope that the IM19 can tolerate any other enabled messages.
+    //   It won't be a great user experience...
+    // Adding support for G5 P3 is TODO
 
     if (productVariant != RTK_FACET_FP) // productVariant == RTK_FACET_MOSAIC
     {
@@ -368,13 +378,16 @@ bool GNSS_MOSAIC::beginExternalEvent()
 //----------------------------------------
 bool GNSS_MOSAIC::setPPS()
 {
-    if (settings.dataPortChannel != MUX_PPS_EVENTTRIGGER)
+    if ((productVariant == RTK_FACET_MOSAIC) && (settings.dataPortChannel != MUX_PPS_EVENTTRIGGER))
         return (true); // No need to configure PPS if port is not selected
 
     // Call setPPSParameters
 
-    // Are pulses enabled?
-    if (settings.enableExternalPulse)
+    // Note: on Facet FP, we should probably always enable PPS as it is linked to the green LED.
+    // But, for now, only enable it if needed.
+
+    // Are pulses enabled / needed?
+    if (settings.enableExternalPulse || settings.enableTiltCompensation) // IM19 needs PPS
     {
         // Find the current pulse Interval
         int i;
@@ -932,7 +945,7 @@ uint32_t GNSS_MOSAIC::getCOMBaudRate(uint8_t port) // returns 0 if the get fails
 }
 
 //----------------------------------------
-// Mosaic COM3 is connected to the Data connector - via the multiplexer
+// On Facet Mosaic: COM3 is connected to the Data connector - via the multiplexer
 // Outputs:
 //   Returns 0 if the get fails
 //----------------------------------------
@@ -1136,7 +1149,7 @@ uint8_t GNSS_MOSAIC::getMonth()
 uint32_t GNSS_MOSAIC::getNanosecond()
 {
     // mosaicX5 does not have nanosecond, but it does have millisecond (from ToW)
-    return _millisecond * 1000L; // Convert to ns
+    return _millisecond * 1000000L; // Convert to ns
 }
 
 //----------------------------------------
@@ -1365,10 +1378,9 @@ bool GNSS_MOSAIC::isDgpsFixed()
 }
 
 //----------------------------------------
-// Some functions (L-Band area frequency determination) merely need
-// to know if we have a valid fix, not what type of fix
-// This function checks to see if the given platform has reached
-// sufficient fix type to be considered valid
+// Some functions merely need to know if we have an RTK Float.
+// This function checks to see if the given platform has reached sufficient 
+// fix type to be considered valid.
 //----------------------------------------
 bool GNSS_MOSAIC::isFixed()
 {
@@ -1418,9 +1430,9 @@ bool GNSS_MOSAIC::isPppConverging()
 }
 
 //----------------------------------------
-// Some functions (L-Band area frequency determination) merely need
-// to know if we have an RTK Fix.  This function checks to see if the
-// given platform has reached sufficient fix type to be considered valid
+// Some functions merely need to know if we have an RTK Float.
+// This function checks to see if the given platform has reached sufficient 
+// fix type to be considered valid.
 //----------------------------------------
 bool GNSS_MOSAIC::isRTKFix()
 {
@@ -1429,10 +1441,9 @@ bool GNSS_MOSAIC::isRTKFix()
 }
 
 //----------------------------------------
-// Some functions (L-Band area frequency determination) merely need
-// to know if we have an RTK Float.  This function checks to see if
-// the given platform has reached sufficient fix type to be considered
-// valid
+// Some functions merely need to know if we have an RTK Float.
+// This function checks to see if the given platform has reached sufficient 
+// fix type to be considered valid.
 //----------------------------------------
 bool GNSS_MOSAIC::isRTKFloat()
 {
@@ -2196,7 +2207,7 @@ bool GNSS_MOSAIC::setElevation(uint8_t elevationDegrees)
 //----------------------------------------
 // Control whether HAS E6 is used in location fixes or not
 //----------------------------------------
-bool GNSS_MOSAIC::setHighAccuracyService(bool enableGalileoHas)
+bool GNSS_MOSAIC::setPppService()
 {
     // Not yet supported on this platform
     return (true); // Return true to clear gnssConfigure test
@@ -2223,7 +2234,8 @@ bool GNSS_MOSAIC::setMessagesNMEA()
     bool gpzdaEnabled = false;
     bool gpgstEnabled = false;
 
-    String streams[MOSAIC_NUM_NMEA_STREAMS];                                          // Build a string for each stream
+    String streams[MOSAIC_NUM_NMEA_STREAMS]; // Build a string for each stream
+
     for (int messageNumber = 0; messageNumber < MAX_MOSAIC_NMEA_MSG; messageNumber++) // For each NMEA message
     {
         int stream = settings.mosaicMessageStreamNMEA[messageNumber];
@@ -2249,6 +2261,13 @@ bool GNSS_MOSAIC::setMessagesNMEA()
             if (strcmp(mosaicMessagesNMEA[messageNumber].msgTextName, "GST") == 0)
                 gpgstEnabled = true;
         }
+    }
+
+    // Record if any messages are enabled by settings, before we add GGA, ZDA, GST
+    bool somethingEnabled[MOSAIC_NUM_NMEA_STREAMS];
+    for (int stream = 0; stream < MOSAIC_NUM_NMEA_STREAMS; stream++)
+    {
+        somethingEnabled[stream] = (streams[stream].length() > 0);
     }
 
     if (pointPerfectIsEnabled())
@@ -2305,40 +2324,30 @@ bool GNSS_MOSAIC::setMessagesNMEA()
                                 String(mosaicMsgRates[settings.mosaicStreamIntervalsNMEA[stream]].name) + "\n\r");
         response &= sendWithResponse(setting, "NMEAOutput");
 
-        if (settings.enableNmeaOnRadio)
+        if (settings.enableNmeaOnRadio && somethingEnabled[stream]) // Ignore GGA, ZDA, GST if they were added for COM1
             setting = String("sno,Stream" + String(stream + MOSAIC_NUM_NMEA_STREAMS + 1) + ",COM2," + streams[stream] +
                              "," + String(mosaicMsgRates[settings.mosaicStreamIntervalsNMEA[stream]].name) + "\n\r");
         else
             setting = String("sno,Stream" + String(stream + MOSAIC_NUM_NMEA_STREAMS + 1) + ",COM2,none,off\n\r");
         response &= sendWithResponse(setting, "NMEAOutput");
 
-        if (settings.enableGnssToUsbSerial)
-        {
+        if (settings.enableGnssToUsbSerial && somethingEnabled[stream]) // Ignore GGA, ZDA, GST if they were added for COM1
             setting =
                 String("sno,Stream" + String(stream + (2 * MOSAIC_NUM_NMEA_STREAMS) + 1) + ",USB1," + streams[stream] +
                        "," + String(mosaicMsgRates[settings.mosaicStreamIntervalsNMEA[stream]].name) + "\n\r");
-            response &= sendWithResponse(setting, "NMEAOutput");
-        }
         else
-        {
             // Disable the USB1 NMEA streams if settings.enableGnssToUsbSerial is not enabled
             setting = String("sno,Stream" + String(stream + (2 * MOSAIC_NUM_NMEA_STREAMS) + 1) + ",USB1,none,off\n\r");
-            response &= sendWithResponse(setting, "NMEAOutput");
-        }
+        response &= sendWithResponse(setting, "NMEAOutput");
 
-        if (settings.enableLogging)
-        {
+        if (settings.enableLogging && somethingEnabled[stream]) // Ignore GGA, ZDA, GST if they were added for COM1
             setting =
                 String("sno,Stream" + String(stream + (3 * MOSAIC_NUM_NMEA_STREAMS) + 1) + ",DSK1," + streams[stream] +
                        "," + String(mosaicMsgRates[settings.mosaicStreamIntervalsNMEA[stream]].name) + "\n\r");
-            response &= sendWithResponse(setting, "NMEAOutput");
-        }
         else
-        {
             // Disable the DSK1 NMEA streams if settings.enableLogging is not enabled
             setting = String("sno,Stream" + String(stream + (3 * MOSAIC_NUM_NMEA_STREAMS) + 1) + ",DSK1,none,off\n\r");
-            response &= sendWithResponse(setting, "NMEAOutput");
-        }
+        response &= sendWithResponse(setting, "NMEAOutput");
     }
 
     return (response);
@@ -2485,6 +2494,14 @@ bool GNSS_MOSAIC::setMessagesRTCMRover()
 }
 
 //----------------------------------------
+// Enable/disable any extra messages according to the various extra arrays
+//----------------------------------------
+bool GNSS_MOSAIC::setMessagesOther()
+{
+    return (true);
+}
+
+//----------------------------------------
 // Set the dynamic model to use for RTK
 // Inputs:
 //   modelNumber: Number of the model to use, provided by radio library
@@ -2544,8 +2561,41 @@ bool GNSS_MOSAIC::setRate(double secondsBetweenSolutions)
 //----------------------------------------
 bool GNSS_MOSAIC::setTilt()
 {
-    // Not yet supported on this platform
-    return (true); // Return true to clear gnssConfigure test
+    // Only supported on Facet FP
+    // We need to output NMEA GGA+GST+RMC at 5Hz on COM3 at 115200 baud
+
+    bool response = true; // Default to true to clear gnssConfigure test
+
+    if (variantHousingProperties->tiltPossible == true && present.imu_im19 == true)
+    {
+        if (settings.enableTiltCompensation == true)
+        {
+            // Configure COM4 for NMEA output only. Not encapsulated.
+            // Disable input on COM4, just in case. COM4 RX is not connected though
+            response &= sendWithResponse("sdio,COM4,none,NMEA\n\r", "DataInOut");
+
+            // Configure COM4 for 115200 baud
+            response &= sendWithResponse("scs,COM4,baud115200,bits8,No,bit1,none\n\r", "COMSettings");
+
+            // Configure Stream9 for GGA+GST+RMC at 5Hz on COM4
+            String setting =
+                String("sno,Stream" + String(MOSAIC_TILT_NMEA_STREAM) + ",COM4,GGA+GST+RMC,msec200\n\r");
+            response &= sendWithResponse(setting, "NMEAOutput");
+        }
+        else
+        {
+            String setting =
+                String("sno,Stream" + String(MOSAIC_TILT_NMEA_STREAM) + ",COM4,none,off\n\r");
+            response &= sendWithResponse(setting, "NMEAOutput");
+        }
+
+        // I'm seeing RTCM 1006,1074,1084,1094,1124,1230 becoming enabled on COM4 at 1Hz
+        // I don't know how that is happening. sr3o should be limited to COM1+COM2+USB1
+        // Ensure RTCMv3 output is disabled on COM4
+        response &= sendWithResponse("sr3o,COM4,none\n\r", "RTCMv3Output");
+    }
+
+    return (response);
 }
 
 //----------------------------------------
@@ -2919,23 +2969,22 @@ void GNSS_MOSAIC::updateSD()
 //----------------------------------------
 void GNSS_MOSAIC::waitSBFReceiverSetup(HardwareSerial *serialPort, unsigned long timeout)
 {
+    uint8_t * buffer;
+    size_t bufferLength;
+
     // Note: _isBlocking should be set externally - if needed
 
-    SEMP_PARSE_ROUTINE const sbfParserTable[] = {sempSbfPreamble};
+    const SEMP_PARSER_DESCRIPTION * sbfParserTable[] = {&sempSbfParserDescription};
     const int sbfParserCount = sizeof(sbfParserTable) / sizeof(sbfParserTable[0]);
-    const char *const sbfParserNames[] = {
-        "SBF",
-    };
-    const int sbfParserNameCount = sizeof(sbfParserNames) / sizeof(sbfParserNames[0]);
-
     SEMP_PARSE_STATE *sbfParse;
 
     // Initialize the SBF parser for the mosaic-X5
-    sbfParse = sempBeginParser(sbfParserTable, sbfParserCount, sbfParserNames, sbfParserNameCount,
-                               0,                       // Scratchpad bytes
-                               500,                     // Buffer length
+    bufferLength = sempGetBufferLength(sbfParserTable, sbfParserCount, 500);
+    buffer = (uint8_t *)rtkMalloc(bufferLength, "Sbf Buffer");
+    sbfParse = sempBeginParser("Sbf", sbfParserTable, sbfParserCount,
+                               buffer, bufferLength,    // Buffer length
                                processSBFReceiverSetup, // eom Call Back
-                               "Sbf");                  // Parser Name
+                               output);                 // Routine to output an error character
     if (!sbfParse)
         reportFatalError("Failed to initialize the SBF parser");
 
@@ -2949,7 +2998,7 @@ void GNSS_MOSAIC::waitSBFReceiverSetup(HardwareSerial *serialPort, unsigned long
         }
     }
 
-    sempStopParser(&sbfParse);
+    rtkFree(buffer, "Sbf Buffer");
 }
 
 //----------------------------------------
@@ -2983,14 +3032,14 @@ bool GNSS_MOSAIC::isPresent()
     {
         // Set COM4 to: CMD input (only), SBF output (only)
         // Mosaic could still be starting up, so allow many retries
-        return isPresentOnSerial(serial2GNSS, "sdio,COM4,CMD,SBF\n\r", "DataInOut", "COM4>", 5);
+        return isPresentOnSerial(serial2GNSS, "sdio,COM4,CMD,SBF\n\r", "DataInOut", "COM4>", 10);
     }
     else // productVariant == RTK_FACET_FP
     {
         // Set COM1 to: auto input, RTCMv3+SBF+NMEA+Encapsulate output
         // Mosaic could still be starting up, so allow many retries
         return isPresentOnSerial(serialGNSS, "sdio,COM1,auto,RTCMv3+SBF+NMEA+Encapsulate\n\r", "DataInOut", "COM1>",
-                                 5);
+                                 10);
     }
 }
 
@@ -3022,7 +3071,7 @@ bool GNSS_MOSAIC::isPresentOnSerial(HardwareSerial *serialPort, const char *comm
             if (retries == retryLimit)
                 break;
             retries++;
-            sendWithResponse(serialPort, "SSSSSSSSSSSSSSSSSSSS\n\r", console, 100); // Send escape sequence
+            sendWithResponse(serialPort, "SSSSSSSSSSSSSSSSSSSS\n\r", console, 1000); // Send escape sequence
         }
 
         if (retries == retryLimit)
@@ -3100,13 +3149,11 @@ void nmeaExtractStdDeviations(char *nmeaSentence, int sentenceLength)
 // This function mops up any non-SBF data rejected by the SBF parser
 // It is raw L-Band (containing SPARTN), so pass it to the SPARTN parser
 //----------------------------------------
-void processNonSBFData(SEMP_PARSE_STATE *parse)
+void processNonSBFData(const uint8_t * buffer, size_t length)
 {
-    for (uint32_t dataOffset = 0; dataOffset < parse->length; dataOffset++)
-    {
+    for (uint32_t dataOffset = 0; dataOffset < length; dataOffset++)
         // Update the SPARTN parser state based on the non-SBF byte
-        sempParseNextByte(spartnParse, parse->buffer[dataOffset]);
-    }
+        sempParseNextByte(spartnParse, buffer[dataOffset]);
 }
 
 //----------------------------------------
@@ -3684,9 +3731,15 @@ bool mosaicIsPresentOnFacetFP()
     // Check with 115200 initially. If that succeeds, increase to 460800
     serialTestGNSS.begin(115200, SERIAL_8N1, pin_GnssUart_RX, pin_GnssUart_TX);
 
-    // Only try 3 times. LG290P detection will have been done first. X5 should have booted. Baud rate could be wrong.
+    // With 3 retries:
+    //   With X5 firmware 4.14.4:    isPresentOnSerial detects the GNSS - just
+    //   With X5 firmware 4.14.10.1: isPresentOnSerial fails to detect the GNSS
+    // With 4 retries:
+    //   With X5 firmware 4.14.10.1: isPresentOnSerial detects the GNSS
+
+    // Only try 4 times. LG290P detection will have been done first. X5 should have booted. Baud rate could be wrong.
     if (mosaic.isPresentOnSerial(&serialTestGNSS, "sdio,COM1,auto,RTCMv3+SBF+NMEA+Encapsulate\n\r", "DataInOut",
-                                 "COM1>", 3) == true)
+                                 "COM1>", 4) == true)
     {
         if (settings.debugGnss)
             systemPrintln("mosaic-X5 detected at 115200 baud");
@@ -3705,9 +3758,9 @@ bool mosaicIsPresentOnFacetFP()
     serialTestGNSS.end();
     serialTestGNSS.begin(460800, SERIAL_8N1, pin_GnssUart_RX, pin_GnssUart_TX);
 
-    // Only try 3 times, so we fail and pass on to the next Facet GNSS detection
+    // Only try 4 times, so we fail and pass on to the next Facet GNSS detection
     if (mosaic.isPresentOnSerial(&serialTestGNSS, "sdio,COM1,auto,RTCMv3+SBF+NMEA+Encapsulate\n\r", "DataInOut",
-                                 "COM1>", 3) == true)
+                                 "COM1>", 4) == true)
     {
         // serialGNSS and serial2GNSS have not yet been begun. We need to saveConfiguration manually
         unsigned long start = millis();

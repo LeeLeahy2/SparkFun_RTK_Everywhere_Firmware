@@ -13,8 +13,8 @@ set -e
 git reset --hard --quiet HEAD
 make
 
-# MFi authentication
-sed -i 's|#define COMPILE_AUTHENTICATION|//#define COMPILE_AUTHENTICATION|' RTK_Everywhere.ino
+# MFi authentication - requires Private libraries
+sed -i 's|//#define COMPILE_AUTHENTICATION|#define COMPILE_AUTHENTICATION|' RTK_Everywhere.ino
 make
 git reset --hard --quiet HEAD
 
@@ -117,11 +117,6 @@ sed -i 's|#define COMPILE_LG290P|//#define COMPILE_LG290P|' RTK_Everywhere.ino
 sed -i 's|#define COMPILE_MOSAICX5|//#define COMPILE_MOSAICX5|' RTK_Everywhere.ino
 sed -i 's|#define COMPILE_UM980|//#define COMPILE_UM980|' RTK_Everywhere.ino
 sed -i 's|#define COMPILE_ZED|//#define COMPILE_ZED|' RTK_Everywhere.ino
-make
-git reset --hard --quiet  HEAD
-
-# L-Band
-sed -i 's|#define COMPILE_L_BAND|//#define COMPILE_L_BAND|' RTK_Everywhere.ino
 make
 git reset --hard --quiet  HEAD
 

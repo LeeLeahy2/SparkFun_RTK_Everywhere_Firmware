@@ -2,7 +2,7 @@
 menuGNSS.ino
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
-#ifdef  COMPILE_MENU_GNSS
+#ifdef COMPILE_MENU_GNSS
 
 // Configure the basic GNSS reception settings
 // Update rate, constellations, etc
@@ -75,6 +75,53 @@ void menuGNSS()
                     break;
                 case DYN_MODEL_ESCOOTER:
                     systemPrint("E-Scooter");
+                    break;
+#endif // COMPILE_ZED
+                }
+                systemPrintln();
+            }
+            
+            //No Escooter, or Rail on standard X20P
+            else if (present.gnss_zedx20p)
+            {
+                switch (settings.dynamicModel)
+                {
+                default:
+                    systemPrint("Unknown");
+                    break;
+#ifdef COMPILE_ZED
+                case DYN_MODEL_PORTABLE:
+                    systemPrint("Portable");
+                    break;
+                case DYN_MODEL_STATIONARY:
+                    systemPrint("Stationary");
+                    break;
+                case DYN_MODEL_PEDESTRIAN:
+                    systemPrint("Pedestrian");
+                    break;
+                case DYN_MODEL_AUTOMOTIVE:
+                    systemPrint("Automotive");
+                    break;
+                case DYN_MODEL_SEA:
+                    systemPrint("Sea");
+                    break;
+                case DYN_MODEL_AIRBORNE1g:
+                    systemPrint("Airborne 1g");
+                    break;
+                case DYN_MODEL_AIRBORNE2g:
+                    systemPrint("Airborne 2g");
+                    break;
+                case DYN_MODEL_AIRBORNE4g:
+                    systemPrint("Airborne 4g");
+                    break;
+                case DYN_MODEL_WRIST:
+                    systemPrint("Wrist");
+                    break;
+                case DYN_MODEL_BIKE:
+                    systemPrint("Bike");
+                    break;
+                case DYN_MODEL_MOWER:
+                    systemPrint("Mower");
                     break;
 #endif // COMPILE_ZED
                 }
@@ -216,7 +263,7 @@ void menuGNSS()
         }
         else if (incoming == 3 && present.dynamicModel)
         {
-            if (present.gnss_zedf9p)
+            if (present.gnss_zedf9p || present.gnss_zedx20p)
             {
                 systemPrintln("Enter the dynamic model to use: ");
                 systemPrintln("1) Portable");
@@ -246,7 +293,7 @@ void menuGNSS()
             int dynamicModel = getUserInputNumber(); // Returns EXIT, TIMEOUT, or long
             if ((dynamicModel != INPUT_RESPONSE_GETNUMBER_EXIT) && (dynamicModel != INPUT_RESPONSE_GETNUMBER_TIMEOUT))
             {
-                if (present.gnss_zedf9p)
+                if (present.gnss_zedf9p || present.gnss_zedx20p)
                 {
 #ifdef COMPILE_ZED
                     uint8_t maxModel = DYN_MODEL_WRIST;
@@ -330,7 +377,7 @@ void menuGNSS()
             if (getNewSetting("Enter new Caster Port", 1, 99999, &settings.ntripClient_CasterPort) ==
                 INPUT_RESPONSE_VALID)
             {
-            ntripClientSettingsChanged(); // Notify the NTRIP Client state machine of new credentials
+                ntripClientSettingsChanged(); // Notify the NTRIP Client state machine of new credentials
             }
         }
         else if ((incoming == 10) && settings.enableNtripClient == true)
@@ -405,4 +452,4 @@ void menuGNSS()
     clearBuffer(); // Empty buffer of any newline chars
 }
 
-#endif  // COMPILE_MENU_GNSS
+#endif // COMPILE_MENU_GNSS

@@ -30,8 +30,10 @@ const mosaicExpectedID mosaicExpectedIDs[] = {
 // Allocate this many streams for NMEA messages: Stream1, Stream2
 // We actually need four times this many as COM1, COM2, USB1 and DSK1 all need their own individual streams
 // COM1 uses streams 1 & 2; COM2 uses 3 & 4; USB1 uses 5 & 6; DSK1 uses 7 & 8
+// On Facet FP, we need stream 9 for NMEA GGA+GST+RMC at 5Hz for the IM19
 #define MOSAIC_NUM_NMEA_STREAMS 2 // X5 supports 10 streams in total
 #define MOSAIC_DEFAULT_NMEA_STREAM_INTERVALS {MOSAIC_MSG_RATE_MSEC500, MOSAIC_MSG_RATE_SEC1}
+#define MOSAIC_TILT_NMEA_STREAM ((4 * MOSAIC_NUM_NMEA_STREAMS) + 1)
 
 // Output SBF PVTGeodetic and ReceiverTime on this stream - on COM1 only
 // The SBFOutput streams are separate to the NMEAOutput streams. It is OK to start at Stream1.
@@ -578,7 +580,6 @@ class GNSS_MOSAIC : GNSS
     }
 
     // If we have decryption keys, configure module
-    // Note: don't check online.lband_neo here. We could be using ip corrections
     void applyPointPerfectKeys();
 
     // Set RTCM for base mode to defaults (1005/MSM4 1Hz & 1033 0.1Hz)
@@ -811,10 +812,9 @@ class GNSS_MOSAIC : GNSS
     // Return true if GNSS receiver has a higher quality DGPS fix than 3D
     bool isDgpsFixed();
 
-    // Some functions (L-Band area frequency determination) merely need
-    // to know if we have a valid fix, not what type of fix
-    // This function checks to see if the given platform has reached
-    // sufficient fix type to be considered valid
+    // Some functions merely need to know if we have an RTK Float.
+    // This function checks to see if the given platform has reached sufficient 
+    // fix type to be considered valid.
     bool isFixed();
 
     // Used in tpISR() for time pulse synchronization
@@ -832,15 +832,14 @@ class GNSS_MOSAIC : GNSS
                            int retryLimit = 20);
     bool mosaicIsPresentOnFacetFP();
 
-    // Some functions (L-Band area frequency determination) merely need
-    // to know if we have an RTK Fix.  This function checks to see if the
-    // given platform has reached sufficient fix type to be considered valid
+    // Some functions merely need to know if we have an RTK Float.
+    // This function checks to see if the given platform has reached sufficient 
+    // fix type to be considered valid.
     bool isRTKFix();
 
-    // Some functions (L-Band area frequency determination) merely need
-    // to know if we have an RTK Float.  This function checks to see if
-    // the given platform has reached sufficient fix type to be considered
-    // valid
+    // Some functions merely need to know if we have an RTK Float.
+    // This function checks to see if the given platform has reached sufficient 
+    // fix type to be considered valid.
     bool isRTKFloat();
 
     // Determine if the survey-in operation is complete
@@ -998,7 +997,7 @@ class GNSS_MOSAIC : GNSS
     bool setElevation(uint8_t elevationDegrees);
 
     // Enable or disable HAS E6 capability
-    bool setHighAccuracyService(bool enableGalileoHas);
+    bool setPppService();
 
     // Configure any logging settings - currently mosaic-X5 specific
     bool setLogging();
@@ -1011,6 +1010,9 @@ class GNSS_MOSAIC : GNSS
 
     // Turn on all the enabled RTCM Rover messages on COM1, COM2 and USB1 (if enabled)
     bool setMessagesRTCMRover();
+
+    // Turn on all the enabled Extra/Other messages on COM1, COM2 and USB1 (if enabled)
+    bool setMessagesOther();
 
     // Set the dynamic model to use for RTK
     // Inputs:

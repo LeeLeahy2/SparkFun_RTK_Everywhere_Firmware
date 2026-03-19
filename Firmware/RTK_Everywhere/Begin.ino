@@ -105,10 +105,6 @@ void identifyBoard()
         else if (idWithAdc(idValue, 1, 4.7, 10))
             productVariant = RTK_FACET_MOSAIC;
 
-        // Facet v2 L-Band: 12.1/1.5  -->  312mV < 364mV < 423mV (8.5% tolerance)
-        else if (idWithAdc(idValue, 12.1, 1.5, 8.5))
-            productVariant = RTK_FACET_V2_LBAND;
-
         // Facet FP: 10.0/20.0  -->  2071mV < 2200mV < 2322mV (8.5% tolerance)
         else if (idWithAdc(idValue, 10.0, 20.0, 8.5))
             productVariant = RTK_FACET_FP;
@@ -177,7 +173,6 @@ void beginBoard()
 
         present.psram_2mb = true;
         present.gnss_um980 = true;
-        present.antennaPhaseCenter_mm = 116.5; // Default to Torch helical APC, average of L1/L2
         present.radio_lora = true;
         present.fuelgauge_bq40z50 = true;
         present.charger_mp2762a = true;
@@ -186,7 +181,7 @@ void beginBoard()
         present.beeper = true;
         present.gnss_to_uart = true;
         present.needsExternalPpl = true; // Uses the PointPerfect Library
-        present.galileoHasCapable = true;
+        present.pppCapable = true;
         present.multipathMitigation = true; // UM980 has MPM, other platforms do not
         present.minCN0 = true;
         present.minElevation = true;
@@ -258,7 +253,7 @@ void beginBoard()
         muxSelectUm980(); // Connect ESP UART1 to UM980
 
         pinMode(pin_muxB, OUTPUT);
-        muxSelectUsb(); // Connect ESP UART0 to CH340 Serial
+        muxSelectUsb(); // On Torch: connect ESP UART0 to CH340 Serial
 
         settings.dataPortBaud = 115200; // Override settings. Use UM980 at 115200bps.
 
@@ -285,8 +280,6 @@ void beginBoard()
         // Pin defs etc. for EVK v1.1
         present.psram_4mb = true;
         present.gnss_zedf9p = true;
-        present.antennaPhaseCenter_mm = 42.0; // Default to NGS certified SPK6615H APC, average of L1/L2
-        present.lband_neo = true;
         present.cellular_lara = true;
         present.ethernet_ws5500 = true;
         present.microSd = true;
@@ -400,169 +393,6 @@ void beginBoard()
                          // changed
     }
 
-    else if (productVariant == RTK_FACET_V2_LBAND)
-    {
-        // How it works:
-        // Facet V2 is based on the ESP32-WROVER
-        // ZED-F9P is interfaced via I2C and UART1
-        // NEO-D9S is interfaced via I2C. UART2 TX is also connected to ESP32 pin 4
-
-        // Specify the GNSS radio
-#ifdef COMPILE_ZED
-        gnss = (GNSS *)new GNSS_ZED();
-#else  // COMPILE_ZED
-        gnss = (GNSS *)new GNSS_None();
-        systemPrintln("<<<<<<<<<< !!!!!!!!!! ZED NOT COMPILED !!!!!!!!!! >>>>>>>>>>");
-#endif // COMPILE_ZED
-
-        present.psram_4mb = true;
-        present.gnss_zedf9p = true;
-        present.antennaPhaseCenter_mm = 68.5; // Default to L-Band element APC, average of L1/L2
-        present.lband_neo = true;
-        present.microSd = true;
-        present.microSdCardDetectLow = true;
-        present.display_i2c0 = true;
-        present.display_type = DISPLAY_64x48;
-        present.i2c0BusSpeed_400 = true;
-        present.peripheralPowerControl = true;
-        present.button_powerLow = true; // Button is pressed when low
-        present.charger_mcp73833 = true;
-        present.fuelgauge_max17048 = true;
-        present.portDataMux = true;
-        present.fastPowerOff = true;
-        present.invertedFastPowerOff = true;
-        present.gnss_to_uart = true;
-        present.minCN0 = true;
-        present.minElevation = true;
-        present.dynamicModel = true;
-
-        pin_muxA = 2;
-        pin_muxB = 12;
-        // pin_LBand_PMP_RX = 4; // TODO
-        pin_GnssUart_TX = 13;
-        pin_GnssUart_RX = 14;
-        pin_microSD_CardDetect = 15;
-        // 30, D18 : SPI SCK --> microSD card
-        // 31, D19 : SPI POCI --> microSD card SDO
-        pin_I2C0_SDA = 21;
-        pin_I2C0_SCL = 22;
-        // 37, D23 : SPI PICO --> microSD card SDI
-        pin_microSD_CS = 25;
-        pin_muxDAC = 26;
-        pin_peripheralPowerControl = 27;
-        pin_powerButton = 32;
-        pin_powerFastOff = 33;
-        pin_chargerLED = 34;
-        pin_chargerLED2 = 36;
-        pin_muxADC = 39;
-        pin_PICO = 23; // SPI PICO --> microSD card SDI
-        pin_POCI = 19; // SPI POCI --> microSD card SDO
-        pin_SCK = 18;
-
-        pinMode(pin_muxA, OUTPUT);
-        pinMode(pin_muxB, OUTPUT);
-
-        pinMode(pin_powerFastOff, INPUT); // Soft power switch has 10k pull-down
-
-        // Charger Status STAT1 (pin_chargerLED) and STAT2 (pin_chargerLED2) have pull-ups to 3.3V
-        // Charger Status STAT1 is interfaced via a diode and requires ADC. LOW will not be 0V.
-        pinMode(pin_chargerLED, INPUT);
-        pinMode(pin_chargerLED2, INPUT);
-
-        // Turn on power to the peripherals
-        DMW_if systemPrintf("pin_peripheralPowerControl: %d\r\n", pin_peripheralPowerControl);
-        pinMode(pin_peripheralPowerControl, OUTPUT);
-        peripheralsOn(); // Turn on power to OLED, SD, ZED, NEO, Mux
-
-        DMW_if systemPrintf("pin_microSD_CardDetect: %d\r\n", pin_microSD_CardDetect);
-        pinMode(pin_microSD_CardDetect, INPUT_PULLUP);
-
-        // Disable the microSD card
-        DMW_if systemPrintf("pin_microSD_CS: %d\r\n", pin_microSD_CS);
-        pinMode(pin_microSD_CS, OUTPUT);
-        sdDeselectCard();
-    }
-
-    else if (productVariant == RTK_FACET_V2)
-    {
-        // How it works:
-        // Facet V2 is based on the ESP32-WROVER
-        // ZED-F9P is interfaced via I2C and UART1
-
-        // Specify the GNSS radio
-#ifdef COMPILE_ZED
-        gnss = (GNSS *)new GNSS_ZED();
-#else  // COMPILE_ZED
-        gnss = (GNSS *)new GNSS_None();
-        systemPrintln("<<<<<<<<<< !!!!!!!!!! ZED NOT COMPILED !!!!!!!!!! >>>>>>>>>>");
-#endif // COMPILE_ZED
-
-        present.psram_4mb = true;
-        present.gnss_zedf9p = true;
-        present.antennaPhaseCenter_mm = 69.6; // Default to NGS certified RTK Facet element APC, average of L1/L2
-        present.microSd = true;
-        present.microSdCardDetectLow = true;
-        present.display_i2c0 = true;
-        present.display_type = DISPLAY_64x48;
-        present.i2c0BusSpeed_400 = true;
-        present.peripheralPowerControl = true;
-        present.button_powerLow = true; // Button is pressed when low
-        present.charger_mcp73833 = true;
-        present.fuelgauge_max17048 = true;
-        present.portDataMux = true;
-        present.fastPowerOff = true;
-        present.invertedFastPowerOff = true;
-        present.gnss_to_uart = true;
-        present.minCN0 = true;
-        present.minElevation = true;
-        present.dynamicModel = true;
-
-        pin_muxA = 2;
-        pin_muxB = 12;
-        pin_GnssUart_TX = 13;
-        pin_GnssUart_RX = 14;
-        pin_microSD_CardDetect = 15;
-        // 30, D18 : SPI SCK --> microSD card SCK
-        // 31, D19 : SPI POCI --> microSD card SDO
-        pin_I2C0_SDA = 21;
-        pin_I2C0_SCL = 22;
-        // 37, D23 : SPI PICO --> microSD card SDI
-        pin_microSD_CS = 25;
-        pin_muxDAC = 26;
-        pin_peripheralPowerControl = 27;
-        pin_powerButton = 32;
-        pin_powerFastOff = 33;
-        pin_chargerLED = 34;
-        pin_chargerLED2 = 36;
-        pin_muxADC = 39;
-        pin_PICO = 23; // SPI PICO --> microSD card SDI
-        pin_POCI = 19; // SPI POCI --> microSD card SDO
-        pin_SCK = 18;
-
-        pinMode(pin_muxA, OUTPUT);
-        pinMode(pin_muxB, OUTPUT);
-
-        pinMode(pin_powerFastOff, INPUT); // Soft power switch has 10k pull-down
-
-        // Charger Status STAT1 (pin_chargerLED) and STAT2 (pin_chargerLED2) have pull-ups to 3.3V
-        // Charger Status STAT1 is interfaced via a diode and requires ADC. LOW will not be 0V.
-        pinMode(pin_chargerLED, INPUT);
-        pinMode(pin_chargerLED2, INPUT);
-
-        // Turn on power to the peripherals
-        DMW_if systemPrintf("pin_peripheralPowerControl: %d\r\n", pin_peripheralPowerControl);
-        pinMode(pin_peripheralPowerControl, OUTPUT);
-        peripheralsOn(); // Turn on power to OLED, SD, ZED, NEO, Mux
-
-        DMW_if systemPrintf("pin_microSD_CardDetect: %d\r\n", pin_microSD_CardDetect);
-        pinMode(pin_microSD_CardDetect, INPUT_PULLUP);
-
-        // Disable the microSD card
-        DMW_if systemPrintf("pin_microSD_CS: %d\r\n", pin_microSD_CS);
-        pinMode(pin_microSD_CS, OUTPUT);
-        sdDeselectCard();
-    }
-
     else if (productVariant == RTK_FACET_MOSAIC) // RTK_FACET_MOSAIC V1.2
     {
         // How it works:
@@ -595,7 +425,6 @@ void beginBoard()
 
         present.psram_4mb = true;
         present.gnss_mosaicX5 = true;
-        present.antennaPhaseCenter_mm = 68.5; // Default to L-Band element APC, average of L1/L2
         present.display_i2c0 = true;
         present.display_type = DISPLAY_64x48;
         present.i2c0BusSpeed_400 = true;
@@ -667,7 +496,6 @@ void beginBoard()
 
         present.psram_2mb = true;
         present.gnss_lg290p = true;
-        present.antennaPhaseCenter_mm = 37.5; // APC of SPK-6E helical L1/L2/L5 antenna
         present.needsExternalPpl = true;      // Uses the PointPerfect Library
         present.gnss_to_uart = true;
         present.gnssUpdatePort = "CH342 Channel B";
@@ -729,11 +557,10 @@ void beginBoard()
     {
         present.psram_2mb = true;
 
-        present.antennaPhaseCenter_mm = 62.0; // APC from drawings
         present.fuelgauge_bq40z50 = true;
 
         present.radio_lora = true;
-        present.loraDedicatedUart = true;
+        present.loraDedicatedUart = true; // Direct connection from GNSS UART2 to LoRa UART0
 
         present.button_powerLow = true; // Button is pressed when low
         present.button_function = true; // Function or Fn button. Low when pressed
@@ -748,10 +575,12 @@ void beginBoard()
         // present.i2c0BusSpeed_400 = true; // The BQ40Z50 fuel gauge requires 100kHz
         present.display_type = DISPLAY_128x64;
         present.displayInverted = true;
-        present.tiltPossible = true;
 
         present.fastPowerOff = true;
         present.invertedFastPowerOff = true; // Drive POWER_KILL high to cause powerdown
+
+        // Direct connection for gnssFirmwareDirectConnectHardware()
+        present.gnssUpdatePort = "CH342 Channel A";
 
         pin_I2C0_SDA = 15;
         pin_I2C0_SCL = 4;
@@ -827,7 +656,6 @@ void beginBoard()
 
         present.psram_2mb = true;
         present.gnss_lg290p = true;
-        present.antennaPhaseCenter_mm = 116.5; // Default to Torch helical APC, average of L1/L2
         present.fuelgauge_bq40z50 = true;
         present.button_powerLow = true; // Button is pressed when low
         present.beeper = true;
@@ -1111,6 +939,13 @@ void beginSD()
 
 void endSD(bool alreadyHaveSemaphore, bool releaseSemaphore)
 {
+    // Stop size check if running
+    while (task.sdSizeCheckTaskRunning == true)
+    {
+        task.sdSizeCheckTaskStopRequest = true;
+        delay(1000);
+    }
+
     // Disable logging
     endLogging(alreadyHaveSemaphore, false);
 
@@ -1200,6 +1035,17 @@ void forceGnssCommunicationRate(uint32_t &platformGnssCommunicationRate)
         // LG290P communicates at 460800bps.
         platformGnssCommunicationRate = 115200 * 4;
     }
+    else if (productVariant == RTK_EVK)
+    {
+        // ZED defaults to 115200. settings.dataPortBaud defaults to 230400
+        // Keep the baud rate at settings.dataPortBaud for now
+        // I.e. nothing to do here...?
+    }
+    else if (productVariant == RTK_FACET_MOSAIC)
+    {
+            // Start the hardware at the dataPortBaud rate. This is similarly set in GNSS_MOSAIC::begin().
+            platformGnssCommunicationRate = settings.dataPortBaud;
+    }
     else if (productVariant == RTK_FACET_FP)
     {
         if (settings.detectedGnssReceiver == GNSS_RECEIVER_LG290P)
@@ -1211,6 +1057,14 @@ void forceGnssCommunicationRate(uint32_t &platformGnssCommunicationRate)
         {
             // Mosaic defaults to 115200, but mosaicIsPresentOnFacetFP() increases COM1 to 460800bps
             platformGnssCommunicationRate = 115200 * 4;
+        }
+        else if ((settings.detectedGnssReceiver == GNSS_RECEIVER_F9P)
+                 || (settings.detectedGnssReceiver == GNSS_RECEIVER_X20P))
+        {
+            // ZED defaults to 115200. settings.dataPortBaud defaults to 230400
+            // Keep the baud rate at settings.dataPortBaud for now
+            // gnss->setTilt() will set serialGNSS to 115200 if needed
+            // I.e. nothing to do here...
         }
         else
         {
@@ -1231,8 +1085,11 @@ void pinGnssUartTask(void *pvParameters)
     if (settings.printTaskStartStop)
         systemPrintln("Task pinGnssUartTask started");
 
+    // Use UART1 on the ESP32 for communication with the GNSS module
+    // Shown as UART1 on these schematics: Torch, Facet FP
+    // Not specified on EVK, Postcard and Facet mosaic-X5
     if (serialGNSS == nullptr)
-        serialGNSS = new HardwareSerial(2); // Use UART2 on the ESP32 for communication with the GNSS module
+        serialGNSS = new HardwareSerial(1);
 
     serialGNSS->setRxBufferSize(settings.uartReceiveBufferSize);
     serialGNSS->setTimeout(settings.serialTimeoutGNSS); // Requires serial traffic on the UART pins for detection
@@ -1266,7 +1123,9 @@ void beginGnssUart2()
     if (present.gnss_to_uart2 == false)
         return;
 
-    serial2GNSS = new HardwareSerial(1); // Use UART1 on the ESP32 to communicate with the mosaic
+    // Use UART2 on the ESP32 to communicate with the mosaic
+    // (UART1 is already allocated to serialGNSS)
+    serial2GNSS = new HardwareSerial(2);
 
     serial2GNSS->setRxBufferSize(1024 * 1);
 
@@ -1462,7 +1321,7 @@ void beginCharger()
 void beginButtons()
 {
     if (present.button_powerHigh == false && present.button_powerLow == false && present.button_mode == false &&
-        present.gpioExpanderButtons == false)
+        present.button_function == false && present.gpioExpanderButtons == false)
         return;
 
     TaskHandle_t taskHandle;
@@ -1590,19 +1449,8 @@ void beginSystemState()
         settings.lastState = systemState;
     }
 
-    if ((productVariant == RTK_FACET_V2) || (productVariant == RTK_FACET_V2_LBAND))
+    if (productVariant == RTK_EVK)
     {
-        // Return to either Rover or Base Not Started. The last state previous to power down.
-        systemState = settings.lastState;
-
-        firstRoverStart = true; // Allow user to enter test screen during first rover start
-        if (systemState == STATE_BASE_NOT_STARTED)
-            firstRoverStart = false;
-    }
-    else if (productVariant == RTK_EVK)
-    {
-        firstRoverStart = false; // Screen should have been tested when it was made ;-)
-
         // Return to either NTP, Base or Rover Not Started. The last state previous to power down.
         systemState = settings.lastState;
     }
@@ -1610,16 +1458,9 @@ void beginSystemState()
     {
         // Return to either NTP, Base or Rover Not Started. The last state previous to power down.
         systemState = settings.lastState;
-
-        firstRoverStart = true; // Allow user to enter test screen during first rover start
-        if (systemState == STATE_BASE_NOT_STARTED)
-            firstRoverStart = false;
     }
     else if (productVariant == RTK_TORCH)
     {
-        // Do not allow user to enter test screen during first rover start because there is no screen
-        firstRoverStart = false;
-
         // Return to either Base or Rover Not Started. The last state previous to power down.
         systemState = settings.lastState;
     }
@@ -1627,25 +1468,14 @@ void beginSystemState()
     {
         // Return to either Rover or Base Not Started. The last state previous to power down.
         systemState = settings.lastState;
-
-        firstRoverStart = true; // Allow user to enter test screen during first rover start
-        if (systemState == STATE_BASE_NOT_STARTED)
-            firstRoverStart = false;
     }
     else if (productVariant == RTK_FACET_FP)
     {
         // Return to either Rover or Base Not Started. The last state previous to power down.
         systemState = settings.lastState;
-
-        firstRoverStart = true; // Allow user to enter test screen during first rover start
-        if (systemState == STATE_BASE_NOT_STARTED)
-            firstRoverStart = false;
     }
     else if (productVariant == RTK_TORCH_X2)
     {
-        // Do not allow user to enter test screen during first rover start because there is no screen
-        firstRoverStart = false;
-
         // Return to either Base or Rover Not Started. The last state previous to power down.
         systemState = settings.lastState;
     }
@@ -1739,7 +1569,7 @@ void pinI2CDetectTask(void *pvParameters)
     // 0x08 - HUSB238 - USB C PD Sink Controller
     bool husb238Present = i2cIsDevicePresent(i2c_0, 0x08);
 
-    // 0x10 - MFI343S00177 Authentication Coprocessor
+    // 0x10 - Authentication Coprocessor
     // The authentication coprocessor can be asleep. It needs special treatment
     bool mfiPresent = i2cIsDeviceRegisterPresent(i2c_0, 0x10, 0x00, 0x07);
 
@@ -1911,7 +1741,7 @@ bool i2cBusInitialization(TwoWire *i2cBus, int sda, int scl, int clockKHz)
                     deviceFound = true;
                 }
 
-                systemPrintf("  0x%02X - MFI343S00177 Authentication Coprocessor\r\n", addr);
+                systemPrintf("  0x%02X - Authentication Coprocessor\r\n", addr);
                 i2cAuthCoPro = i2cBus; // Record the bus
             }
         }
@@ -1971,7 +1801,7 @@ bool i2cBusInitialization(TwoWire *i2cBus, int sda, int scl, int clockKHz)
             }
 
             case 0x3C: {
-                systemPrintf("  0x%02X - SSD1306 OLED Driver (Facet fP)\r\n", addr);
+                systemPrintf("  0x%02X - SSD1306 OLED Driver (Facet FP)\r\n", addr);
                 break;
             }
 
@@ -1982,11 +1812,6 @@ bool i2cBusInitialization(TwoWire *i2cBus, int sda, int scl, int clockKHz)
 
             case 0x42: {
                 systemPrintf("  0x%02X - u-blox GNSS Receiver\r\n", addr);
-                break;
-            }
-
-            case 0x43: {
-                systemPrintf("  0x%02X - u-blox NEO-D9S Correction Data Receiver\r\n", addr);
                 break;
             }
 
@@ -2020,29 +1845,12 @@ bool i2cBusInitialization(TwoWire *i2cBus, int sda, int scl, int clockKHz)
 // Start task to determine SD card size
 void beginSDSizeCheckTask()
 {
-    if (sdSizeCheckTaskHandle == nullptr)
-    {
-        xTaskCreate(sdSizeCheckTask,         // Function to call
-                    "SDSizeCheck",           // Just for humans
-                    sdSizeCheckStackSize,    // Stack Size
-                    nullptr,                 // Task input parameter
-                    sdSizeCheckTaskPriority, // Priority
-                    &sdSizeCheckTaskHandle); // Task handle
-
-        log_d("sdSizeCheck Task started");
-    }
-}
-
-void deleteSDSizeCheckTask()
-{
-    // Delete task once it's complete
-    if (sdSizeCheckTaskHandle != nullptr)
-    {
-        vTaskDelete(sdSizeCheckTaskHandle);
-        sdSizeCheckTaskHandle = nullptr;
-        sdSizeCheckTaskComplete = false;
-        log_d("sdSizeCheck Task deleted");
-    }
+    xTaskCreate(sdSizeCheckTask,         // Function to call
+                "SDSizeCheck",           // Just for humans
+                sdSizeCheckStackSize,    // Stack Size
+                nullptr,                 // Task input parameter
+                sdSizeCheckTaskPriority, // Priority
+                nullptr); // Task handle
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

@@ -1109,9 +1109,17 @@ void gpioExpanderGnssReset()
 // INPUT using a direct write - not the read-modify-write through the library.
 bool gpioExpanderDetectGnss()
 {
+    return gpioExpanderDetectGnssCommon(false);
+}
+bool gpioExpanderDetectGnssForced()
+{
+    return gpioExpanderDetectGnssCommon(true);
+}
+bool gpioExpanderDetectGnssCommon(bool forceDetection)
+{
     if (online.gpioExpanderSwitches == true)
     {
-        if (settings.detectedGnssReceiver == GNSS_RECEIVER_UNKNOWN)
+        if (forceDetection || (settings.detectedGnssReceiver == GNSS_RECEIVER_UNKNOWN))
         {
             // Use 400kHz for speed
             if (present.i2c0BusSpeed_400 == false)
@@ -1119,6 +1127,10 @@ bool gpioExpanderDetectGnss()
             
             // Set GNSS Reset LOW
             gpioExpanderSwitches->digitalWrite(gpioExpanderSwitch_GNSS_Reset, LOW);
+
+            // Flex LG290P with Tilt does not reset unless we delay just a little...
+            if (forceDetection)
+                delayMicroseconds(50); // 250 OK. 100 OK. 50 OK. 25 OK. 10 not OK.
             
             // Clock is ticking! Be quick!
             // Set GNSS Reset to INPUT as fast as possible
@@ -1163,21 +1175,25 @@ void gpioExpanderSelectImu()
         gpioExpanderSwitches->digitalWrite(gpioExpanderSwitch_S3, LOW);
 }
 
-// Connect ESP32 UART2 to LoRa UART2 for configuration and bootloading/firmware updates
+// Connect ESP32 UART2 to LoRa UART2 via SW3 for configuration and bootloading/firmware updates
 void gpioExpanderSelectLoraConfigure()
 {
     if (online.gpioExpanderSwitches == true)
         gpioExpanderSwitches->digitalWrite(gpioExpanderSwitch_S3, HIGH);
 }
 
-// Connect Facet FP GNSS receiver UART2 to LoRa UART0 for normal TX/RX of corrections and data
+// Connect Facet FP GNSS receiver UART2 to LoRa UART0 via SW4 for normal TX/RX of corrections and data
 void gpioExpanderSelectLoraCommunication()
 {
     if (online.gpioExpanderSwitches == true)
         gpioExpanderSwitches->digitalWrite(gpioExpanderSwitch_S4, HIGH);
 }
 
-// Connect Facet FP GNSS UART2 to 4-pin JST RADIO port
+// Connect Facet FP GNSS UART2 to 4-pin JST RADIO port via SW4 (Default)
+// Currently never called... But that is probably OK. SW4 defaults to JST RADIO.
+// Selecting LoRa TX or RX will switch SW4 to LoRa, and leave it there.
+// If LoRa is enabled and then disabled, we should then gpioExpanderSelectRadioPort
+// to select JST RADIO again. And reset the baud rate to settings.radioPortBaud
 void gpioExpanderSelectRadioPort()
 {
     if (online.gpioExpanderSwitches == true)
@@ -1213,4 +1229,18 @@ void gpioExpanderLoraBootDisable()
 {
     if (online.gpioExpanderSwitches == true)
         gpioExpanderSwitches->digitalWrite(gpioExpanderSwitch_LoraBoot, LOW);
+}
+
+// Connect Facet FP GNSS receiver UART1 to CH342 for firmware upgrade with baud rate changes
+void gpioExpanderConnectGNSSToCH342()
+{
+    if (online.gpioExpanderSwitches == true)
+        gpioExpanderSwitches->digitalWrite(gpioExpanderSwitch_S5, HIGH);
+}
+
+// Connect Facet FP GNSS receiver UART1 to ESP32 UART1 for normal comms
+void gpioExpanderConnectGNSSToESP32()
+{
+    if (online.gpioExpanderSwitches == true)
+        gpioExpanderSwitches->digitalWrite(gpioExpanderSwitch_S5, LOW);
 }

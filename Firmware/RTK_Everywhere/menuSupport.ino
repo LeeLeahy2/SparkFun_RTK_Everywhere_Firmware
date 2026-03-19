@@ -7,7 +7,7 @@ void changeProfileNumber(byte newProfileNumber)
 {
     gnssConfigureDefaults(); // Set all bits in the request bitfield to cause the GNSS receiver to go through a full
                              // (re)configuration
-    recordSystemSettings(); // Before switching, we need to record the current settings to LittleFS and SD
+    recordSystemSettings();  // Before switching, we need to record the current settings to LittleFS and SD
 
     recordProfileNumber(newProfileNumber);
     setSettingsFileName(); // Load the settings file name into memory (enabled profile name delete)
@@ -30,7 +30,7 @@ void checkGNSSArrayDefaults()
     bool defaultsApplied = false;
 
 #ifdef COMPILE_ZED
-    if (present.gnss_zedf9p)
+    if (present.gnss_zedf9p || present.gnss_zedx20p)
     {
         if (settings.dynamicModel == 254)
         {
@@ -42,6 +42,17 @@ void checkGNSSArrayDefaults()
         {
             defaultsApplied = true;
             settings.enableExtCorrRadio = true;
+        }
+
+        if (settings.ubxConstellationsEnabled[0] == 254)
+        {
+            defaultsApplied = true;
+
+            // Reset constellations to defaults
+            for (int x = 0; x < MAX_UBX_CONSTELLATIONS; x++)
+            {
+                settings.ubxConstellationsEnabled[x] = constellationSupported(x);
+            }
         }
 
         if (settings.ubxMessageRates[0] == 254)
@@ -263,7 +274,7 @@ void checkGNSSArrayDefaults()
     // (This was in beginSystemState - for the Torch / UM980 only. Weird...)
     if (defaultsApplied)
     {
-        settings.antennaPhaseCenter_mm = present.antennaPhaseCenter_mm;
+        settings.antennaPhaseCenter_mm = variantHousingProperties->antennaPhaseCenter_mm;
     }
 
     // If defaults were applied, also default the non-array settings for this particular GNSS receiver
@@ -275,7 +286,7 @@ void checkGNSSArrayDefaults()
             settings.surveyInStartingAccuracy = 2.0; // Default 2m
             settings.measurementRateMs = 500;        // Default 2Hz.
         }
-        else if (present.gnss_zedf9p)
+        else if (present.gnss_zedf9p || present.gnss_zedx20p)
         {
             settings.minCN0 = 6;                     // Default 6 dBHz
             settings.surveyInStartingAccuracy = 1.0; // Default 1m
@@ -568,8 +579,8 @@ void printCurrentConditionsNMEA()
 const char *printDeviceId()
 {
     static char deviceID[strlen("1234567890ABXX") + 1]; // 12 character MAC + 2 character variant + room for terminator
-    snprintf(deviceID, sizeof(deviceID), "%02X%02X%02X%02X%s", btMACAddress[0], btMACAddress[1],
-             btMACAddress[2], btMACAddress[3], serialNumber);
+    snprintf(deviceID, sizeof(deviceID), "%02X%02X%02X%02X%s", btMACAddress[0], btMACAddress[1], btMACAddress[2],
+             btMACAddress[3], serialNumber);
 
     return ((const char *)deviceID);
 }
@@ -659,13 +670,6 @@ void printFileList()
         else
             endSD(true, true);
     }
-}
-
-// Print the NEO firmware version
-void printNEOInfo()
-{
-    if (present.lband_neo == true)
-        systemPrintf("NEO-D9S firmware: %s\r\n", neoFirmwareVersion);
 }
 
 // Given a filename and char array, append to file
