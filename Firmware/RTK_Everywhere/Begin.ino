@@ -253,7 +253,7 @@ void beginBoard()
         muxSelectUm980(); // Connect ESP UART1 to UM980
 
         pinMode(pin_muxB, OUTPUT);
-        muxSelectUsb(); // Connect ESP UART0 to CH340 Serial
+        muxSelectUsb(); // On Torch: connect ESP UART0 to CH340 Serial
 
         settings.dataPortBaud = 115200; // Override settings. Use UM980 at 115200bps.
 
