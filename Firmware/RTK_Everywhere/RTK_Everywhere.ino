@@ -998,6 +998,7 @@ int16_t *commandIndex;
 bool usbSerialIsSelected = true;      // Goes false when switch U18 is moved from CH34x to LoRa
 unsigned long loraLastIncomingSerial; // Last time a user sent a serial command. Used in LoRa timeouts.
 char loraFirmwareVersion[25] = {'\0'};
+int loraFirmwareVersionInt = 0;
 
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

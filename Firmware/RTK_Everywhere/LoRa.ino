@@ -747,11 +747,20 @@ void loraSetup(bool transmit)
             configureSuccess &= loraSendCommand("AT+MODE=1", response, &responseLength); // 0 - Transmit, 1 - Receive
         }
 
-        // On Facet FP, we need to send AT+DPRT=0 to set the data port to UART1
-        if (productVariant == RTK_FACET_FP)
+        if (loraFirmwareVersionInt >= 300) // LoRa Data Port (DPRT) was added at v3.0.0
         {
-            responseLength = sizeof(response);
-            configureSuccess &= loraSendCommand("AT+DPRT=0", response, &responseLength);
+            if (productVariant == RTK_FACET_FP)
+            {
+                // On Facet FP, we need to send AT+DPRT=0 to set the data port to UART1
+                responseLength = sizeof(response);
+                configureSuccess &= loraSendCommand("AT+DPRT=0", response, &responseLength);
+            }
+            else
+            {
+                // On Torch, let's make sure DPRT is set to 1. This should be the default
+                responseLength = sizeof(response);
+                configureSuccess &= loraSendCommand("AT+DPRT=1", response, &responseLength);
+            }
         }
 
         // Set frequency
@@ -934,6 +943,11 @@ void loraGetVersion()
         {
             // Copy only the version substring
             strncpy(loraFirmwareVersion, &response[strlen("version:")], 5);
+            int verMajor = 0;
+            int verMinor = 0;
+            int verPatch = 0;
+            sscanf(loraFirmwareVersion, "%d.%d.%d", &verMajor, &verMinor, &verPatch); // Do we care if this fails?
+            loraFirmwareVersionInt = (verMajor * 100) + (verMinor * 10) + (verPatch);
         }
     }
     else
