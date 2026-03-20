@@ -871,7 +871,7 @@ bool loraSendCommand(const char *command, char *response, int *responseSize)
             return (false); // Timeout
         }
     }
-    delay(10); // Allow all serial to arrive
+    delay(50); // Allow all serial to arrive
 
     while (loraAvailable())
     {
