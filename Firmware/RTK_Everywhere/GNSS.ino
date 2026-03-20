@@ -826,7 +826,7 @@ void gnssFirmwareBeginUpdate()
 {
     // Note: UM980 needs its own dedicated update function, due to the T@ and bootloader trigger
 
-    // Flag that we are in direct connect mode. Button task will gnssFirmwareRemoveUpdate and exit
+    // Flag that we are in direct connect mode
     inDirectConnectMode = true;
 
     // Note: we can't call gnssFirmwareRemoveUpdate() here as closing Tera Term will reset the ESP32,

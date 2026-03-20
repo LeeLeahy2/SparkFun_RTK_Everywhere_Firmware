@@ -364,7 +364,7 @@ void beginLora() // Called by updateLora LORA_NOT_STARTED
 
         loraPowerOn(); // Power STM32/radio
 
-        delay(100); // Give LoRa radio time to power stabilize
+        delay(500); // Give LoRa radio time to power stabilize
 
         loraExitBootloader(); // Disables BOOT pin, then resets the STM32
 
@@ -556,13 +556,25 @@ bool loraIsOn()
 // Check if updateLoraFirmware.txt exists
 bool checkUpdateLoraFirmware()
 {
+    return checkUpdateLoraFirmwareFile("/updateLoraFirmware.txt");
+}
+bool loraRxDirectCheckFile()
+{
+    return checkUpdateLoraFirmwareFile("/loraRxDirect.txt");
+}
+bool loraTxDirectCheckFile()
+{
+    return checkUpdateLoraFirmwareFile("/loraTxDirect.txt");
+}
+bool checkUpdateLoraFirmwareFile(const char *filename)
+{
     if (online.fs == false)
         return false;
 
-    if (LittleFS.exists("/updateLoraFirmware.txt"))
+    if (LittleFS.exists(filename))
     {
         if (settings.debugLora)
-            systemPrintln("LittleFS updateLoraFirmware.txt exists");
+            systemPrintf("LittleFS %s exists\r\n", filename);
 
         // We do not remove the file here. See removeupdateLoraFirmware().
 
@@ -574,15 +586,29 @@ bool checkUpdateLoraFirmware()
 
 void removeUpdateLoraFirmware()
 {
+    removeUpdateLoraFirmwareFile("/updateLoraFirmware.txt");
+}
+void loraRxDirectRemoveFile()
+{
+    removeUpdateLoraFirmwareFile("/loraRxDirect.txt");
+}
+void loraTxDirectRemoveFile()
+{
+    removeUpdateLoraFirmwareFile("/loraTxDirect.txt");
+}
+void removeUpdateLoraFirmwareFile(const char *filename)
+{
     if (online.fs == false)
         return;
 
-    if (LittleFS.exists("/updateLoraFirmware.txt"))
+    if (LittleFS.exists(filename))
     {
         if (settings.debugLora)
-            systemPrintln("Removing updateLoraFirmware.txt ");
+            systemPrintf("Removing direct connect file: %s\r\n", filename);
 
-        LittleFS.remove("/updateLoraFirmware.txt");
+        delay(50);
+
+        LittleFS.remove(filename);
     }
 }
 
@@ -590,24 +616,37 @@ void removeUpdateLoraFirmware()
 // LittleFS
 bool createLoRaPassthrough()
 {
+    return createLoRaPassthroughFile("/updateLoraFirmware.txt");
+}
+bool createLoraRxDirectFile()
+{
+    return createLoRaPassthroughFile("/loraRxDirect.txt");
+}
+bool createLoraTxDirectFile()
+{
+    return createLoRaPassthroughFile("/loraTxDirect.txt");
+}
+// Force UART connection to LoRa radio on the next boot by creating file in LittleFS
+bool createLoRaPassthroughFile(const char *filename)
+{
     if (online.fs == false)
         return false;
 
-    if (LittleFS.exists("/updateLoraFirmware.txt"))
+    if (LittleFS.exists(filename))
     {
         if (settings.debugLora)
-            systemPrintln("LittleFS updateLoraFirmware.txt already exists");
+            systemPrintf("LittleFS %s already exists\r\n", filename);
         return true;
     }
 
-    File updateLoraFirmware = LittleFS.open("/updateLoraFirmware.txt", FILE_WRITE);
+    File updateLoraFirmware = LittleFS.open(filename, FILE_WRITE);
     updateLoraFirmware.close();
 
-    if (LittleFS.exists("/updateLoraFirmware.txt"))
+    if (LittleFS.exists(filename))
         return true;
 
     if (settings.debugLora)
-        systemPrintln("Unable to create updateLoraFirmware.txt on LittleFS");
+        systemPrintf("Unable to create %s on LittleFS\r\n", filename);
     return false;
 }
 
@@ -617,7 +656,7 @@ void beginLoraFirmwareUpdate()
     //  This will be resolved with the next Facet FP motherboard rev.
     //  TODO: delete this comment once new hardware is available.
 
-    // Flag that we are in direct connect mode. Button task will removeUpdateLoraFirmware and exit
+    // Flag that we are in direct connect mode
     inDirectConnectMode = true;
 
     // Paint GNSS Update
@@ -719,6 +758,14 @@ void loraSetupReceive()
 // Setup LoRa radio for receiving or transmitting
 void loraSetup(bool transmit)
 {
+    loraSetupCommon(transmit, true);
+}
+void loraSetupAlternateDataPort(bool transmit)
+{
+    loraSetupCommon(transmit, false);
+}
+void loraSetupCommon(bool transmit, bool regularDataPort)
+{
     if (loraEnterCommandMode() == true)
     {
         char response[512];
@@ -751,15 +798,23 @@ void loraSetup(bool transmit)
         {
             if (productVariant == RTK_FACET_FP)
             {
-                // On Facet FP, we need to send AT+DPRT=0 to set the data port to UART1
                 responseLength = sizeof(response);
-                configureSuccess &= loraSendCommand("AT+DPRT=0", response, &responseLength);
+                if (regularDataPort)
+                    // On Facet FP, we need to send AT+DPRT=0 to set the data port to UART1
+                    configureSuccess &= loraSendCommand("AT+DPRT=0", response, &responseLength);
+                else
+                    // Alternate port for LoRa RX direct connect
+                    configureSuccess &= loraSendCommand("AT+DPRT=1", response, &responseLength);
             }
             else
             {
-                // On Torch, let's make sure DPRT is set to 1. This should be the default
                 responseLength = sizeof(response);
-                configureSuccess &= loraSendCommand("AT+DPRT=1", response, &responseLength);
+                if (regularDataPort)
+                    // On Torch, let's make sure DPRT is set to 1. This should be the default
+                    configureSuccess &= loraSendCommand("AT+DPRT=1", response, &responseLength);
+                else
+                    // Alternate port for LoRa RX direct connect
+                    configureSuccess &= loraSendCommand("AT+DPRT=0", response, &responseLength);
             }
         }
 
@@ -949,6 +1004,30 @@ void loraGetVersion()
             sscanf(loraFirmwareVersion, "%d.%d.%d", &verMajor, &verMinor, &verPatch); // Do we care if this fails?
             loraFirmwareVersionInt = (verMajor * 100) + (verMinor * 10) + (verPatch);
         }
+
+        if (settings.debugLora == true)
+        {
+            systemPrintf("LoRa firmware version: %s\r\n", loraFirmwareVersion);
+
+            // "AT+ATTR?" was added with LoRa firmware 3.0.1
+            if (loraFirmwareVersionInt >= 301)
+            {
+                systemPrintln("Getting LoRa radio attributes");
+                systemPrintln("(Updated attributes are saved to flash after AT+TRANS)");
+                systemFlush(); // Complete prints
+
+                responseLength = sizeof(response);
+
+                loraSendCommand("AT+ATTR?", response, &responseLength);
+
+                if ((responseLength > 0) && (strlen(response) > 0))
+                    systemPrint(response);
+                else
+                    systemPrintln("loraGetVersion : could not get radio attributes");
+
+                systemFlush(); // Complete prints
+            }
+        }
     }
     else
     {
@@ -957,6 +1036,353 @@ void loraGetVersion()
             systemPrintln("loraGetVersion : could not enter command mode");
             systemFlush(); // Complete prints
         }
+    }
+}
+
+//----------------------------------------
+void loraRxDirectConnect()
+{
+    // Flag that we are in direct connect mode
+    inDirectConnectMode = true;
+
+    // Note: we can't call loraRxDirectRemoveFile() here as closing Tera Term will reset the ESP32,
+    //       returning the firmware to normal operation...
+
+    // Paint GNSS Update
+    paintLoRaDirectRx();
+
+    systemPrintln();
+    systemPrintln("Entering LoRa RX direct connect for radio RX testing");
+    //systemPrintf("Press the %s button or hit any key to return to normal operation\r\n",
+    systemPrintf("Press the %s button to return to normal operation\r\n",
+                 present.button_mode ? "mode" : "power");
+    systemFlush();
+
+    while (Serial.available())
+        Serial.read(); // Ensure the buffer is empty
+
+    if (productVariant == RTK_TORCH)
+        loraRxDirectConnectTorch();
+    else
+        loraRxDirectConnectFacetFP();
+
+    systemFlush();
+
+    if (!task.endDirectConnectMode) // buttonCheckTask has its own print
+    {
+        systemPrintln("Exiting LoRa RX direct connect");
+        systemPrintln("Restarting...");
+    }
+
+    // Remove the special file. See #763 . Do the file removal in the loop
+    loraRxDirectRemoveFile();
+
+    systemFlush(); // Complete prints
+
+    ESP.restart();
+}
+
+void loraRxDirectConnectTorch()
+{
+    // Torch:
+    // Start LoRa RX, setting LoRa data port to 0
+    // LoRa will output all RX on its UART1
+    // Set SW U12 (pin_muxA) high to connect LoRa UART1 to ESP32 UART1
+    // Push all data received on ESP32 UART1 out ESP32 UART0
+
+    if (serialGNSS == nullptr)
+        serialGNSS = new HardwareSerial(2); // Use UART2 on the ESP32 for communication with the LoRa radio
+
+    serialGNSS->setRxBufferSize(settings.uartReceiveBufferSize);
+    serialGNSS->setTimeout(settings.serialTimeoutGNSS); // Requires serial traffic on the UART pins for detection
+
+    serialGNSS->begin(115200, SERIAL_8N1, pin_GnssUart_RX, pin_GnssUart_TX); // Keep this at 115200
+
+    loraPowerOn(); // Power STM32/radio
+
+    delay(500); // Give LoRa radio time to power stabilize
+
+    loraExitBootloader(); // Disables BOOT pin, then resets the STM32
+
+    // Store firmware version in char array
+    // loraGetVersion() calls loraEnterCommandMode() which calls muxSelectLoRaCommunication()
+    settings.debugLora = true;
+    loraGetVersion();
+    settings.debugLora = false;
+
+    loraSetupAlternateDataPort(false); // RX Mode using alternate data port (UART1)
+
+    muxSelectLoRaConfigure(); // Change SW U12 (pin_muxA)
+
+    while (serialGNSS->available())
+        serialGNSS->read(); // Ensure the buffer is empty before we start to print
+
+    // Pass data from LoRa to console until the user presses a button or hits a key
+    task.endDirectConnectMode = false;
+    while (1)
+    {
+        if (serialGNSS->available()) // Note: use if, not while
+            Serial.write(serialGNSS->read());
+
+        // Button task will set task.endDirectConnectMode true
+        if (task.endDirectConnectMode)
+            break; // Break on button push
+
+        // Uncomment the next two lines to allow a key press to end the direct connection
+        // But, be aware that closing Tera Term will then close the connection too
+        //if (Serial.available())
+        //    break;
+    }
+}
+
+void loraRxDirectConnectFacetFP()
+{
+    // Facet FP:
+    // Set SW3 high to connect LoRa UART2 to ESP32 UART2
+    // Start LoRa RX, setting LoRa data port to 1
+    // LoRa will output all RX on its UART2
+    // Push all data received on ESP32 UART2 out ESP32 UART0
+
+    // We must use SerialForLoRa because loraAvailable checks SerialForLoRa->available
+    if (SerialForLoRa == nullptr)
+        SerialForLoRa = new HardwareSerial(2); // Use UART2 on the ESP32 for communication with the LoRa radio
+
+    SerialForLoRa->setRxBufferSize(settings.uartReceiveBufferSize);
+    SerialForLoRa->setTimeout(settings.serialTimeoutGNSS); // Requires serial traffic on the UART pins for detection
+
+    SerialForLoRa->begin(115200, SERIAL_8N1, pin_IMU_RX, pin_IMU_TX); // Keep this at 115200
+
+    loraPowerOn(); // Power STM32/radio
+
+    delay(500); // Give LoRa radio time to power stabilize
+
+    loraExitBootloader(); // Disables BOOT pin, then resets the STM32
+
+    // Store firmware version in char array
+    // loraGetVersion() calls loraEnterCommandMode() which calls muxSelectLoRaCommunication()
+    settings.debugLora = true;
+    loraGetVersion();
+    settings.debugLora = false;
+
+    loraSetupAlternateDataPort(false); // RX Mode using alternate data port (UART2)
+
+    // Connect ESP32 to LoRa, since loraSendCommand will
+    // have called endLoRaConfigureCommunicationOnFacet();
+    startLoRaConfigureCommunicationOnFacet();
+
+    while (SerialForLoRa->available())
+        SerialForLoRa->read(); // Ensure the buffer is empty before we start to print
+
+    // Pass data from LoRa to console until the user presses a button or hits a key
+    task.endDirectConnectMode = false;
+    while (1)
+    {
+        if (SerialForLoRa->available()) // Note: use if, not while
+            Serial.write(SerialForLoRa->read());
+
+        // Button task will set task.endDirectConnectMode true
+        if (task.endDirectConnectMode)
+            break; // Break on button push
+
+        // Uncomment the next two lines to allow a key press to end the direct connection
+        // But, be aware that closing Tera Term will then close the connection too
+        //if (Serial.available())
+        //    break;
+    }
+}
+
+//----------------------------------------
+void loraTxDirectConnect()
+{
+    // Flag that we are in direct connect mode
+    inDirectConnectMode = true;
+
+    // Note: we can't call loraTxDirectRemoveFile() here as closing Tera Term will reset the ESP32,
+    //       returning the firmware to normal operation...
+
+    // Paint GNSS Update
+    paintLoRaDirectTx();
+
+    systemPrintln();
+    systemPrintln("Entering dedicated LoRa TX mode for radio link testing");
+    //systemPrintf("Press the %s button or hit any key to return to normal operation\r\n",
+    systemPrintf("Press the %s button to return to normal operation\r\n",
+                 present.button_mode ? "mode" : "power");
+    systemFlush();
+
+    while (Serial.available())
+        Serial.read(); // Ensure the buffer is empty
+
+    if (productVariant == RTK_TORCH)
+        loraTxDirectConnectTorch();
+    else
+        loraTxDirectConnectFacetFP();
+
+    systemFlush();
+
+    if (!task.endDirectConnectMode) // buttonCheckTask has its own print
+    {
+        systemPrintln("Exiting LoRa TX");
+        systemPrintln("Restarting...");
+    }
+
+    // Remove the special file. See #763 . Do the file removal in the loop
+    loraTxDirectRemoveFile();
+
+    systemFlush(); // Complete prints
+
+    ESP.restart();
+}
+
+void loraTxDirectConnectTorch()
+{
+    // Torch:
+    // Start LoRa TX, setting LoRa data port to 0
+    // LoRa will transmit everything received on its UART1
+    // Set SW U12 (pin_muxA) high to connect LoRa UART1 to ESP32 UART1
+    // Push test data out on ESP32 UART1
+
+    if (serialGNSS == nullptr)
+        serialGNSS = new HardwareSerial(2); // Use UART2 on the ESP32 for communication with the LoRa radio
+
+    serialGNSS->setRxBufferSize(settings.uartReceiveBufferSize);
+    serialGNSS->setTimeout(settings.serialTimeoutGNSS); // Requires serial traffic on the UART pins for detection
+
+    serialGNSS->begin(115200, SERIAL_8N1, pin_GnssUart_RX, pin_GnssUart_TX); // Keep this at 115200
+
+    loraPowerOn(); // Power STM32/radio
+
+    delay(500); // Give LoRa radio time to power stabilize
+
+    loraExitBootloader(); // Disables BOOT pin, then resets the STM32
+
+    // Store firmware version in char array
+    // loraGetVersion() calls loraEnterCommandMode() which calls muxSelectLoRaCommunication()
+    settings.debugLora = true;
+    loraGetVersion();
+    settings.debugLora = false;
+
+    loraSetupAlternateDataPort(true); // TX Mode using alternate data port (UART1)
+
+    muxSelectLoRaConfigure(); // Change SW U12 (pin_muxA)
+
+    // Pass data from LoRa to console until the user presses a button or hits a key
+    task.endDirectConnectMode = false;
+    unsigned long lastTx = 0;
+    while (1)
+    {
+        if ((millis() - lastTx) > 1000) // Transmit NMEA every second
+        {
+            lastTx = millis();
+            static char nmeaTxt[200]; // Max NMEA sentence length is 82
+            static char versionString[21] = { 0 };
+            if (strlen(versionString) == 0)
+                firmwareVersionGet(versionString, sizeof(versionString), true);
+            snprintf(nmeaTxt, sizeof(nmeaTxt), "$GNTXT,%s,%s,%s,%s,%s,%09ld*",
+                     getBrandAttributeFromProductVariant(productVariant)->name,
+                     platformPrefix,
+                     serialNumber,
+                     versionString,
+                     loraFirmwareVersion,
+                     lastTx);
+
+            // From: http://engineeringnotes.blogspot.com/2015/02/generate-crc-for-nmea-strings-arduino.html
+            byte CRC = 0; // XOR chars between '$' and '*'
+            for (byte x = 1; x < strlen(nmeaTxt) - 1; x++)
+                CRC = CRC ^ nmeaTxt[x];
+
+            snprintf(nmeaTxt + strlen(nmeaTxt), sizeof(nmeaTxt) - strlen(nmeaTxt), "%02X\r\n", CRC);
+
+            serialGNSS->write((const uint8_t *)nmeaTxt, strlen(nmeaTxt));
+            Serial.write((const uint8_t *)nmeaTxt, strlen(nmeaTxt));
+        }
+
+        // Button task will set task.endDirectConnectMode true
+        if (task.endDirectConnectMode)
+            break; // Break on button push
+
+        // Uncomment the next two lines to allow a key press to end the test
+        // But, be aware that closing Tera Term will end the test too
+        //if (Serial.available())
+        //    break;
+    }
+}
+
+void loraTxDirectConnectFacetFP()
+{
+    // Facet FP:
+    // Set SW3 high to connect LoRa UART2 to ESP32 UART2
+    // Start LoRa RX, setting LoRa data port to 1
+    // LoRa will transmit everything received on its UART2
+    // Push all data received on ESP32 UART2 out ESP32 UART0
+    // Push test data out on ESP32 UART1
+
+    // We must use SerialForLoRa because loraAvailable  checks SerialForLoRa->available
+    if (SerialForLoRa == nullptr)
+        SerialForLoRa = new HardwareSerial(2); // Use UART2 on the ESP32 for communication with the LoRa radio
+
+    SerialForLoRa->setRxBufferSize(settings.uartReceiveBufferSize);
+    SerialForLoRa->setTimeout(settings.serialTimeoutGNSS); // Requires serial traffic on the UART pins for detection
+
+    SerialForLoRa->begin(115200, SERIAL_8N1, pin_IMU_RX, pin_IMU_TX); // Keep this at 115200
+
+    loraPowerOn(); // Power STM32/radio
+
+    delay(500); // Give LoRa radio time to power stabilize
+
+    loraExitBootloader(); // Disables BOOT pin, then resets the STM32
+
+    // Store firmware version in char array
+    // loraGetVersion() calls loraEnterCommandMode() which calls muxSelectLoRaCommunication()
+    settings.debugLora = true;
+    loraGetVersion();
+    settings.debugLora = false;
+
+    loraSetupAlternateDataPort(true); // TX Mode using alternate data port (UART1)
+
+    // Connect ESP32 to LoRa, since loraSendCommand will
+    // have called endLoRaConfigureCommunicationOnFacet();
+    startLoRaConfigureCommunicationOnFacet();
+
+    // Pass data from LoRa to console until the user presses a button or hits a key
+    task.endDirectConnectMode = false;
+    unsigned long lastTx = 0;
+    while (1)
+    {
+        if ((millis() - lastTx) > 1000) // Transmit NMEA every second
+        {
+            lastTx = millis();
+            static char nmeaTxt[200]; // Max NMEA sentence length is 82
+            static char versionString[21] = { 0 };
+            if (strlen(versionString) == 0)
+                firmwareVersionGet(versionString, sizeof(versionString), true);
+            snprintf(nmeaTxt, sizeof(nmeaTxt), "$GNTXT,%s,%s,%s,%s,%s,%09ld*",
+                     getBrandAttributeFromProductVariant(productVariant)->name,
+                     platformPrefix,
+                     serialNumber,
+                     versionString,
+                     loraFirmwareVersion,
+                     lastTx);
+
+            // From: http://engineeringnotes.blogspot.com/2015/02/generate-crc-for-nmea-strings-arduino.html
+            byte CRC = 0; // XOR chars between '$' and '*'
+            for (byte x = 1; x < strlen(nmeaTxt) - 1; x++)
+                CRC = CRC ^ nmeaTxt[x];
+
+            snprintf(nmeaTxt + strlen(nmeaTxt), sizeof(nmeaTxt) - strlen(nmeaTxt), "%02X\r\n", CRC);
+
+            SerialForLoRa->write((const uint8_t *)nmeaTxt, strlen(nmeaTxt));
+            Serial.write((const uint8_t *)nmeaTxt, strlen(nmeaTxt));
+        }
+
+        // Button task will set task.endDirectConnectMode true
+        if (task.endDirectConnectMode)
+            break; // Break on button push
+
+        // Uncomment the next two lines to allow a key press to end the test
+        // But, be aware that closing Tera Term will end the test too
+        //if (Serial.available())
+        //    break;
     }
 }
 

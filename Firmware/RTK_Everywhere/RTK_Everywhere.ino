@@ -1356,7 +1356,7 @@ void setup()
         reportFatalError("ESP_RST_PANIC");
 
     DMW_b("displaySplash");
-    displaySplash(); // Display the RTK product name and firmware version
+    displaySplash(); // Display the RTK product name and firmware version. Calls assembleDeviceName()
 
     DMW_b("beginButtons");
     beginButtons(); // Start task for button monitoring. Needed for beginSD (gpioExpander)
@@ -1380,6 +1380,14 @@ void setup()
     DMW_b("checkUpdateLoraFirmware");
     if (checkUpdateLoraFirmware() == true) // Check if updateLoraFirmware.txt exists
         beginLoraFirmwareUpdate(); // Needs I2C, GPIO Expander Switches, display, buttons, etc.
+
+    DMW_b("loraRxDirectCheckFile");
+    if (loraRxDirectCheckFile() == true) // Check if loraRxDirect.txt exists
+        loraRxDirectConnect(); // Needs I2C, GPIO Expander Switches, display, buttons, etc.
+
+    DMW_b("loraTxDirectCheckFile");
+    if (loraTxDirectCheckFile() == true) // Check if loraTxDirect.txt exists
+        loraTxDirectConnect(); // Needs I2C, GPIO Expander Switches, display, buttons, etc.
 
     DMW_b("um980FirmwareCheckUpdate");
     if (um980FirmwareCheckUpdate() == true) // UM980 needs special treatment - ** before the UARTs are started **
@@ -1410,7 +1418,7 @@ void setup()
     tiltDetect(); // If we don't know if there is a tilt compensation sensor, auto-detect it. Uses settings.
 
     DMW_b("assembleDeviceName");
-    assembleDeviceName(); // Assemble the BT broadcast deviceName. After GNSS and Tilt are known
+    assembleDeviceName(); // Re-assemble the BT broadcast deviceName now that GNSS and Tilt are known
 
     // DEBUG_NEARLY_EVERYTHING // Debug nearly all the things
     // DEBUG_THE_ESSENTIALS // Debug the essentials - handy for measuring the boot time after a factory reset

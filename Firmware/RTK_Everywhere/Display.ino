@@ -491,13 +491,15 @@ void displayUpdate()
 
 void displaySplash()
 {
+    // Assemble device name etc. using the best available information
+    assembleDeviceName();
+
     if (settings.detectedGnssReceiver == GNSS_RECEIVER_UNKNOWN)
     {
         displaySplashCommon(false); // Full product name not known
     }
     else
     {
-        assembleDeviceName();
         displaySplashCommon(true); // Full product name known
     }
 }
@@ -3141,13 +3143,21 @@ void displayWebConfig(std::vector<iconPropertyBlinking> &iconPropertyList)
 // Show GNSS update - button exit
 void paintGnssUpdate()
 {
-    paintGenericUpdate("GNSS");
+    paintGenericUpdate("GNSS", "Update");
 }
 void paintLoRaUpdate()
 {
-    paintGenericUpdate("LoRa");
+    paintGenericUpdate("LoRa", "Update");
 }
-void paintGenericUpdate(const char *device)
+void paintLoRaDirectRx()
+{
+    paintGenericUpdate("LoRa", "RX Direct");
+}
+void paintLoRaDirectTx()
+{
+    paintGenericUpdate("LoRa", "TX Test");
+}
+void paintGenericUpdate(const char *device, const char *update)
 {
     if (online.display)
     {
@@ -3156,7 +3166,7 @@ void paintGenericUpdate(const char *device)
         uint8_t fontHeight = 8;
         printTextCenter(device, yPos, QW_FONT_5X7, 1, false); // text, y, font type, kerning, inverted
         yPos = yPos + fontHeight + 1;
-        printTextCenter("Update", yPos, QW_FONT_5X7, 1, false);
+        printTextCenter(update, yPos, QW_FONT_5X7, 1, false);
         yPos = yPos + fontHeight + 3;
         printTextCenter("Button", yPos, QW_FONT_5X7, 1, true); // text, y, font type, kerning, inverted
         yPos = yPos + fontHeight + 1;

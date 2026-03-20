@@ -684,6 +684,12 @@ void menuDebugHardware()
 
         systemPrintf("25) RTCM buffer debugging: %s\r\n", settings.debugRtcmBuffers ? "Enabled" : "Disabled");
 
+        if (present.radio_lora)
+        {
+            systemPrintln("26) STM32 direct connect for LoRa RX testing");
+            systemPrintln("27) STM32 dedicated LoRa TX testing");
+        }
+
         systemPrintln("e) Erase LittleFS");
 
         systemPrintln("r) Force system reset");
@@ -841,6 +847,30 @@ void menuDebugHardware()
 
         else if (incoming == 25)
             settings.debugRtcmBuffers ^= 1;
+
+        else if (incoming == 26 && present.radio_lora)
+        {
+            if (createLoraRxDirectFile() == true)
+            {
+                systemPrintln();
+                systemPrintln("STM32 RX passthrough mode has been recorded to LittleFS. Device will now reset.");
+                systemFlush(); // Complete prints
+
+                ESP.restart();
+            }
+        }
+
+        else if (incoming == 27 && present.radio_lora)
+        {
+            if (createLoraTxDirectFile() == true)
+            {
+                systemPrintln();
+                systemPrintln("STM32 TX mode has been recorded to LittleFS. Device will now reset.");
+                systemFlush(); // Complete prints
+
+                ESP.restart();
+            }
+        }
 
         else if (incoming == 'e')
         {
