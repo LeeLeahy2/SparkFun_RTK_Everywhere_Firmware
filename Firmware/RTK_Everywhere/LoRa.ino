@@ -1013,7 +1013,7 @@ void loraGetVersion()
             if (loraFirmwareVersionInt >= 301)
             {
                 systemPrintln("Getting LoRa radio attributes");
-                systemPrintln("(Updated attributes are saved to flash after AT+TRANS)");
+                systemPrintln("(Updated attributes are saved to flash after AT+SAVE=1 and AT+TRANS)");
                 systemFlush(); // Complete prints
 
                 responseLength = sizeof(response);
