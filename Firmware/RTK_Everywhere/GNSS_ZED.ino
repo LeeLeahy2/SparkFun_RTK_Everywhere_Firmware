@@ -474,7 +474,14 @@ bool GNSS_ZED::configure()
     gnssConfigure(GNSS_CONFIG_EXT_CORRECTIONS); // Request receiver to use new settings
 
     if (response)
-        systemPrintln("ZED-F9P configured");
+    {
+        if (present.gnss_zedf9p)
+            systemPrintln("ZED-F9P configured");
+        else if (present.gnss_zedx20p)
+            systemPrintln("ZED-X20P configured");
+        else
+            systemPrintln("Unknown ZED configured"); // This should never happen...
+    }
 
     return (response);
 }
