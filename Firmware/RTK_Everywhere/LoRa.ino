@@ -63,6 +63,15 @@ LoRa.ino
 
 // See menuRadio() to get LoRa Settings
 
+// Command responses are usually received after ~5ms
+const unsigned long LORA_CMD_DEFAULT_TIMEOUT_MS = 50;
+// Give AT+ATTR? more time
+const unsigned long LORA_CMD_ATTR_TIMEOUT_MS = 100;
+// With SAVE disabled, TRANS response is received after typically ~350ms
+const unsigned long LORA_CMD_TRANS_TIMEOUT_MS = 500;
+// With SAVE enabled, it takes ~400ms
+const unsigned long LORA_CMD_SAVE_TIMEOUT_MS = 200;
+
 // Define the NTRIP client states
 enum LoraState
 {
@@ -775,23 +784,30 @@ void loraSetupCommon(bool transmit, bool regularDataPort)
 
         bool configureSuccess = true;
 
+        // NOTE: don't do any systemPrints until after the AT+TRANS
+        // On Torch, ESP32 UART0 is connected to the LoRa
+
         if (transmit == true)
         {
             // Enable transmit mode
             // response and responseLength are modified
+            // Response typically takes ~5ms
             responseLength = sizeof(response);
-            configureSuccess &= loraSendCommand("AT+MODE=0", response, &responseLength); // 0 - Transmit, 1 - Receive
+            configureSuccess &= loraSendCommand("AT+MODE=0", response, &responseLength,
+                                                LORA_CMD_DEFAULT_TIMEOUT_MS, false); // 0 - Transmit, 1 - Receive
 
             responseLength = sizeof(response);
-            snprintf(command, sizeof(command), "AT+PWR=%d", settings.loraTransmitPower_dBm);
-            configureSuccess &= loraSendCommand(command, response, &responseLength);
+            snprintf(command, sizeof(command), "AT+PWR=%d", settings.loraTransmitGain_dB);
+            configureSuccess &= loraSendCommand(command, response, &responseLength,
+                                                LORA_CMD_DEFAULT_TIMEOUT_MS, false);
         }
         else
         {
             // Enable receive mode
             // response and responseLength are modified
             responseLength = sizeof(response);
-            configureSuccess &= loraSendCommand("AT+MODE=1", response, &responseLength); // 0 - Transmit, 1 - Receive
+            configureSuccess &= loraSendCommand("AT+MODE=1", response, &responseLength,
+                                                LORA_CMD_DEFAULT_TIMEOUT_MS, false); // 0 - Transmit, 1 - Receive
         }
 
         if (loraFirmwareVersionInt >= 300) // LoRa Data Port (DPRT) was added at v3.0.0
@@ -801,20 +817,39 @@ void loraSetupCommon(bool transmit, bool regularDataPort)
                 responseLength = sizeof(response);
                 if (regularDataPort)
                     // On Facet FP, we need to send AT+DPRT=0 to set the data port to UART1
-                    configureSuccess &= loraSendCommand("AT+DPRT=0", response, &responseLength);
+                    configureSuccess &= loraSendCommand("AT+DPRT=0", response, &responseLength,
+                                                        LORA_CMD_DEFAULT_TIMEOUT_MS, false);
                 else
                     // Alternate port for LoRa RX direct connect
-                    configureSuccess &= loraSendCommand("AT+DPRT=1", response, &responseLength);
+                    configureSuccess &= loraSendCommand("AT+DPRT=1", response, &responseLength,
+                                                        LORA_CMD_DEFAULT_TIMEOUT_MS, false);
             }
             else
             {
                 responseLength = sizeof(response);
                 if (regularDataPort)
                     // On Torch, let's make sure DPRT is set to 1. This should be the default
-                    configureSuccess &= loraSendCommand("AT+DPRT=1", response, &responseLength);
+                    configureSuccess &= loraSendCommand("AT+DPRT=1", response, &responseLength,
+                                                        LORA_CMD_DEFAULT_TIMEOUT_MS, false);
                 else
                     // Alternate port for LoRa RX direct connect
-                    configureSuccess &= loraSendCommand("AT+DPRT=0", response, &responseLength);
+                    configureSuccess &= loraSendCommand("AT+DPRT=0", response, &responseLength,
+                                                        LORA_CMD_DEFAULT_TIMEOUT_MS, false);
+            }
+        }
+
+        if (loraFirmwareVersionInt >= 301) // AT+SAVE was added at v3.0.1
+        {
+            responseLength = sizeof(response);
+            if (settings.loraSaveSettingsToFlash)
+            {
+                configureSuccess &= loraSendCommand("AT+SAVE=1", response, &responseLength,
+                                                    LORA_CMD_DEFAULT_TIMEOUT_MS, false);
+            }
+            else
+            {
+                configureSuccess &= loraSendCommand("AT+SAVE=0", response, &responseLength,
+                                                    LORA_CMD_DEFAULT_TIMEOUT_MS, false);
             }
         }
 
@@ -822,11 +857,16 @@ void loraSetupCommon(bool transmit, bool regularDataPort)
         responseLength = sizeof(response);
         snprintf(command, sizeof(command), "AT+FRQ=%0.3f %0.3f", settings.loraCoordinationFrequency,
                  settings.loraCoordinationFrequency);
-        configureSuccess &= loraSendCommand(command, response, &responseLength);
+        configureSuccess &= loraSendCommand(command, response, &responseLength,
+                                            LORA_CMD_DEFAULT_TIMEOUT_MS, false);
 
         // Enter TRANSfer
         responseLength = sizeof(response);
-        configureSuccess &= loraSendCommand("AT+TRANS", response, &responseLength);
+        unsigned long timeout = LORA_CMD_TRANS_TIMEOUT_MS;
+        if (settings.loraSaveSettingsToFlash)
+            timeout += LORA_CMD_SAVE_TIMEOUT_MS;
+        configureSuccess &= loraSendCommand("AT+TRANS", response, &responseLength,
+                                             (const unsigned long)timeout, true);
 
         if (configureSuccess == false)
             systemPrintln("LoRa radio failed to configure");
@@ -848,15 +888,26 @@ void loraSetupCommon(bool transmit, bool regularDataPort)
 // Reconnects to USB
 // Caller's response array is filled
 // Returns true if OK is seen in response
-bool loraSendCommand(const char *command, char *response, int *responseSize)
+bool loraSendCommand(const char *command, char *response, int *responseSize, const unsigned long timeout, bool disconnect)
 {
     int responseSpot = 0;
     int responseTime = 0;
 
+    static bool disconnected = true;
+
     systemFlush(); // Complete prints
 
-    muxSelectLoRaCommunication(); // Connect the LoRa radio to ESP32 UART0 (shared with USB)
-    startLoRaConfigureCommunicationOnFacet(); // Connect ESP32 to LoRa
+    if (disconnected)
+    {
+        muxSelectLoRaCommunication(); // Connect the LoRa radio to ESP32 UART0 (shared with USB)
+        startLoRaConfigureCommunicationOnFacet(); // Connect ESP32 to LoRa
+
+        delay(10); // Wait a little after switching the UART signals
+        while (loraAvailable())
+            loraRead(); // Absorb any junk left in the received buffer
+
+        disconnected = false;
+    }
 
     loraPrintf("%s\r\n", command);
     while (loraAvailable() == 0)
@@ -866,27 +917,41 @@ bool loraSendCommand(const char *command, char *response, int *responseSize)
         if (responseTime > 2000)
         {
             *responseSize = 0;
-            muxSelectUsb(); // Connect USB
-            endLoRaConfigureCommunicationOnFacet();
+            if (disconnect)
+            {
+                muxSelectUsb(); // Connect USB
+                endLoRaConfigureCommunicationOnFacet();
+                disconnected = true;
+            }
             return (false); // Timeout
         }
     }
-    delay(50); // Allow all serial to arrive
+    
+    unsigned long startTime = millis();
 
-    while (loraAvailable())
+    while ((millis() - startTime) < timeout)
     {
-        response[responseSpot++] = loraRead();
-        if (responseSpot == *responseSize)
+        while (loraAvailable())
         {
-            responseSpot--;
-            break;
+            response[responseSpot++] = loraRead();
+            if (responseSpot == *responseSize)
+            {
+                responseSpot--;
+                break;
+            }
         }
+
+        delay(1);
     }
     response[responseSpot] = '\0';
     *responseSize = responseSpot;
 
-    muxSelectUsb(); // Connect USB
-    endLoRaConfigureCommunicationOnFacet();
+    if (disconnect)
+    {
+        muxSelectUsb(); // Connect USB
+        endLoRaConfigureCommunicationOnFacet();
+        disconnected = true;
+    }
 
     if (strnstr(response, "OK", *responseSize) != NULL)
         return (true);
@@ -900,7 +965,8 @@ bool loraSendCommand(const char *command, char *response, int *responseSize)
 // Sends AT+V?, if response, we are in command mode -> Reconnects to USB, Return
 bool loraEnterCommandMode()
 {
-    char response[512];
+    const int responseLen = strlen("version:") + 1; // Response FIFO. Add 1 for NULL
+    char response[responseLen];
     int responseSpot = 0;
 
     loraExitBootloader(); // Disables BOOT pin, then resets the STM32
@@ -912,27 +978,38 @@ bool loraEnterCommandMode()
     muxSelectLoRaCommunication(); // Connect the LoRa radio to ESP32 UART0 (shared with USB)
     startLoRaConfigureCommunicationOnFacet();
 
-    delay(50); // Wait for incoming serial to complete
+    delay(100); // Wait for incoming serial to complete
     while (loraAvailable())
         loraRead(); // Read any incoming and trash
 
     // Send version query. Wait up to 2000ms for a response
+    // From the logic analyzer, "version:3.0.1\r\n\r\nOK\r\n" is typically sent after ~5ms
     loraPrint("AT+V?\r\n");
-    for (int x = 0; x < 2000; x++)
+    unsigned long startTime = millis();
+    while ((millis() - startTime) < 2000)
     {
         if (loraAvailable())
         {
-            // Read in the entire response
-            delay(10);
-            while (loraAvailable())
-                response[responseSpot++] = loraRead();
-            response[responseSpot] = '\0';
+            if (responseLen - 1 == responseSpot)
+            {
+                for (int i = 1; i < responseLen; i++)
+                    response[i - 1] = response[i]; // Shift the FIFO along by 1
+            }
+            response[responseSpot++] = loraRead();
+            response[responseSpot] = 0;
 
-            muxSelectUsb(); // Connect USB
-            endLoRaConfigureCommunicationOnFacet();
-            return (true);
+            if (strstr(response, "version:"))
+            {
+                // Read in the entire response
+                delay(10);
+                while (loraAvailable())
+                    loraRead();
+
+                muxSelectUsb(); // Connect USB
+                endLoRaConfigureCommunicationOnFacet();
+                return (true);
+            }
         }
-
         delay(1);
     }
 
@@ -942,21 +1019,31 @@ bool loraEnterCommandMode()
 
     // Send version query. Wait up to 2000ms for a response
     loraPrint("AT+V?\r\n");
-    for (int x = 0; x < 2000; x++)
+    startTime = millis();
+    while ((millis() - startTime) < 2000)
     {
         if (loraAvailable())
         {
-            // Read in the entire response
-            delay(10);
-            while (loraAvailable())
-                response[responseSpot++] = loraRead();
-            response[responseSpot] = '\0';
+            if (responseLen - 1 == responseSpot)
+            {
+                for (int i = 1; i < responseLen; i++)
+                    response[i - 1] = response[i]; // Shift the FIFO along by 1
+            }
+            response[responseSpot++] = loraRead();
+            response[responseSpot] = 0;
 
-            muxSelectUsb(); // Connect USB
-            endLoRaConfigureCommunicationOnFacet();
-            return (true);
+            if (strstr(response, "version:"))
+            {
+                // Read in the entire response
+                delay(10);
+                while (loraAvailable())
+                    loraRead();
+
+                muxSelectUsb(); // Connect USB
+                endLoRaConfigureCommunicationOnFacet();
+                return (true);
+            }
         }
-
         delay(1);
     }
 
@@ -991,8 +1078,9 @@ void loraGetVersion()
         char response[512];
         int responseLength = sizeof(response);
 
-        loraSendCommand("AT+V?", response, &responseLength);
-        // Response contains "version:2.0.1\r\nOK\r\n"
+        // Request LoRa firmware version with AT+V?
+        // Response contains "version:3.0.1\r\n\r\nOK\r\n"
+        loraSendCommand("AT+V?", response, &responseLength, LORA_CMD_DEFAULT_TIMEOUT_MS, true);
 
         if (strlen(response) > strlen("version:"))
         {
@@ -1012,13 +1100,14 @@ void loraGetVersion()
             // "AT+ATTR?" was added with LoRa firmware 3.0.1
             if (loraFirmwareVersionInt >= 301)
             {
+                if (settings.loraSaveSettingsToFlash)
+                    systemPrintln("Updated LoRa attributes will be saved to flash on each AT+TRANS");
                 systemPrintln("Getting LoRa radio attributes");
-                systemPrintln("(Updated attributes are saved to flash after AT+SAVE=1 and AT+TRANS)");
                 systemFlush(); // Complete prints
 
                 responseLength = sizeof(response);
 
-                loraSendCommand("AT+ATTR?", response, &responseLength);
+                loraSendCommand("AT+ATTR?", response, &responseLength, LORA_CMD_ATTR_TIMEOUT_MS, true);
 
                 if ((responseLength > 0) && (strlen(response) > 0))
                     systemPrint(response);
@@ -1169,6 +1258,8 @@ void loraRxDirectConnectFacetFP()
     // Connect ESP32 to LoRa, since loraSendCommand will
     // have called endLoRaConfigureCommunicationOnFacet();
     startLoRaConfigureCommunicationOnFacet();
+
+    delay(100);
 
     while (SerialForLoRa->available())
         SerialForLoRa->read(); // Ensure the buffer is empty before we start to print
@@ -1343,6 +1434,8 @@ void loraTxDirectConnectFacetFP()
     // Connect ESP32 to LoRa, since loraSendCommand will
     // have called endLoRaConfigureCommunicationOnFacet();
     startLoRaConfigureCommunicationOnFacet();
+
+    delay(100);
 
     // Pass data from LoRa to console until the user presses a button or hits a key
     task.endDirectConnectMode = false;
