@@ -2324,7 +2324,7 @@ bool GNSS_MOSAIC::setMessagesNMEA()
                                 String(mosaicMsgRates[settings.mosaicStreamIntervalsNMEA[stream]].name) + "\n\r");
         response &= sendWithResponse(setting, "NMEAOutput");
 
-        if (settings.enableNmeaOnRadio && somethingEnabled[stream]) // Ignore GGA, ZDA, GST if they were added for COM1
+        if (settings.enableNmeaOnRadio && (settings.enableLora == false) && somethingEnabled[stream]) // Ignore GGA, ZDA, GST if they were added for COM1
             setting = String("sno,Stream" + String(stream + MOSAIC_NUM_NMEA_STREAMS + 1) + ",COM2," + streams[stream] +
                              "," + String(mosaicMsgRates[settings.mosaicStreamIntervalsNMEA[stream]].name) + "\n\r");
         else

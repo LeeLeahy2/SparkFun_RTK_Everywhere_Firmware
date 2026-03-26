@@ -145,6 +145,7 @@ void menuPortsNoMux()
         else if ((incoming == 5) && (present.gnss_lg290p))
         {
             settings.enableNmeaOnRadio ^= 1;
+            gnssConfigure(GNSS_CONFIG_MESSAGE_RATE_NMEA); // We may need to enable / disable NMEA
         }
         else if (incoming == 'x')
             break;
@@ -287,6 +288,7 @@ void menuPortsMultiplexed()
         else if ((incoming == 6) && (present.gnss_mosaicX5))
         {
             settings.enableNmeaOnRadio ^= 1;
+            gnssConfigure(GNSS_CONFIG_MESSAGE_RATE_NMEA); // We may need to enable / disable NMEA
         }
         else if (incoming == 'x')
             break;
