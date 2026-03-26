@@ -395,19 +395,6 @@ void beginLora() // Called by updateLora LORA_NOT_STARTED
                     SerialForLoRa->begin(115200, SERIAL_8N1, pin_IMU_RX, pin_IMU_TX);
                 }
             }
-
-            // present.loraDedicatedUart is only present on Facet FP and indicates that the
-            // GNSS (UART2) is connected directly to the LoRa UART1 via SW4. SW4 is set by
-            // gpioExpanderSelectLoraCommunication, called by loraSetupTransmit / Receive.
-            // We need to ensure GNSS UART2 is set to 115200 baud and that RTCMv3 input
-            // is enabled. Note: I don't like the following as it overrides gnssConfigure.
-            // But I can't currently think of a better way that doesn't conflict with the
-            // actual radio port (if present). Maybe we should add a gnss->setLora(),
-            // equivalent to gnss->setTilt()?
-
-            gnssConfigureClear(GNSS_CONFIG_EXT_CORRECTIONS);
-            gnss->setBaudRateRadio(115200);
-            gnss->setCorrRadioExtPort(true, true); // enable, forced
         }
 
         // Store firmware version in char array
