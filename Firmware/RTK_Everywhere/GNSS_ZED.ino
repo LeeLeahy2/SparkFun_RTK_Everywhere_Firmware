@@ -2616,7 +2616,12 @@ void GNSS_ZED::storeMONCOMMSdataRadio(UBX_MON_COMMS_data_t *ubxDataStruct)
 
     for (uint8_t port = 0; port < ubxDataStruct->header.nPorts; port++) // For each port
     {
-        if (ubxDataStruct->port[port].portId == COM_PORT_ID_UART2) // If this is the port we are looking for
+        // In the GNSS v3 library: COM_PORT_ID_UART2 is 0x0201
+        // I added a note: "UBX-18010802 - R15 also documents 0x0101 and 0x0200 - both are "Reserved""
+        // On earlier ZED-F9P devices, the UART2 portId was 0x0201
+        // But on ZED-X20P (2.02) it is 0x0200
+        // I guess we need to accept either?
+        if ((ubxDataStruct->port[port].portId & 0xFFFE) == (COM_PORT_ID_UART2 & 0xFFFE)) // If this is the port we are looking for
         {
             uint32_t rxBytes = ubxDataStruct->port[port].rxBytes;
 
