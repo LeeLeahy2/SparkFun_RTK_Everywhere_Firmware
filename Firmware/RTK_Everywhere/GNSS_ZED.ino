@@ -474,7 +474,14 @@ bool GNSS_ZED::configure()
     gnssConfigure(GNSS_CONFIG_EXT_CORRECTIONS); // Request receiver to use new settings
 
     if (response)
-        systemPrintln("ZED-F9P configured");
+    {
+        if (present.gnss_zedf9p)
+            systemPrintln("ZED-F9P configured");
+        else if (present.gnss_zedx20p)
+            systemPrintln("ZED-X20P configured");
+        else
+            systemPrintln("Unknown ZED configured"); // This should never happen...
+    }
 
     return (response);
 }
@@ -1757,28 +1764,46 @@ int GNSS_ZED::pushRawData(uint8_t *dataToSend, int dataLength)
     return (0);
 }
 
-// These are settings used inside the library, not setting on the GNSS receiver so they are not saved to the receiver's
-// NVM We have to re-enable them each time
+// These are settings used inside the library, not setting on the GNSS receiver
+// so they are not saved to the receiver's NVM We have to re-enable them each time
+// Except that the I2C message rates will be saved - to VAL_LAYER_ALL
 bool GNSS_ZED::registerCallbacks()
 {
     bool response = true;
 
+    // Set up callbacks for PVT / HPPOSLLH / TIM_TP / MON_HW / MON_COMMS
+    // setAuto...callbackPtr will enable the message on I2C at a rate / inverval of 1
+    // To be kind, we decrease the message rate / interval afterwards
+
+    uint8_t messageRate = 1;
+    if (settings.measurementRateMs < 1000)
+        messageRate = 1000 / settings.measurementRateMs;
+
     // Enable automatic NAV PVT messages with callback to storePVTdata
     response &= _zed->setAutoPVTcallbackPtr(&storePVTdata, VAL_LAYER_ALL);
+    response &= _zed->setVal8(UBLOX_CFG_MSGOUT_UBX_NAV_PVT_I2C, messageRate, VAL_LAYER_ALL);
 
     // Enable automatic NAV HPPOSLLH messages with callback to storeHPdata
     response &= _zed->setAutoHPPOSLLHcallbackPtr(&storeHPdata, VAL_LAYER_ALL);
+    response &= _zed->setVal8(UBLOX_CFG_MSGOUT_UBX_NAV_HPPOSLLH_I2C, messageRate, VAL_LAYER_ALL);
 
     // Enable automatic TIM TP messages with callback to storeTIMTPdata
     if (present.timePulseInterrupt)
+    {
         response &= _zed->setAutoTIMTPcallbackPtr(&storeTIMTPdata, VAL_LAYER_ALL);
+        response &= _zed->setVal8(UBLOX_CFG_MSGOUT_UBX_TIM_TP_I2C, messageRate, VAL_LAYER_ALL);
+    }
 
     // Enable automatic MON HW messages with callback to storeMONHWdata
     if (present.antennaShortOpen)
+    {
         response &= _zed->setAutoMONHWcallbackPtr(&storeMONHWdata, VAL_LAYER_ALL);
+        response &= _zed->setVal8(UBLOX_CFG_MSGOUT_UBX_MON_HW_I2C, messageRate, VAL_LAYER_ALL);
+    }
 
     // Add a callback for UBX-MON-COMMS
     response &= _zed->setAutoMONCOMMScallbackPtr(&storeMONCOMMSdata, VAL_LAYER_ALL);
+    response &= _zed->setVal8(UBLOX_CFG_MSGOUT_UBX_MON_COMMS_I2C, messageRate, VAL_LAYER_ALL);
 
     return (response);
 }
@@ -2141,7 +2166,7 @@ bool GNSS_ZED::setMessagesNMEA()
         }
     }
 
-    // If this is Facet FP, we may need to enable NMEA for Tilt IMU
+    // If this is Facet FP, we may need to enable NMEA for Tilt IMU at the full rate
     if (variantHousingProperties->tiltPossible == true)
     {
         if (present.imu_im19 == true && settings.enableTiltCompensation == true)
@@ -2180,23 +2205,17 @@ bool GNSS_ZED::setMessagesNMEA()
         // Enable GGA for NTRIP - at reduced rate if necessary
         if (settings.enableNtripClient == true && settings.ntripClient_TransmitGGA == true)
         {
-            float measurementFrequency = (1000.0 / settings.measurementRateMs);
-            if (measurementFrequency < 0.2)
-                measurementFrequency = 0.2; // 0.2Hz * 5 = 1 measurement every 5 seconds
+            uint8_t messageRate = 1;
+            if (settings.measurementRateMs < 5000)
+                messageRate = 5000 / settings.measurementRateMs;
             if (settings.debugGnssConfig)
-                systemPrintf("Adjusting GGA setting to %f\r\n", measurementFrequency);
+                systemPrintf("Adjusting GGA setting to %f\r\n", messageRate);
             gpggaEnabled =
-                _zed->setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GGA_UART1, measurementFrequency,
-                              VAL_LAYER_ALL); // Enable GGA over UART1. Tell the module to output GGA every second
+                _zed->setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GGA_UART1, messageRate,
+                              VAL_LAYER_ALL); // Enable GGA over UART1
             response &= gpggaEnabled;
         }
     }
-
-    // Configure the callback for GGA as needed
-    if (settings.enableNtripClient == true && settings.ntripClient_TransmitGGA == true)
-        response &= _zed->setNMEAGPGGAcallbackPtr(&zedPushGPGGA);
-    else
-        response &= _zed->setNMEAGPGGAcallbackPtr(nullptr);
 
     return (response);
 }
@@ -2597,12 +2616,17 @@ void GNSS_ZED::storeMONCOMMSdataRadio(UBX_MON_COMMS_data_t *ubxDataStruct)
 
     for (uint8_t port = 0; port < ubxDataStruct->header.nPorts; port++) // For each port
     {
-        if (ubxDataStruct->port[port].portId == COM_PORT_ID_UART2) // If this is the port we are looking for
+        // In the GNSS v3 library: COM_PORT_ID_UART2 is 0x0201
+        // I added a note: "UBX-18010802 - R15 also documents 0x0101 and 0x0200 - both are "Reserved""
+        // On earlier ZED-F9P devices, the UART2 portId was 0x0201
+        // But on ZED-X20P (2.02) it is 0x0200
+        // I guess we need to accept either?
+        if ((ubxDataStruct->port[port].portId & 0xFFFE) == (COM_PORT_ID_UART2 & 0xFFFE)) // If this is the port we are looking for
         {
             uint32_t rxBytes = ubxDataStruct->port[port].rxBytes;
 
-            // if (settings.debugCorrections && !inMainMenu)
-            //     systemPrintf("Radio Ext (UART2) rxBytes is %d\r\n", rxBytes);
+            if (settings.debugCorrections && !inMainMenu)
+                systemPrintf("Radio Ext (UART2) rxBytes is %d\r\n", rxBytes);
 
             if (firstTime) // Avoid a false positive from historic rxBytes
             {
@@ -2992,13 +3016,6 @@ void inputMessageRate(uint8_t &localMessageRate, uint8_t messageNumber)
     }
 
     localMessageRate = rate;
-}
-
-// Push GGA sentence over NTRIP Client, to Caster, if enabled
-// ZED uses callback, other platforms call this from processUart1Message()
-void zedPushGPGGA(NMEA_GGA_data_t *nmeaData)
-{
-    pushGPGGA((char *)nmeaData->nmea);
 }
 
 //----------------------------------------

@@ -220,7 +220,10 @@ void checkGNSSArrayDefaults()
         if (settings.enableExtCorrRadio == 254)
         {
             defaultsApplied = true;
-            settings.enableExtCorrRadio = false;
+            if (productVariant == RTK_POSTCARD)
+                settings.enableExtCorrRadio = false; // User has to enable UART3 (JST) manually
+            else
+                settings.enableExtCorrRadio = true; // On Facet FP, default to enabled (for LoRa)
         }
 
         if (settings.lg290pConstellations[0] == 254)

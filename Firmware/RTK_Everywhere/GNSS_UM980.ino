@@ -2574,7 +2574,7 @@ void um980FirmwareBeginUpdate()
     //  and display have all been initialized. But, importantly, the UARTs have not yet been started.
     //  This makes our job much easier...
 
-    // Flag that we are in direct connect mode. Button task will um980FirmwareRemoveUpdate and exit
+    // Flag that we are in direct connect mode
     inDirectConnectMode = true;
 
     // Paint GNSS Update

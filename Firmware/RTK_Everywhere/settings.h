@@ -292,7 +292,7 @@ typedef enum
     // Change the order of these to set the default priority. First (0) is highest
     CORR_RADIO_EXT = 0, // 0, 100 m Baseline, Data goes direct from RADIO connector to ZED - or X5. How to disable / enable it? Via port protocol?
     CORR_ESPNOW,        // 1, 100 m Baseline, ESPNOW.ino
-    CORR_RADIO_LORA,    // 2,   1 km Baseline, UM980 only? Does data go direct from LoRa to UM980?
+    CORR_RADIO_LORA,    // 2,   1 km Baseline, Torch goes via ESP32, Facet FP goes via SW4 to GNSS
     CORR_BLUETOOTH,     // 3,  10+km Baseline, Tasks.ino (sendGnssBuffer)
     CORR_USB,           // 4,                  menuMain.ino (terminalUpdate)
     CORR_TCP,           // 5,  10+km Baseline, NtripClient.ino
@@ -1161,7 +1161,8 @@ struct Settings
     bool enableLora = false;
     float loraCoordinationFrequency = 910.000;
     int loraSerialInteractionTimeout_s = 30; // Seconds without user serial that must elapse before LoRa radio goes into dedicated listening mode
-    int loraTransmitPower_dBm = 10; // Passed to LoRa as AT+PWR=
+    bool loraSaveSettingsToFlash = false; // Passed to LoRa (>= 3.0.1) as AT+SAVE= . When true, updated settings are saved at each AT+TRANS
+    int loraTransmitGain_dB = 10; // Passed to LoRa as AT+PWR=
     bool enableMultipathMitigation = true; // Multipath mitigation. UM980 specific.
 
 #ifdef COMPILE_LG290P
@@ -1803,8 +1804,9 @@ const RTK_Settings_Entry rtkSettingsEntries[] =
     { 0, 0, 0, 0, 0, 1, 0, ALL, 0, _bool,     3, & settings.debugLora, "debugLora", nullptr, },
     { 1, 1, 0, 0, 0, 1, 0, ALL, 0, _bool,     0, & settings.enableLora, "enableLora", nullptr, },
     { 1, 1, 0, 0, 0, 1, 0, ALL, 0, _float,    3, & settings.loraCoordinationFrequency, "loraCoordinationFrequency", nullptr, },
+    { 0, 1, 0, 0, 0, 1, 0, ALL, 0, _bool,     0, & settings.loraSaveSettingsToFlash, "loraSaveSettingsToFlash", nullptr, },
     { 1, 1, 0, 0, 0, 1, 0, NON, 0, _int,      0, & settings.loraSerialInteractionTimeout_s, "loraSerialInteractionTimeout", nullptr, },
-    { 0, 1, 0, 0, 0, 1, 0, ALL, 0, _int,      0, & settings.loraTransmitPower_dBm, "loraTransmitPower", nullptr, },
+    { 0, 1, 0, 0, 0, 1, 0, ALL, 0, _int,      0, & settings.loraTransmitGain_dB, "loraTransmitGain", nullptr, },
 
 //                F
 //    i           a

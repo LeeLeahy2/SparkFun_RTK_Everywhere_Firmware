@@ -1037,7 +1037,7 @@ void forceGnssCommunicationRate(uint32_t &platformGnssCommunicationRate)
     }
     else if (productVariant == RTK_EVK)
     {
-        // ZED defaults to 115200. settings.dataPortBaud defaults to 230400
+        // ZED defaults to 38400. settings.dataPortBaud defaults to 230400
         // Keep the baud rate at settings.dataPortBaud for now
         // I.e. nothing to do here...?
     }
@@ -1061,7 +1061,7 @@ void forceGnssCommunicationRate(uint32_t &platformGnssCommunicationRate)
         else if ((settings.detectedGnssReceiver == GNSS_RECEIVER_F9P)
                  || (settings.detectedGnssReceiver == GNSS_RECEIVER_X20P))
         {
-            // ZED defaults to 115200. settings.dataPortBaud defaults to 230400
+            // ZED defaults to 38400. settings.dataPortBaud defaults to 230400
             // Keep the baud rate at settings.dataPortBaud for now
             // gnss->setTilt() will set serialGNSS to 115200 if needed
             // I.e. nothing to do here...
