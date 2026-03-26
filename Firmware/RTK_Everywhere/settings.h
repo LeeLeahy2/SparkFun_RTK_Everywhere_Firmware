@@ -292,7 +292,7 @@ typedef enum
     // Change the order of these to set the default priority. First (0) is highest
     CORR_RADIO_EXT = 0, // 0, 100 m Baseline, Data goes direct from RADIO connector to ZED - or X5. How to disable / enable it? Via port protocol?
     CORR_ESPNOW,        // 1, 100 m Baseline, ESPNOW.ino
-    CORR_RADIO_LORA,    // 2,   1 km Baseline, UM980 only? Does data go direct from LoRa to UM980?
+    CORR_RADIO_LORA,    // 2,   1 km Baseline, Torch goes via ESP32, Facet FP goes via SW4 to GNSS
     CORR_BLUETOOTH,     // 3,  10+km Baseline, Tasks.ino (sendGnssBuffer)
     CORR_USB,           // 4,                  menuMain.ino (terminalUpdate)
     CORR_TCP,           // 5,  10+km Baseline, NtripClient.ino

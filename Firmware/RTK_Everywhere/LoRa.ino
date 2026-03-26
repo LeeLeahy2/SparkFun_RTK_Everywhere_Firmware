@@ -227,6 +227,7 @@ void updateLora()
 
     case (LORA_RX_DEDICATED):
         // Nothing to do. LoRa will pass any data to the GNSS receiver directly.
+        // *** THIS IS SPECIFIC TO FACET FP ***
         if (inBaseMode() == true)
             loraState = LORA_NOT_STARTED; // Force restart to move to TX mode
 
@@ -255,7 +256,7 @@ void updateLora()
     case (LORA_RX_SHARED_USB_TIMEOUT):
         // USB cable is present but the loraSerialInteractionTimeout_s has occurred.
         // Ignore serial from the CH342 until USB is disconnected.
-
+        // *** THIS IS SPECIFIC TO TORCH ***
         if (loraAvailable())
         {
             uint8_t rtcmData[512];
@@ -305,6 +306,7 @@ void updateLora()
 
     case (LORA_RX_SHARED_USB_IGNORE):
         // No USB cable detected, ignore serial from the CH342, listen only to the LoRa radio
+        // *** THIS IS SPECIFIC TO TORCH ***
         if (loraAvailable())
         {
             uint8_t rtcmData[512];
