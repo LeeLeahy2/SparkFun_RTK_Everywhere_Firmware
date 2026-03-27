@@ -1271,7 +1271,12 @@ void loraRxDirectConnectFacetFP()
     while (1)
     {
         if (SerialForLoRa->available()) // Note: use if, not while
-            Serial.write(SerialForLoRa->read());
+        {
+            if(settings.enableBeeper)
+                beepDurationMs(300); // Beep for this number of ms using the tickerBeepUpdate() task.
+            while (SerialForLoRa->available())
+                Serial.write(SerialForLoRa->read());
+        }
 
         // Button task will set task.endDirectConnectMode true
         if (task.endDirectConnectMode)
