@@ -3047,6 +3047,8 @@ bool GNSS_MOSAIC::isPresent()
     }
     else
         systemPrintln("MOSAIC isPresent: Uncaught platform");
+
+    return false;
 }
 
 // Return true if the receiver is detected
