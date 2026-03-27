@@ -249,7 +249,7 @@ void GNSS_MOSAIC::begin()
     //   It won't be a great user experience...
     // Adding support for G5 P3 is TODO
 
-    if (productVariant != RTK_FACET_FP) // productVariant == RTK_FACET_MOSAIC
+    if (productVariant == RTK_FACET_MOSAIC)
     {
         if (serial2GNSS == nullptr)
         {
@@ -300,7 +300,7 @@ void GNSS_MOSAIC::begin()
         else
             systemPrintln("GNSS mosaic-X5 offline!");
     }
-    else // productVariant == RTK_FACET_FP
+    else if (productVariant == RTK_FACET_FP)
     {
         if (serialGNSS == nullptr)
         {
@@ -340,6 +340,8 @@ void GNSS_MOSAIC::begin()
         else
             systemPrintln("GNSS mosaic-X5 offline!");
     }
+    else
+        systemPrintln("MOSAIC begin: Uncaught platform");
 }
 
 //----------------------------------------
@@ -482,20 +484,22 @@ bool GNSS_MOSAIC::setLogging()
 //   Returns true if successful and false upon failure
 bool GNSS_MOSAIC::comPortRefresh()
 {
-    if (productVariant != RTK_FACET_FP) // productVariant == RTK_FACET_MOSAIC
+    if (productVariant == RTK_FACET_MOSAIC)
     {
         if (serial2GNSS)
         {
             return sendWithResponse(serial2GNSS, "SSSSSSSSSSSSSSSSSSSS\n\r", "COM4>"); // Send escape sequence
         }
     }
-    else
+    else if (productVariant == RTK_FACET_FP)
     {
         if (serialGNSS)
         {
             return sendWithResponse(serialGNSS, "SSSSSSSSSSSSSSSSSSSS\n\r", "COM1>"); // Send escape sequence
         }
     }
+    else
+        systemPrintln("comPortRefresh: Uncaught platform");
     return true;
 }
 
@@ -3028,19 +3032,21 @@ bool GNSS_MOSAIC::isPresent()
     systemPrintln("Starting communication with mosaic-X5");
     paintMosaicBooting();
 
-    if (productVariant != RTK_FACET_FP) // productVariant == RTK_FACET_MOSAIC
+    if (productVariant == RTK_FACET_MOSAIC)
     {
         // Set COM4 to: CMD input (only), SBF output (only)
         // Mosaic could still be starting up, so allow many retries
         return isPresentOnSerial(serial2GNSS, "sdio,COM4,CMD,SBF\n\r", "DataInOut", "COM4>", 10);
     }
-    else // productVariant == RTK_FACET_FP
+    else if (productVariant == RTK_FACET_FP)
     {
         // Set COM1 to: auto input, RTCMv3+SBF+NMEA+Encapsulate output
         // Mosaic could still be starting up, so allow many retries
         return isPresentOnSerial(serialGNSS, "sdio,COM1,auto,RTCMv3+SBF+NMEA+Encapsulate\n\r", "DataInOut", "COM1>",
                                  10);
     }
+    else
+        systemPrintln("MOSAIC isPresent: Uncaught platform");
 }
 
 // Return true if the receiver is detected
