@@ -177,6 +177,12 @@ void GNSS_LG290P::begin()
     snprintf(gnssUniqueId, sizeof(gnssUniqueId), "%s", getId());
 
     gnssFirmwareVersionInt = lg290pFirmwareVersionInt; // Tell Web Config what version to use
+
+    // On Facet FP: set UART2 (Radio) protocol(s)
+    // Both Ext Radio and LoRa need RTCM on UART2
+    // Note: this is probably redundant? I only added it because I added it on mosaic...
+    if (productVariant == RTK_FACET_FP)
+        setCorrRadioExtPort((settings.enableExtCorrRadio || settings.enableLora), true); // Force the setting
 }
 
 //----------------------------------------
@@ -1174,7 +1180,12 @@ bool GNSS_LG290P::isConfirmedTime()
 // Returns true if data is arriving on the Radio Ext port
 bool GNSS_LG290P::isCorrRadioExtPortActive()
 {
-    return settings.enableExtCorrRadio;
+    // On LG290P, we don't have access to the UART RX byte counts
+    // We have to assume data is arriving if ext radio is enabled...
+    // And on Facet FP, we also have to fake the arrival of LoRa traffic
+    // to maintain the Radio Ext protocols...
+    return (settings.enableExtCorrRadio
+            || ((productVariant == RTK_FACET_FP) && settings.enableLora));
 }
 
 //----------------------------------------

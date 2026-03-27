@@ -615,6 +615,8 @@ void correctionUpdateSource()
     // The code is the same:
     //   On ZED / mosaic, we can detect if the port is active.
     //   On LG290P, we fake the arrival of data if needed.
+    //   On Facet FPL, we fake the arrival of radio data if LoRa is active
+    //     again to prevent a timeout and maintain the port protocol
     static uint32_t lastRadioExtCheck = millis();
     uint32_t radioCheckIntervalMsec = settings.correctionsSourcesLifetime_s * 500; // Check twice per lifetime
     bool setCorrRadioPort = false;

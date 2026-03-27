@@ -456,7 +456,11 @@ void gnssUpdate()
 
         if (gnssConfigureRequested(GNSS_CONFIG_EXT_CORRECTIONS))
         {
-            if (gnss->setCorrRadioExtPort(settings.enableExtCorrRadio, true) == true) // Force the setting
+            // If settings.enableExtCorrRadio is true, we need RTCM input
+            // On Facet FP, we also need RTCM if LoRa is enabled
+            bool enableExtCorrRadio = settings.enableExtCorrRadio
+                 || ((productVariant == RTK_FACET_FP) && settings.enableLora);
+            if (gnss->setCorrRadioExtPort(enableExtCorrRadio, true) == true) // Force the setting
             {
                 gnssConfigureClear(GNSS_CONFIG_EXT_CORRECTIONS);
                 gnssConfigure(GNSS_CONFIG_SAVE); // Request receiver commit this change to NVM

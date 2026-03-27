@@ -330,7 +330,7 @@ class GNSS_UM980 : GNSS
     // Returns true if data is arriving on the Radio Ext port
     bool isCorrRadioExtPortActive()
     {
-        return false;
+        return false; // Torch has no Radio port...
     }
 
     // Return true if GNSS receiver has a higher quality DGPS fix than 3D
