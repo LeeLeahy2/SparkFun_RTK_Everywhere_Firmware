@@ -745,7 +745,7 @@ bool GNSS_LG290P::setBaudRateData(uint32_t baud)
                 return (setBaudRate(3, baud));
             }
             else
-                systemPrintln("setDataBaudRate: Uncaught platform");
+                systemPrintln("setBaudRateData: Uncaught platform");
         }
     }
     return (false);
@@ -774,7 +774,7 @@ uint32_t GNSS_LG290P::getRadioBaudRate()
         radioUart = 1;
     }
     else
-        systemPrintln("getDataBaudRate: Uncaught platform");
+        systemPrintln("getRadioBaudRate: Uncaught platform");
 
     return (getBaudRate(radioUart));
 }
@@ -1890,6 +1890,11 @@ bool GNSS_LG290P::setBaudRateComm(uint32_t baud)
                 // UART1 of the LG290P is connected to the ESP32 for the main config/comm
                 commUart = 1;
             }
+            else if (productVariant == RTK_TORCH_X2)
+            {
+                // UART2 of the LG290P is connected to the ESP (UART2) for the main configuration
+                commUart = 2;
+            }
             else
                 systemPrintln("setBaudRateComm: Uncaught platform");
 
@@ -1914,6 +1919,11 @@ uint32_t GNSS_LG290P::getCommBaudRate()
     {
         // On the Facet FP, the ESP32 UART1 is connected to LG290P UART1
         commUart = 1;
+    }
+    else if (productVariant == RTK_TORCH_X2)
+    {
+            // UART2 of the LG290P is connected to the ESP (UART2) for the main configuration
+            commUart = 2;
     }
     else
         systemPrintln("getCommBaudRate: Uncaught platform");
@@ -1954,10 +1964,28 @@ bool GNSS_LG290P::setCorrRadioExtPort(bool enable, bool force)
 
         if (force || (enable != _corrRadioExtPortEnabled))
         {
-            // On Postcard: set UART3 InputProt: RTCM3 (4) vs NMEA (1)
-            // On Facet FP: set UART2 InputProt: RTCM3 (4) vs NMEA (1)
-            int port = (productVariant == RTK_POSTCARD) ? 3 : 2;
-            if (_lg290p->setPortInputProtocols(port, enable ? 4 : 1))
+            uint8_t radioUart = 0;
+            if (productVariant == RTK_POSTCARD)
+            {
+                // UART3 of the LG290P is connected to the locking JST connector labled RADIO
+                radioUart = 3;
+            }
+            else if (productVariant == RTK_FACET_FP)
+            {
+                // UART2 of the LG290P is connected to SW4, which is connected to LoRa UART0
+                radioUart = 2;
+            }
+            else if (productVariant == RTK_TORCH_X2)
+            {
+                // UART1 of the LG290P is connected to SW, which is connected to ESP32 UART0
+                // Not really used at this time but available for configuration
+                radioUart = 1;
+            }
+            else
+                systemPrintln("setCorrRadioExtPort: Uncaught platform");
+
+            // Set port InputProt: RTCM3 (4) vs NMEA (1)
+            if (_lg290p->setPortInputProtocols(radioUart, enable ? 4 : 1))
             {
                 if ((settings.debugCorrections == true) && !inMainMenu)
                 {
@@ -2116,15 +2144,28 @@ bool GNSS_LG290P::setMessagesNMEA()
                 int msgRate = settings.lg290pMessageRatesNMEA[messageNumber];
 
                 // On Postcard: disable NMEA output on UART3 RADIO
-                // On TX2: disable NMEA output on UART3 CH342 Channel A
+                // On TX2: we are using UART1 as a pseudo radio port, so disable NMEA output there
                 // On Facet FP LG290P with Tilt: UART3 feeds the IMU. GGA/GST/RMC will be enabled below.
                 //                               It is OK to disable it here.
-                // On Facet FP: disable NMEA on portNumber 2
-                if ((productVariant == RTK_POSTCARD) && (portNumber == 3) && (settings.enableNmeaOnRadio == false))
-                    msgRate = 0;
-                if ((productVariant == RTK_FACET_FP) && (portNumber == 2) &&
-                     ((settings.enableNmeaOnRadio == false) || (settings.enableLora == true)))
-                    msgRate = 0;
+                // On Facet FP: disable NMEA on portNumber 2 if enableNmeaOnRadio is false or enableLora is true
+                if (productVariant == RTK_POSTCARD)
+                {
+                    if ((portNumber == 3) && (settings.enableNmeaOnRadio == false))
+                        msgRate = 0;
+                }
+                else if (productVariant == RTK_FACET_FP)
+                {
+                    if ((portNumber == 2) &&
+                        ((settings.enableNmeaOnRadio == false) || (settings.enableLora == true)))
+                        msgRate = 0;
+                }
+                else if (productVariant == RTK_TORCH_X2)
+                {
+                    if ((portNumber == 1) && (settings.enableNmeaOnRadio == false))
+                        msgRate = 0;
+                }
+                else
+                    systemPrintln("setMessagesNMEA: Uncaught platform");
 
                 bool response = true;
 

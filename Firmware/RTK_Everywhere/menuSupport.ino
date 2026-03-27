@@ -222,8 +222,15 @@ void checkGNSSArrayDefaults()
             defaultsApplied = true;
             if (productVariant == RTK_POSTCARD)
                 settings.enableExtCorrRadio = false; // User has to enable UART3 (JST) manually
-            else
+            else if (productVariant == RTK_FACET_FP)
                 settings.enableExtCorrRadio = true; // On Facet FP, default to enabled (for LoRa)
+            else if (productVariant == RTK_TORCH_X2)
+                settings.enableExtCorrRadio = false; // GNSS UART1 isn't really accessible
+            else
+            {
+                settings.enableExtCorrRadio = false;
+                systemPrintln("checkGNSSArrayDefaults: Uncaught platform");
+            }
         }
 
         if (settings.lg290pConstellations[0] == 254)
