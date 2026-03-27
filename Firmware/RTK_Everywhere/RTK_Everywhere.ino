@@ -1841,7 +1841,8 @@ void rtcUpdate()
                     online.rtc = true;
                     lastRTCSync = millis();
 
-                    systemPrint("System time set to: ");
+                    if (!inMainMenu)
+                        systemPrint("System time set to: ");
                     systemPrintln(rtc.getDateTime(true));
 
                     recordSystemSettingsToFileSD(
@@ -1854,7 +1855,7 @@ void rtcUpdate()
                     if ((millis() - lastErrorMsec) > (30 * 1000))
                     {
                         lastErrorMsec = millis();
-                        if(!inMainMenu)
+                        if (!inMainMenu)
                             systemPrintln("No GNSS date/time available for system RTC.");
                     }
                 } // End timeValid
