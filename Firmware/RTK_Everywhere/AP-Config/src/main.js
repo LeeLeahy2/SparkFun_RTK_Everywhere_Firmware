@@ -197,7 +197,7 @@ function parseIncoming(msg) {
             }
 
             else if (platformPrefix == "Facet X5") {
-                console.log("runng mosaic");
+                //console.log("runng mosaic");
                 show("baseConfig");
                 show("ppConfig");
                 hide("ethernetConfig");
@@ -511,7 +511,7 @@ function parseIncoming(msg) {
                 hide("mosaicNMEAStreamDropdowns");
                 show("surveyInSettings");
                 show("useEnableExtCorrRadio");
-                show("enableNmeaOnRadio");
+                hide("enableNmeaOnRadio"); // ZED UART2 is limited to RTCM
 
                 select = ge("pointPerfectService");
                 let newOption = new Option('Disabled', '0');
