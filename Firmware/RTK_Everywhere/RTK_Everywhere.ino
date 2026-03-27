@@ -1664,6 +1664,9 @@ void waitingForMenuInput()
 
     DMW_w("updateLora");
     updateLora(); // Check if we need to finish sending any RTCM over LoRa radio
+
+    DMW_w("correctionUpdateSource");
+    correctionUpdateSource(); // Maintain current sources. Retire expired sources
 }
 
 void loopDelay()

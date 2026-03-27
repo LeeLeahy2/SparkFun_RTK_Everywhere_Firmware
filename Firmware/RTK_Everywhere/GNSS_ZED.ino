@@ -223,6 +223,12 @@ void GNSS_ZED::begin()
 
             present.dynamicModel = true; // EVK and FPX ZED modules support dynamic model configuration
 
+            // On Facet FP: set UART2 (Radio) protocol(s)
+            // Both Ext Radio and LoRa need RTCM on UART2
+            // Note: this is probably redundant? I only added it because I added it on mosaic...
+            if (productVariant == RTK_FACET_FP)
+                setCorrRadioExtPort((settings.enableExtCorrRadio || settings.enableLora), true); // Force the setting
+
             return;
         }
     }

@@ -41,6 +41,8 @@ void checkGNSSArrayDefaults()
         if (settings.enableExtCorrRadio == 254)
         {
             defaultsApplied = true;
+            // On F9P/X20P and mosaic, we do have access to the UART2 byte counts so we
+            // can safely default to enabled
             settings.enableExtCorrRadio = true;
         }
 
@@ -159,6 +161,8 @@ void checkGNSSArrayDefaults()
         if (settings.enableExtCorrRadio == 254)
         {
             defaultsApplied = true;
+            // On X20P and mosaic, we do have access to the UART2 byte counts so we
+            // can safely default to enabled
             settings.enableExtCorrRadio = true;
         }
 
@@ -221,9 +225,17 @@ void checkGNSSArrayDefaults()
         {
             defaultsApplied = true;
             if (productVariant == RTK_POSTCARD)
-                settings.enableExtCorrRadio = false; // User has to enable UART3 (JST) manually
+                // User has to enable UART3 (JST) manually for the same reason as LG290P on FP
+                settings.enableExtCorrRadio = false;
             else if (productVariant == RTK_FACET_FP)
-                settings.enableExtCorrRadio = true; // On Facet FP, default to enabled (for LoRa)
+            {
+                // With LG290P on Facet FP:
+                // We do not know if ext radio / LoRa corrections are arriving
+                // because we don't have access to the UART2 byte counts. We have to assume
+                // that corrections are arriving. See GNSS_LG290P::isCorrRadioExtPortActive()
+                // We must set settings.enableExtCorrRadio to false to prevent this.
+                settings.enableExtCorrRadio = false;
+            }
             else if (productVariant == RTK_TORCH_X2)
                 settings.enableExtCorrRadio = false; // GNSS UART1 isn't really accessible
             else

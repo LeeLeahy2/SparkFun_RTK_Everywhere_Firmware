@@ -81,13 +81,13 @@ void menuPortsNoMux()
 
         if (productVariant == RTK_FACET_FP)
         {
-            systemPrintf("4) Allow incoming corrections on GNSS UART2: %s\r\n",
+            systemPrintf("4) Allow incoming corrections on Ext Radio: %s\r\n",
                          settings.enableExtCorrRadio ? "Enabled" : "Disabled");
 
             // X20P / F9P UART2 is limited to RTCM. No need to change settings.enableNmeaOnRadio
             if (present.gnss_lg290p || present.gnss_mosaicX5)
             {
-                systemPrintf("5) Limit GNSS UART2 output to RTCM: %s\r\n",
+                systemPrintf("5) Limit Ext Radio and LoRa output to RTCM: %s\r\n",
                             settings.enableNmeaOnRadio ? "Disabled"
                                                         : "Enabled"); // Reverse disabled/enabled to align with prompt
             }
@@ -157,6 +157,7 @@ void menuPortsNoMux()
         {
             // Toggle the enable for the external corrections radio
             settings.enableExtCorrRadio ^= 1;
+            gnssConfigure(GNSS_CONFIG_MESSAGE_RATE_NMEA); // We may need to enable / disable NMEA
             gnssConfigure(GNSS_CONFIG_EXT_CORRECTIONS); // Request receiver to use new settings
         }
 
@@ -294,6 +295,7 @@ void menuPortsMultiplexed()
         {
             // Toggle the enable for the external corrections radio
             settings.enableExtCorrRadio ^= 1;
+            gnssConfigure(GNSS_CONFIG_MESSAGE_RATE_NMEA); // We may need to enable / disable NMEA
             gnssConfigure(GNSS_CONFIG_EXT_CORRECTIONS); // Request receiver to use new settings
         }
         else if ((incoming == 5) && (productVariant == RTK_FACET_MOSAIC))

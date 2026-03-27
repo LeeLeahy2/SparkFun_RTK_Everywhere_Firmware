@@ -312,7 +312,9 @@ void GNSS_MOSAIC::begin()
             return;
 
         // Set COM2 (Radio) protocol(s)
-        setCorrRadioExtPort(settings.enableExtCorrRadio, true); // Force the setting
+        // Both Ext Radio and LoRa need RTCM on UART2
+        // Note: this is probably redundant? I'm now not sure why I added it...
+        setCorrRadioExtPort((settings.enableExtCorrRadio || settings.enableLora), true); // Force the setting
 
         updateSD(); // Check card size and free space
 
