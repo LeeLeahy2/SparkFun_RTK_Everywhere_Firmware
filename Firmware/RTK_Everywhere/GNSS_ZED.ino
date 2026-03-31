@@ -3249,7 +3249,7 @@ bool zedGetSettingValue(RTK_Settings_Types type, const char *suffix, int setting
 //----------------------------------------
 // Called by gnssNewSettingValue to save a ZED specific setting
 //----------------------------------------
-bool zedNewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifier, double d)
+bool zedNewSettingValue(struct Settings * tempSettings, RTK_Settings_Types type, const char *suffix, int qualifier, double d)
 {
     switch (type)
     {
@@ -3261,7 +3261,7 @@ bool zedNewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifi
                 if ((suffix[0] == ubxConstellations[x].textName[0]) &&
                     (strcmp(suffix, ubxConstellations[x].textName) == 0))
                 {
-                    settings.ubxConstellationsEnabled[x] = d;
+                    tempSettings->ubxConstellationsEnabled[x] = d;
                     return true;
                 }
             }
@@ -3275,7 +3275,7 @@ bool zedNewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifi
         {
             if ((suffix[0] == ubxMessages[x].msgTextName[0]) && (strcmp(suffix, ubxMessages[x].msgTextName) == 0))
             {
-                settings.ubxMessageRates[x] = (uint8_t)d;
+                tempSettings->ubxMessageRates[x] = (uint8_t)d;
                 return true;
             }
         }
@@ -3289,7 +3289,7 @@ bool zedNewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifi
             if ((suffix[0] == ubxMessages[firstRTCMRecord + x].msgTextName[0]) &&
                 (strcmp(suffix, ubxMessages[firstRTCMRecord + x].msgTextName) == 0))
             {
-                settings.ubxMessageRatesBase[x] = (uint8_t)d;
+                tempSettings->ubxMessageRatesBase[x] = (uint8_t)d;
                 return true;
             }
         }

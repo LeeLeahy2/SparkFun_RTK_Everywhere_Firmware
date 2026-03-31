@@ -452,7 +452,7 @@ typedef bool (*GNSS_GET_SETTING_VALUE)(RTK_Settings_Types type, const char *suff
                                        char *settingValueStr);
 
 // Update a setting value
-typedef bool (*GNSS_NEW_SETTING_VALUE)(RTK_Settings_Types type, const char *suffix, int qualifier, double d);
+typedef bool (*GNSS_NEW_SETTING_VALUE)(struct Settings * tempSettings, RTK_Settings_Types type, const char *suffix, int qualifier, double d);
 
 // Write settings to a file
 typedef bool (*GNSS_SETTING_TO_FILE)(File *settingsFile, RTK_Settings_Types type, int settingsIndex);

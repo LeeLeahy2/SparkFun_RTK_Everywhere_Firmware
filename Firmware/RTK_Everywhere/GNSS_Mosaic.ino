@@ -1385,7 +1385,7 @@ bool GNSS_MOSAIC::isDgpsFixed()
 
 //----------------------------------------
 // Some functions merely need to know if we have an RTK Float.
-// This function checks to see if the given platform has reached sufficient 
+// This function checks to see if the given platform has reached sufficient
 // fix type to be considered valid.
 //----------------------------------------
 bool GNSS_MOSAIC::isFixed()
@@ -1437,7 +1437,7 @@ bool GNSS_MOSAIC::isPppConverging()
 
 //----------------------------------------
 // Some functions merely need to know if we have an RTK Float.
-// This function checks to see if the given platform has reached sufficient 
+// This function checks to see if the given platform has reached sufficient
 // fix type to be considered valid.
 //----------------------------------------
 bool GNSS_MOSAIC::isRTKFix()
@@ -1448,7 +1448,7 @@ bool GNSS_MOSAIC::isRTKFix()
 
 //----------------------------------------
 // Some functions merely need to know if we have an RTK Float.
-// This function checks to see if the given platform has reached sufficient 
+// This function checks to see if the given platform has reached sufficient
 // fix type to be considered valid.
 //----------------------------------------
 bool GNSS_MOSAIC::isRTKFloat()
@@ -3806,7 +3806,8 @@ void mosaicNewClass()
 //----------------------------------------
 // Called by gnssNewSettingValue to save a mosaic specific setting
 //----------------------------------------
-bool mosaicNewSettingValue(RTK_Settings_Types type,
+bool mosaicNewSettingValue(struct Settings * tempSettings,
+                           RTK_Settings_Types type,
                            const char * suffix,
                            int qualifier,
                            double d)
@@ -3819,7 +3820,7 @@ bool mosaicNewSettingValue(RTK_Settings_Types type,
                 if ((suffix[0] == mosaicSignalConstellations[x].configName[0]) &&
                     (strcmp(suffix, mosaicSignalConstellations[x].configName) == 0))
                 {
-                    settings.mosaicConstellations[x] = d;
+                    tempSettings->mosaicConstellations[x] = d;
                     return true;
                 }
             }
@@ -3833,7 +3834,7 @@ bool mosaicNewSettingValue(RTK_Settings_Types type,
                 if ((suffix[0] == mosaicMessagesNMEA[x].msgTextName[0]) &&
                     (strcmp(suffix, mosaicMessagesNMEA[x].msgTextName) == 0))
                 {
-                    settings.mosaicMessageStreamNMEA[x] = d;
+                    tempSettings->mosaicMessageStreamNMEA[x] = d;
                     return true;
                 }
             }
@@ -3843,7 +3844,7 @@ bool mosaicNewSettingValue(RTK_Settings_Types type,
             int stream;
             if (sscanf(suffix, "%d", &stream) == 1)
             {
-                settings.mosaicStreamIntervalsNMEA[stream] = d;
+                tempSettings->mosaicStreamIntervalsNMEA[stream] = d;
                 return true;
             }
         }
@@ -3854,7 +3855,7 @@ bool mosaicNewSettingValue(RTK_Settings_Types type,
                 if ((suffix[0] == mosaicRTCMv3MsgIntervalGroups[x].name[0]) &&
                     (strcmp(suffix, mosaicRTCMv3MsgIntervalGroups[x].name) == 0))
                 {
-                    settings.mosaicMessageIntervalsRTCMv3Rover[x] = d;
+                    tempSettings->mosaicMessageIntervalsRTCMv3Rover[x] = d;
                     return true;
                 }
             }
@@ -3866,7 +3867,7 @@ bool mosaicNewSettingValue(RTK_Settings_Types type,
                 if ((suffix[0] == mosaicRTCMv3MsgIntervalGroups[x].name[0]) &&
                     (strcmp(suffix, mosaicRTCMv3MsgIntervalGroups[x].name) == 0))
                 {
-                    settings.mosaicMessageIntervalsRTCMv3Base[x] = d;
+                    tempSettings->mosaicMessageIntervalsRTCMv3Base[x] = d;
                     return true;
                 }
             }
@@ -3878,7 +3879,7 @@ bool mosaicNewSettingValue(RTK_Settings_Types type,
                 if ((suffix[0] == mosaicMessagesRTCMv3[x].name[0]) &&
                     (strcmp(suffix, mosaicMessagesRTCMv3[x].name) == 0))
                 {
-                    settings.mosaicMessageEnabledRTCMv3Rover[x] = d;
+                    tempSettings->mosaicMessageEnabledRTCMv3Rover[x] = d;
                     return true;
                 }
             }
@@ -3890,7 +3891,7 @@ bool mosaicNewSettingValue(RTK_Settings_Types type,
                 if ((suffix[0] == mosaicMessagesRTCMv3[x].name[0]) &&
                     (strcmp(suffix, mosaicMessagesRTCMv3[x].name) == 0))
                 {
-                    settings.mosaicMessageEnabledRTCMv3Base[x] = d;
+                    tempSettings->mosaicMessageEnabledRTCMv3Base[x] = d;
                     return true;
                 }
             }

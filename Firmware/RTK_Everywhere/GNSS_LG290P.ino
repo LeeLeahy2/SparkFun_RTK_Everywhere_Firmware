@@ -3206,7 +3206,7 @@ void lg290pNewClass()
 //----------------------------------------
 // Called by gnssNewSettingValue to save a LG290P specific setting
 //----------------------------------------
-bool lg290pNewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifier, double d)
+bool lg290pNewSettingValue(struct Settings * tempSettings, RTK_Settings_Types type, const char *suffix, int qualifier, double d)
 {
     switch (type)
     {
@@ -3215,7 +3215,7 @@ bool lg290pNewSettingValue(RTK_Settings_Types type, const char *suffix, int qual
         {
             if ((suffix[0] == lg290pConstellationNames[x][0]) && (strcmp(suffix, lg290pConstellationNames[x]) == 0))
             {
-                settings.lg290pConstellations[x] = d;
+                tempSettings->lg290pConstellations[x] = d;
                 return true;
             }
         }
@@ -3225,7 +3225,7 @@ bool lg290pNewSettingValue(RTK_Settings_Types type, const char *suffix, int qual
         {
             if ((suffix[0] == lgMessagesNMEA[x].msgTextName[0]) && (strcmp(suffix, lgMessagesNMEA[x].msgTextName) == 0))
             {
-                settings.lg290pMessageRatesNMEA[x] = d;
+                tempSettings->lg290pMessageRatesNMEA[x] = d;
                 return true;
             }
         }
@@ -3235,7 +3235,7 @@ bool lg290pNewSettingValue(RTK_Settings_Types type, const char *suffix, int qual
         {
             if ((suffix[0] == lgMessagesRTCM[x].msgTextName[0]) && (strcmp(suffix, lgMessagesRTCM[x].msgTextName) == 0))
             {
-                settings.lg290pMessageRatesRTCMBase[x] = d;
+                tempSettings->lg290pMessageRatesRTCMBase[x] = d;
                 return true;
             }
         }
@@ -3245,7 +3245,7 @@ bool lg290pNewSettingValue(RTK_Settings_Types type, const char *suffix, int qual
         {
             if ((suffix[0] == lgMessagesRTCM[x].msgTextName[0]) && (strcmp(suffix, lgMessagesRTCM[x].msgTextName) == 0))
             {
-                settings.lg290pMessageRatesRTCMRover[x] = d;
+                tempSettings->lg290pMessageRatesRTCMRover[x] = d;
                 return true;
             }
         }
@@ -3264,7 +3264,7 @@ bool lg290pNewSettingValue(RTK_Settings_Types type, const char *suffix, int qual
         {
             if ((suffix[0] == lgMessagesPQTM[x].msgTextName[0]) && (strcmp(suffix, lgMessagesPQTM[x].msgTextName) == 0))
             {
-                settings.lg290pMessageRatesPQTM[x] = d;
+                tempSettings->lg290pMessageRatesPQTM[x] = d;
                 return true;
             }
         }

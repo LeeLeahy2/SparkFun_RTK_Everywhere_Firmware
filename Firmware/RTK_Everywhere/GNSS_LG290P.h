@@ -359,7 +359,7 @@ class GNSS_LG290P : GNSS
     bool isDgpsFixed();
 
     // Some functions merely need to know if we have an RTK Float.
-    // This function checks to see if the given platform has reached sufficient 
+    // This function checks to see if the given platform has reached sufficient
     // fix type to be considered valid.
     bool isFixed();
 
@@ -371,12 +371,12 @@ class GNSS_LG290P : GNSS
     bool isPppConverging();
 
     // Some functions merely need to know if we have an RTK Float.
-    // This function checks to see if the given platform has reached sufficient 
+    // This function checks to see if the given platform has reached sufficient
     // fix type to be considered valid.
     bool isRTKFix();
 
     // Some functions merely need to know if we have an RTK Float.
-    // This function checks to see if the given platform has reached sufficient 
+    // This function checks to see if the given platform has reached sufficient
     // fix type to be considered valid.
     bool isRTKFloat();
 
@@ -517,7 +517,7 @@ bool lg290pGetSettingValue(RTK_Settings_Types type, const char *suffix, int qual
                            char *settingValueStr);
 bool lg290pIsPresentOnFacetFP();
 void lg290pNewClass();
-bool lg290pNewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifier, double d);
+bool lg290pNewSettingValue(struct Settings * tempSettings, RTK_Settings_Types type, const char *suffix, int qualifier, double d);
 bool lg290pSettingsToFile(File *settingsFile, RTK_Settings_Types type, int settingsIndex);
 
 #endif // COMPILE_LG290P
