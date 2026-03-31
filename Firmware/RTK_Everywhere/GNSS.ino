@@ -686,7 +686,7 @@ void gnssDetectReceiverType()
             // If two entries have the same _presentPriority, they will prioritised by order
             std::vector<int> gnssPresentByPriority;
             gnssPresentByPriority.clear(); // Redundant?
-            
+
             for (int8_t priority = 0; priority < GNSS_SUPPORT_ROUTINES_ENTRIES; priority++)
             {
                 for (index = 0; index < GNSS_SUPPORT_ROUTINES_ENTRIES; index++)
@@ -696,7 +696,7 @@ void gnssDetectReceiverType()
                         gnssPresentByPriority.push_back(index);
                 }
             }
-            
+
             for (index = 0; index < GNSS_SUPPORT_ROUTINES_ENTRIES; index++)
             {
                 if ((gnssSupportRoutines[index]._present)
@@ -1074,7 +1074,7 @@ bool gnssGetSettingValue(RTK_Settings_Types type, const char *suffix, int settin
 //----------------------------------------
 // Called by parseLine to parse GNSS specific settings
 //----------------------------------------
-bool gnssNewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifier, double d)
+bool gnssNewSettingValue(struct Settings * tempSettings, RTK_Settings_Types type, const char *suffix, int qualifier, double d)
 {
     // We must parse all GNSS. tCmnCnst etc. are present in all GNSS
     bool retval = false;
@@ -1082,7 +1082,7 @@ bool gnssNewSettingValue(RTK_Settings_Types type, const char *suffix, int qualif
     {
         if (gnssSupportRoutines[index]._newSettingValue)
         {
-            retval |= gnssSupportRoutines[index]._newSettingValue(type, suffix, qualifier, d);
+            retval |= gnssSupportRoutines[index]._newSettingValue(tempSettings, type, suffix, qualifier, d);
         }
     }
     return retval;
