@@ -543,9 +543,15 @@ void espNowUpdate()                     {}
 void beginLoraFirmwareUpdate() {}
 bool checkUpdateLoraFirmware() {return false;}
 bool createLoRaPassthrough() {return false;}
+bool createLoraRxDirectFile() {return false;}
+bool createLoraTxDirectFile() {return false;}
 void loraGetVersion() {}
 void loraPowerOff() {}
 void loraProcessRTCM(uint8_t *rtcmData, uint16_t dataLength) {}
+bool loraRxDirectCheckFile() {return false;}
+void loraRxDirectConnect() {}
+bool loraTxDirectCheckFile() {return false;}
+void loraTxDirectConnect() {}
 void muxSelectUm980() {}
 void muxSelectUsb() {}
 void updateLora() {}
