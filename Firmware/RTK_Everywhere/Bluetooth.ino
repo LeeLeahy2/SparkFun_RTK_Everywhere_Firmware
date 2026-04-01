@@ -21,7 +21,10 @@
 
 TaskHandle_t bluetoothCommandTaskHandle = nullptr; // Task to monitor incoming CLI from BLE
 
-volatile unsigned long bleCommandTrafficSeen_millis = 0;
+const unsigned long bleCommandIdleTimeout_ms = 60 * 1000;
+
+volatile long bleCommandTrafficSeen_ms =
+    (bleCommandIdleTimeout_ms * -1); // Set initial value so that the idle timeout is considered expired on startup
 
 #ifdef COMPILE_BT
 
@@ -92,9 +95,9 @@ bool bluetoothIsConnected()
 
     if (settings.bluetoothRadioType == BLUETOOTH_RADIO_SPP_AND_BLE)
     {
-        if ((bluetoothSerialSpp && bluetoothSerialSpp->connected())
-            || (bluetoothSerialBle && bluetoothSerialBle->connected())
-            || (bluetoothSerialBleCommands && bluetoothSerialBleCommands->connected()))
+        if ((bluetoothSerialSpp && bluetoothSerialSpp->connected()) ||
+            (bluetoothSerialBle && bluetoothSerialBle->connected()) ||
+            (bluetoothSerialBleCommands && bluetoothSerialBleCommands->connected()))
             return (true);
     }
     else if (settings.bluetoothRadioType == BLUETOOTH_RADIO_SPP)
@@ -104,8 +107,8 @@ bool bluetoothIsConnected()
     }
     else if (settings.bluetoothRadioType == BLUETOOTH_RADIO_BLE)
     {
-        if ((bluetoothSerialBle && bluetoothSerialBle->connected())
-            || (bluetoothSerialBleCommands && bluetoothSerialBleCommands->connected()))
+        if ((bluetoothSerialBle && bluetoothSerialBle->connected()) ||
+            (bluetoothSerialBleCommands && bluetoothSerialBleCommands->connected()))
             return (true);
     }
 
@@ -114,8 +117,8 @@ bool bluetoothIsConnected()
 
 // Return true if the BLE Command channel is connected
 // Note:
-//   This actually tells us if any clients are connected to the BLE Server,
-//   not that anyone is reading / writing from / to the Command service    
+//   Testing connected() is not sufficient because it becomes true as soon as either command or serial
+//   clients are connected to the BLE Server.
 bool bluetoothCommandIsConnected()
 {
     if (bluetoothGetState() == BT_OFF)
@@ -124,7 +127,15 @@ bool bluetoothCommandIsConnected()
     if (settings.bluetoothRadioType == BLUETOOTH_RADIO_SPP_AND_BLE)
     {
         if (bluetoothSerialBleCommands)
-            return (bluetoothSerialBleCommands->connected());
+        {
+            // We cannot use connected() to test if positively connected, but we can use it to tell if we are
+            // disconnected
+            if (bluetoothSerialBleCommands->connected() == false)
+                return (false);
+
+            if ((millis() - bleCommandTrafficSeen_ms) < bleCommandIdleTimeout_ms)
+                return (true);
+        }
     }
     else if (settings.bluetoothRadioType == BLUETOOTH_RADIO_SPP)
     {
@@ -132,8 +143,13 @@ bool bluetoothCommandIsConnected()
     }
     else if (settings.bluetoothRadioType == BLUETOOTH_RADIO_BLE)
     {
-        if (bluetoothSerialBleCommands)
-            return (bluetoothSerialBleCommands->connected());
+        // We cannot use connected() to test if positively connected, but we can use it to tell if we are
+        // disconnected
+        if (bluetoothSerialBleCommands->connected() == false)
+            return (false);
+
+        if ((millis() - bleCommandTrafficSeen_ms) < bleCommandIdleTimeout_ms)
+            return (true);
     }
 
     return (false);

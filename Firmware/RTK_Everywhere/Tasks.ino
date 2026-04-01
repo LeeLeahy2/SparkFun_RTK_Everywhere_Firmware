@@ -2930,7 +2930,7 @@ void bluetoothCommandTask(void *pvParameters)
             if (bluetoothCommandAvailable() > 0)
             {
                 byte incoming = bluetoothCommandRead();
-                bleCommandTrafficSeen_millis = millis();
+                bleCommandTrafficSeen_ms = millis();
 
                 rxData[rxSpot++] = incoming;
                 rxSpot %= sizeof(rxData); // Wrap

@@ -249,9 +249,8 @@ void gnssUpdate()
     // Only update the GNSS receiver once the CLI, serial menu, and Web Config interfaces are disconnected
     // This is to avoid multiple reconfigure delays when multiple commands are received, ie enable GPS, disable Galileo,
     // should only trigger one GNSS reconfigure
-    const unsigned long bleCommandIdleTimeout = 2000; // TODO: check if this is long enough?
     if ((inMainMenu == false) && (inWebConfigMode() == false) &&
-        ((millis() - bleCommandTrafficSeen_millis) > bleCommandIdleTimeout))
+        (bluetoothCommandIsConnected() == false))
     {
         gnssConfigureInProgress = true; // Set the 'semaphore'
         bool result = true;
