@@ -715,6 +715,11 @@ void webServerFileDownload(httpd_req_t *req, const char *fileName)
             // Check for end of file
             if (bytes == 0)
             {
+                response = &responseSuccessful;
+                
+                // Tell browser to initiate next file download, if applicable
+                webServerSendString("fmNext,1,");
+
                 response = nullptr;
                 break;
             }
