@@ -495,7 +495,7 @@ bool ntripServerConnectLimitReached(int serverIndex)
             seconds = ntripServer->connectionAttemptTimeout / MILLISECONDS_IN_A_SECOND;
             minutes = seconds / SECONDS_IN_A_MINUTE;
             seconds -= minutes * SECONDS_IN_A_MINUTE;
-            systemPrintf("NTRIP Server %d trying again in %d:%02d seconds.\r\n", serverIndex, minutes, seconds);
+            systemPrintf("NTRIP Server %d trying again in %d:%02d.\r\n", serverIndex, minutes, seconds);
         }
     }
     else
