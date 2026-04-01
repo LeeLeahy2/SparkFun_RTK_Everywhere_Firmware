@@ -186,7 +186,7 @@ void GNSS_ZED::begin()
         }
 
         // Determine if we have a ZED-F9P or an ZED-X20P
-        if (strstr(_zed->getModuleName(), "ZED-F9P") == nullptr) //If it's not a ZED-F9P
+        if (strstr(_zed->getModuleName(), "ZED-F9P") == nullptr) // If it's not a ZED-F9P
             systemPrintf("ZED module: %s\r\n", _zed->getModuleName());
 
         if (strcmp(_zed->getFirmwareType(), "HPG") == 0)
@@ -1579,7 +1579,7 @@ void GNSS_ZED::menuMessages()
         systemPrintf("Active messages: %d\r\n", getActiveMessageCount());
 
         systemPrintln("1) Set NMEA Messages");
-        systemPrintln("2) Set RTCM Messages");
+        systemPrintln("2) Set RTCM Messages for Rover Mode");
         systemPrintln("3) Set RXM Messages");
         systemPrintln("4) Set NAV Messages");
         systemPrintln("5) Set NAV2 Messages");
@@ -1684,10 +1684,24 @@ void GNSS_ZED::menuMessages()
 // Controls the messages that get broadcast over Bluetooth and logged (if enabled)
 void GNSS_ZED::menuMessagesSubtype(uint8_t *localMessageRate, const char *messageType)
 {
+    // MessageType comes in as 'RTCM_' or 'NMEA_' etc, we want to trim the trailing underscore for ease of display
+    char trimmedMessageType[32];
+    strncpy(trimmedMessageType, messageType, sizeof(trimmedMessageType) - 1);
+    trimmedMessageType[sizeof(trimmedMessageType) - 1] = '\0';
+    char *underscore = strchr(trimmedMessageType, '_');
+    if (underscore)
+        *underscore = '\0';
+
+    // Clearly show RTCM is for Rover
+    if (strcmp(trimmedMessageType, "RTCM") == 0)
+    {
+        strncpy(trimmedMessageType, "RTCM-Rover", sizeof(trimmedMessageType) - 1);
+    }
+
     while (1)
     {
         systemPrintln();
-        systemPrintf("Menu: Message %s\r\n", messageType);
+        systemPrintf("Menu: Message %s\r\n", trimmedMessageType);
 
         int startOfBlock = 0;
         int endOfBlock = 0;
@@ -1938,7 +1952,7 @@ bool GNSS_ZED::setConstellations()
             bool response = _zed->newCfgValset(VAL_LAYER_ALL);
             response &= _zed->addCfgValset(ubxConstellations[gnssIndex].configKey, enableMe);
 
-            //Add any constellation specific signals
+            // Add any constellation specific signals
             for (int c = 0; c < MAX_UBX_CONSTELLATION_SIGNALS; c++)
             {
                 if (ubxConstellations[gnssIndex].CONSTELLATION_SIGNAL[c] > 0)
@@ -1947,7 +1961,7 @@ bool GNSS_ZED::setConstellations()
 
             // Send it
             response &= _zed->sendCfgValset();
-            
+
             if (response == false)
             {
                 if (settings.debugGnssConfig == true && !inMainMenu)
@@ -2216,9 +2230,8 @@ bool GNSS_ZED::setMessagesNMEA()
                 messageRate = 5000 / settings.measurementRateMs;
             if (settings.debugGnssConfig)
                 systemPrintf("Adjusting GGA setting to %f\r\n", messageRate);
-            gpggaEnabled =
-                _zed->setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GGA_UART1, messageRate,
-                              VAL_LAYER_ALL); // Enable GGA over UART1
+            gpggaEnabled = _zed->setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GGA_UART1, messageRate,
+                                         VAL_LAYER_ALL); // Enable GGA over UART1
             response &= gpggaEnabled;
         }
     }
@@ -2627,7 +2640,8 @@ void GNSS_ZED::storeMONCOMMSdataRadio(UBX_MON_COMMS_data_t *ubxDataStruct)
         // On earlier ZED-F9P devices, the UART2 portId was 0x0201
         // But on ZED-X20P (2.02) it is 0x0200
         // I guess we need to accept either?
-        if ((ubxDataStruct->port[port].portId & 0xFFFE) == (COM_PORT_ID_UART2 & 0xFFFE)) // If this is the port we are looking for
+        if ((ubxDataStruct->port[port].portId & 0xFFFE) ==
+            (COM_PORT_ID_UART2 & 0xFFFE)) // If this is the port we are looking for
         {
             uint32_t rxBytes = ubxDataStruct->port[port].rxBytes;
 
