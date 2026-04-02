@@ -2349,8 +2349,18 @@ void buttonCheckTask(void *e)
         {
             if (buttonLastPressed() == dualButton_power)
             {
-                doubleTap = true;
-                singleTap = false;
+                // If we are displaying the menu, treat power button press as a double tap (select)
+                if (systemState == STATE_DISPLAY_SETUP)
+                {
+                    doubleTap = true;
+                    singleTap = false;
+                }
+                else
+                {
+                     // If we are not displaying the menu, treat power button press as a single tap (open the menu)
+                    doubleTap = false;
+                    singleTap = true;
+                }
                 previousButtonRelease = 0;
                 thisButtonRelease = 0;
 
@@ -2538,7 +2548,6 @@ void buttonCheckTask(void *e)
                     {
                         // Announce powering down
                         beepMultiple(3, 100, 50); // Number of beeps, length of beep ms, length of quiet ms
-
                     }
                 }
 
