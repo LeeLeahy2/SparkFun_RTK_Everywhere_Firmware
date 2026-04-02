@@ -1092,7 +1092,7 @@ void wifiStationUpdate()
                     uint32_t seconds = startTimeout / MILLISECONDS_IN_A_SECOND;
                     uint32_t minutes = seconds / SECONDS_IN_A_MINUTE;
                     seconds -= minutes * SECONDS_IN_A_MINUTE;
-                    systemPrintf("WiFi: Delaying %2d:%02d before restarting WiFi\r\n", minutes, seconds);
+                    systemPrintf("WiFi: Delaying %01d:%02d before restarting WiFi\r\n", minutes, seconds);
                 }
                 timer = millis();
                 wifiStationSetState(WIFI_STATION_STATE_RESTART_DELAY);
