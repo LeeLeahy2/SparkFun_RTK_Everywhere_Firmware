@@ -316,8 +316,13 @@ void displayUpdate()
                 setRadioIcons(&iconPropertyList);
                 break;
             case (STATE_ROVER_FIX):
-                displayHorizontalAccuracy(&iconPropertyList, &CrossHairProperties,
-                                          0b11111111); // Single crosshair, no blink
+
+                //LG290P will be in Rover Fix while PPP is converging
+                if(gnss->isPppConverging() == true)
+                    displayRTKAccuracy(&iconPropertyList, &CrossHairPppConvergedProperties, false); // Crosshair with P, blink
+                else
+                    displayHorizontalAccuracy(&iconPropertyList, &CrossHairProperties, 0b11111111); // Single crosshair, no blink
+                    
                 paintLogging(&iconPropertyList);
                 displaySivVsOpenShort(&iconPropertyList);
                 displayBatteryVsEthernet(&iconPropertyList);
@@ -327,8 +332,16 @@ void displayUpdate()
             case (STATE_ROVER_RTK_FLOAT):
                 // displayHorizontalAccuracy(&iconPropertyList, &CrossHairDualProperties,
                 //                           0b01010101); // Dual crosshair, blink
-                displayRTKAccuracy(&iconPropertyList, &CrossHairDualProperties, false); // Dual crosshair, blink
-                paintLogging(&iconPropertyList);
+                
+                //LG290P will be in RTK 'Float' once PPP is converged
+                if(gnss->isPppConverged() == true)
+                    displayRTKAccuracy(&iconPropertyList, &CrossHairPppConvergedProperties, true); // Crosshair with P, no blink
+                else if(gnss->isPppConverging() == true)
+                    displayRTKAccuracy(&iconPropertyList, &CrossHairPppConvergedProperties, false); // Crosshair with P, blink
+                else
+                    displayRTKAccuracy(&iconPropertyList, &CrossHairDualProperties, false); // Dual crosshair, blink
+
+                    paintLogging(&iconPropertyList);
                 displaySivVsOpenShort(&iconPropertyList);
                 displayBatteryVsEthernet(&iconPropertyList);
                 displayFullIPAddress(&iconPropertyList); // Bottom left - 128x64 only
