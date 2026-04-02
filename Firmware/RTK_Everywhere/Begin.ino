@@ -624,9 +624,8 @@ void beginBoard()
         pinMode(pin_microSD_CS, OUTPUT);
         sdDeselectCard();
 
-        // Turn on Bluetooth, GNSS, and Battery LEDs to indicate power on
+        // Turn on Bluetooth LED to indicate power on
         bluetoothLedOn();
-        gnssStatusLedOn();
 
         pinMode(pin_beeper, OUTPUT);
         beepOff();
