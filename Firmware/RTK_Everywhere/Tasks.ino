@@ -2357,7 +2357,7 @@ void buttonCheckTask(void *e)
                 }
                 else
                 {
-                     // If we are not displaying the menu, treat power button press as a single tap (open the menu)
+                    // If we are not displaying the menu, treat power button press as a single tap (open the menu)
                     doubleTap = false;
                     singleTap = true;
                 }
@@ -2395,7 +2395,20 @@ void buttonCheckTask(void *e)
                 singleTap = false;
             }
         }
-        // Products with no display are a special case. Handle tilt stop and web config mode
+
+        // If we are in tilt mode, buttons do only one thing: exit on button press
+        else if (tiltIsCorrecting() == true)
+        {
+            if (singleTap || doubleTap)
+            {
+                tiltRequestStop(); // Don't force the hardware off here as it may be in use in another task
+
+                doubleTap = false; // Clean up
+                singleTap = false;
+            }
+        }
+
+        // Products with no display are a special case. Handle web config mode entry/exit.
         else if (present.display_type == DISPLAY_MAX_NONE)
         {
             if (productVariant == RTK_TORCH || productVariant == RTK_TORCH_X2)
@@ -2425,16 +2438,7 @@ void buttonCheckTask(void *e)
                 if (productVariant == RTK_TORCH)
                     powerButtonPressLimit = 2100; // For Torch, it is closer to ~2400
 
-                // In in tilt mode, exit on button press
-                if ((singleTap || doubleTap) && (tiltIsCorrecting() == true))
-                {
-                    tiltRequestStop(); // Don't force the hardware off here as it may be in use in another task
-
-                    doubleTap = false; // Clean up
-                    singleTap = false;
-                }
-
-                else if (doubleTap)
+                if (doubleTap)
                 {
                     // If we are in Rover/Base mode, enter WiFi Config Mode
                     if (inRoverMode() || inBaseMode())
@@ -2566,6 +2570,7 @@ void buttonCheckTask(void *e)
                 doubleTap = false; // Clean up
                 singleTap = false;
             }
+
             // If the setup menu is being displayed and we detect a singleTap, move through menus
             else if ((systemState == STATE_DISPLAY_SETUP) && singleTap)
             {
