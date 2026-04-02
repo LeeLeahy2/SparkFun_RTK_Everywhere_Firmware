@@ -598,7 +598,6 @@ void beginBoard()
         pin_powerAdapterDetect = 36; // Goes low when USB cable is plugged in
 
         pin_bluetoothStatusLED = 32;
-        pin_gnssStatusLED = 13;
 
         pin_beeper = 33;
 
@@ -618,9 +617,6 @@ void beginBoard()
 
         DMW_if systemPrintf("pin_bluetoothStatusLED: %d\r\n", pin_bluetoothStatusLED);
         pinMode(pin_bluetoothStatusLED, OUTPUT);
-
-        DMW_if systemPrintf("pin_gnssStatusLED: %d\r\n", pin_gnssStatusLED);
-        pinMode(pin_gnssStatusLED, OUTPUT);
 
         pinMode(pin_microSD_CardDetect, INPUT_PULLUP);
 
