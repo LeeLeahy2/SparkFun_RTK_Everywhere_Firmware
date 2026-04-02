@@ -1205,7 +1205,19 @@ void wifiStationUpdate()
     // Periodically display the WiFi state
     if (PERIODIC_DISPLAY(PD_WIFI_STATE) && !inMainMenu)
     {
-        systemPrintf("WiFi station state: %s%s\r\n", wifiStationStateName[wifiStationState], reason);
+        systemPrintf("WiFi station state: %s%s", wifiStationStateName[wifiStationState], reason);
+
+        if (wifiStationState == WIFI_STATION_STATE_RESTART_DELAY)
+        {
+            // Display the delay
+            uint32_t seconds = (startTimeout - (millis() - timer)) / MILLISECONDS_IN_A_SECOND;
+            uint32_t minutes = seconds / SECONDS_IN_A_MINUTE;
+            seconds -= minutes * SECONDS_IN_A_MINUTE;
+            systemPrintf(" - WiFi Restart in %01d:%02d", minutes, seconds);
+        }
+
+        systemPrintln();
+
         PERIODIC_CLEAR(PD_WIFI_STATE);
     }
 }
