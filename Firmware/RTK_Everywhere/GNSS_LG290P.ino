@@ -347,8 +347,8 @@ void GNSS_LG290P::createMessageList(String &returnText)
         returnText += "messageRateRTCMRover_" + String(lgMessagesRTCM[messageNumber].msgTextName) + "," +
                       String(settings.lg290pMessageRatesRTCMRover[messageNumber]) + ",";
     }
-    
-    //Pass any extra messages
+
+    // Pass any extra messages
     for (int messageNumber = 0; messageNumber < MAX_LG290P_PQTM_MSG; messageNumber++)
     {
         returnText += "messageRatePQTM_" + String(lgMessagesPQTM[messageNumber].msgTextName) + "," +
@@ -1184,8 +1184,7 @@ bool GNSS_LG290P::isCorrRadioExtPortActive()
     // We have to assume data is arriving if ext radio is enabled...
     // And on Facet FP, we also have to fake the arrival of LoRa traffic
     // to maintain the Radio Ext protocols...
-    return (settings.enableExtCorrRadio
-            || ((productVariant == RTK_FACET_FP) && settings.enableLora));
+    return (settings.enableExtCorrRadio || ((productVariant == RTK_FACET_FP) && settings.enableLora));
 }
 
 //----------------------------------------
@@ -1210,7 +1209,7 @@ bool GNSS_LG290P::isDgpsFixed()
 
 //----------------------------------------
 // Some functions merely need to know if we have an RTK Float.
-// This function checks to see if the given platform has reached sufficient 
+// This function checks to see if the given platform has reached sufficient
 // fix type to be considered valid.
 //----------------------------------------
 bool GNSS_LG290P::isFixed()
@@ -1305,7 +1304,7 @@ bool GNSS_LG290P::isRTKFix()
 
 //----------------------------------------
 // Some functions merely need to know if we have an RTK Float.
-// This function checks to see if the given platform has reached sufficient 
+// This function checks to see if the given platform has reached sufficient
 // fix type to be considered valid.
 //----------------------------------------
 bool GNSS_LG290P::isRTKFloat()
@@ -1933,8 +1932,8 @@ uint32_t GNSS_LG290P::getCommBaudRate()
     }
     else if (productVariant == RTK_TORCH_X2)
     {
-            // UART2 of the LG290P is connected to the ESP (UART2) for the main configuration
-            commUart = 2;
+        // UART2 of the LG290P is connected to the ESP (UART2) for the main configuration
+        commUart = 2;
     }
     else
         systemPrintln("getCommBaudRate: Uncaught platform");
@@ -2166,8 +2165,7 @@ bool GNSS_LG290P::setMessagesNMEA()
                 }
                 else if (productVariant == RTK_FACET_FP)
                 {
-                    if ((portNumber == 2) &&
-                        ((settings.enableNmeaOnRadio == false) || (settings.enableLora == true)))
+                    if ((portNumber == 2) && ((settings.enableNmeaOnRadio == false) || (settings.enableLora == true)))
                         msgRate = 0;
                 }
                 else if (productVariant == RTK_TORCH_X2)
@@ -2613,6 +2611,8 @@ bool GNSS_LG290P::setRate(double secondsBetweenSolutions)
 
     if (response == false)
         systemPrintln("Failed to set measurement rate");
+    else
+        systemPrintln("Successfully set measurement rate");
 
     return (response);
 }

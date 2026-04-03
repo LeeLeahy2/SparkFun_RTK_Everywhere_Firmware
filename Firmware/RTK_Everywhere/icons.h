@@ -392,6 +392,36 @@ const uint8_t CrossHairDual[] = {0x80, 0x80, 0xF0, 0x88, 0xE4, 0x94, 0x94, 0x7F,
                                  0xE4, 0x88, 0xF0, 0x80, 0x80, 0x00, 0x00, 0x07, 0x08, 0x13,
                                  0x14, 0x14, 0x7F, 0x14, 0x14, 0x13, 0x08, 0x07, 0x00, 0x00};
 
+
+/*
+    CrossHairP [15, 15]
+
+                      1
+             123456789012345
+            .---------------.
+        0x01|       *       |
+        0x02|       *       |
+        0x04|    *******    |
+        0x08|   *       *   |
+        0x10|  *  *****  *  |
+        0x20|  *  *    * *  |
+        0x40|  *  *    * *  |
+        0x80|***  *****  ***|
+        0x01|  *  *      *  |
+        0x02|  *  *      *  |
+        0x04|  *  *      *  |
+        0x08|   *       *   |
+        0x10|    *******    |
+        0x20|       *       |
+        0x40|       *       |
+            '---------------'
+*/
+const int CrossHairPppConverged_Height = 15;
+const int CrossHairPppConverged_Width = 15;
+const uint8_t CrossHairPppConverged[] =    {0x80, 0x80, 0xF0, 0x08, 0x04, 0xF4, 0x94, 0x97, 0x94, 0x94, 
+                                 0x64, 0x08, 0xF0, 0x80, 0x80, 0x00, 0x00, 0x07, 0x08, 0x10, 
+                                 0x17, 0x10, 0x70, 0x10, 0x10, 0x10, 0x08, 0x07, 0x00, 0x00,  };
+
 /*
     SIV_Antenna [12, 13]
 
@@ -1952,6 +1982,8 @@ const iconProperties CrossHairProperties = {{{ &CrossHair, CrossHair_Width, Cros
                                              { &CrossHair, CrossHair_Width, CrossHair_Height, AccuracyIconXPos128x64, AccuracyIconYPos128x64 }}};
 const iconProperties CrossHairDualProperties = {{{ &CrossHairDual, CrossHairDual_Width, CrossHairDual_Height, AccuracyIconXPos64x48, AccuracyIconYPos64x48 },
                                                  { &CrossHairDual, CrossHairDual_Width, CrossHairDual_Height, AccuracyIconXPos128x64, AccuracyIconYPos128x64 }}};
+const iconProperties CrossHairPppConvergedProperties = {{{ &CrossHairPppConverged, CrossHairPppConverged_Width, CrossHairPppConverged_Height, AccuracyIconXPos64x48, AccuracyIconYPos64x48 },
+                                                 { &CrossHairPppConverged, CrossHairPppConverged_Width, CrossHairPppConverged_Height, AccuracyIconXPos128x64, AccuracyIconYPos128x64 }}};
 
 #define CLOCK_ICON_STATES 4
 typedef struct {
