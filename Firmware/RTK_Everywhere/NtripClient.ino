@@ -348,7 +348,7 @@ bool ntripClientConnectLimitReached()
             seconds = ntripClientConnectionAttemptTimeout / MILLISECONDS_IN_A_SECOND;
             minutes = seconds / SECONDS_IN_A_MINUTE;
             seconds -= minutes * SECONDS_IN_A_MINUTE;
-            systemPrintf("NTRIP Client trying again in %d:%02d seconds.\r\n", minutes, seconds);
+            systemPrintf("NTRIP Client trying again in %d:%02d.\r\n", minutes, seconds);
         }
     }
     else
