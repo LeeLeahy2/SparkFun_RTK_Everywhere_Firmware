@@ -2836,7 +2836,7 @@ bool lg290pMessageEnabled(char *nmeaSentence, int sentenceLength)
                     return (true);
                 }
                 if (!inMainMenu && settings.debugGnssConfig)
-                    systemPrintf("Blocking PQTM sentenceHeader: %s\r\n", sentenceHeader);
+                    systemPrintf("Blocking PQTM sentenceHeader from entering circular buffer: %s\r\n", sentenceHeader);
                 return (false);
             }
         }
