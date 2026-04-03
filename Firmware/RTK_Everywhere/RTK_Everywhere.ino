@@ -1854,8 +1854,10 @@ void rtcUpdate()
                     lastRTCSync = millis();
 
                     if (!inMainMenu)
+                    {
                         systemPrint("System time set to: ");
-                    systemPrintln(rtc.getDateTime(true));
+                        systemPrintln(rtc.getDateTime(true));
+                    }
 
                     recordSystemSettingsToFileSD(
                         settingsFileName); // This will re-record the setting file with the current date/time.
