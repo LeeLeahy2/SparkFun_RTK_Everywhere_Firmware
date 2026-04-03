@@ -911,7 +911,7 @@ struct Settings
     };
     char ntripServer_CasterUser[NTRIP_SERVER_MAX][NTRIP_SERVER_STRING_SIZE] =
     {
-        "test@test.com" // Some free casters require auth. User must provide their own email address to use RTK2Go
+        ""
         "",
         "",
         "",

@@ -1092,7 +1092,7 @@ void wifiStationUpdate()
                     uint32_t seconds = startTimeout / MILLISECONDS_IN_A_SECOND;
                     uint32_t minutes = seconds / SECONDS_IN_A_MINUTE;
                     seconds -= minutes * SECONDS_IN_A_MINUTE;
-                    systemPrintf("WiFi: Delaying %2d:%02d before restarting WiFi\r\n", minutes, seconds);
+                    systemPrintf("WiFi: Delaying %01d:%02d before restarting WiFi\r\n", minutes, seconds);
                 }
                 timer = millis();
                 wifiStationSetState(WIFI_STATION_STATE_RESTART_DELAY);
@@ -1195,17 +1195,65 @@ void wifiStationUpdate()
             startTimeout = 0;
             wifiStationSetState(WIFI_STATION_STATE_STABLE);
         }
+
+        // If WiFi connection is lost while online, restart
+        if (networkInterfaceHasInternet(NETWORK_WIFI_STATION) == false)
+        {
+            if (settings.debugWifiState || settings.debugNetworkLayer)
+            {
+                // Display the delay
+                uint32_t seconds = startTimeout / MILLISECONDS_IN_A_SECOND;
+                uint32_t minutes = seconds / SECONDS_IN_A_MINUTE;
+                seconds -= minutes * SECONDS_IN_A_MINUTE;
+                systemPrintf("WiFi: WiFi station lost internet connection while online, restarting in %01d:%02d\r\n",
+                             minutes, seconds);
+            }
+
+            timer = millis();
+            wifiStationSetState(WIFI_STATION_STATE_WAIT_NO_USERS); // Force reset of state machine
+        }
+
         break;
 
     // WiFi station consumers have internet access
     case WIFI_STATION_STATE_STABLE:
+
+        // If WiFi connection is lost while online, restart
+        if (networkInterfaceHasInternet(NETWORK_WIFI_STATION) == false)
+        {
+            if (settings.debugWifiState || settings.debugNetworkLayer)
+            {
+                // Display the delay
+                uint32_t seconds = startTimeout / MILLISECONDS_IN_A_SECOND;
+                uint32_t minutes = seconds / SECONDS_IN_A_MINUTE;
+                seconds -= minutes * SECONDS_IN_A_MINUTE;
+                systemPrintf("WiFi: WiFi station lost internet connection while stable, restarting in %01d:%02d\r\n",
+                             minutes, seconds);
+            }
+
+            timer = millis();
+            wifiStationSetState(WIFI_STATION_STATE_WAIT_NO_USERS); // Force reset of state machine
+        }
+
         break;
     }
 
     // Periodically display the WiFi state
     if (PERIODIC_DISPLAY(PD_WIFI_STATE) && !inMainMenu)
     {
-        systemPrintf("WiFi station state: %s%s\r\n", wifiStationStateName[wifiStationState], reason);
+        systemPrintf("WiFi station state: %s%s", wifiStationStateName[wifiStationState], reason);
+
+        if (wifiStationState == WIFI_STATION_STATE_RESTART_DELAY)
+        {
+            // Display the delay
+            uint32_t seconds = (startTimeout - (millis() - timer)) / MILLISECONDS_IN_A_SECOND;
+            uint32_t minutes = seconds / SECONDS_IN_A_MINUTE;
+            seconds -= minutes * SECONDS_IN_A_MINUTE;
+            systemPrintf(" - WiFi Restart in %01d:%02d", minutes, seconds);
+        }
+
+        systemPrintln();
+
         PERIODIC_CLEAR(PD_WIFI_STATE);
     }
 }
