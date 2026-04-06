@@ -1962,7 +1962,7 @@ bool RTK_WIFI::softApSetHostName(const char *hostName)
 
         // Set the host name
         if (settings.debugWifiState)
-            systemPrintf("WiFI setting AP host name\r\n");
+            systemPrintf("WiFi setting AP host name\r\n");
         nameSet = WiFi.AP.setHostname(hostName);
         if (!nameSet)
         {
@@ -2156,7 +2156,7 @@ bool RTK_WIFI::stationDisconnect()
 
         // Disconnect from the remote AP
         if (settings.debugWifiState)
-            systemPrintf("WiFI disconnecting station from remote AP\r\n");
+            systemPrintf("WiFi disconnecting station from remote AP\r\n");
         disconnected = WiFi.STA.disconnect();
         if (!disconnected)
         {
@@ -2309,7 +2309,7 @@ bool RTK_WIFI::stationHostName(const char *hostName)
 
         // Set the host name
         if (settings.debugWifiState)
-            systemPrintf("WiFI setting station host name\r\n");
+            systemPrintf("WiFi setting station host name\r\n");
         nameSet = WiFi.STA.setHostname(hostName);
         if (!nameSet)
         {
@@ -2364,9 +2364,9 @@ int16_t RTK_WIFI::stationScanForAPs(WIFI_CHANNEL_t channel)
         if (settings.debugWifiState)
         {
             if (channel)
-                systemPrintf("WiFI starting scan for remote APs on channel %d\r\n", channel);
+                systemPrintf("WiFi starting scan for remote APs on channel %d\r\n", channel);
             else
-                systemPrintf("WiFI starting scan for remote APs\r\n");
+                systemPrintf("WiFi starting scan for remote APs\r\n");
         }
 
         // Start the WiFi scan
