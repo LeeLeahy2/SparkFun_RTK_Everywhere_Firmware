@@ -1429,7 +1429,7 @@ void RTK_WIFI::displayComponents(const char *text, WIFI_ACTION_t components)
 // Inputs:
 //   enableESPNow: Enable ESP-NOW mode
 //   enableSoftAP: Enable soft AP mode
-//   enableStataion: Enable station mode
+//   enableStation: Enable station mode
 //   fileName: Name of file calling the enable routine
 //   lineNumber: Line number in the file calling the enable routine
 // Outputs:
