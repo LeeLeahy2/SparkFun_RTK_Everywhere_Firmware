@@ -2484,7 +2484,7 @@ const char *RTK_WIFI::stationSsid()
 // Stop and start WiFi components
 // Inputs:
 //   stopping: WiFi components that need to be stopped
-//   starting: WiFi components that neet to be started
+//   starting: WiFi components that need to be started
 // Outputs:
 //   Returns true if the modes were successfully configured
 bool RTK_WIFI::stopStart(WIFI_ACTION_t stopping, WIFI_ACTION_t starting)
