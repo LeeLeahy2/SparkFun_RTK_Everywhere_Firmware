@@ -1011,6 +1011,14 @@ int loraFirmwareVersionInt = 0;
 uint8_t bootTimeIndex;
 uint32_t bootTime[MAX_BOOT_TIME_ENTRIES];
 const char *bootTimeString[MAX_BOOT_TIME_ENTRIES];
+
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+// Foward routine declarations
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+void changeProfileNumber(byte newProfileNumber, bool recordSettings = true);
+
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 // Support to trackdown a system hang.
