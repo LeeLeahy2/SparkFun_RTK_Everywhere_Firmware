@@ -1308,7 +1308,7 @@ void wifiUpdateSettings()
         (networkInterfaceHasInternet(NETWORK_WIFI_STATION) == false))
     {
         if (settings.debugWifiState)
-            systemPrintln("Restarting WiFi because settings have changed");
+            systemPrintln("Restarting WiFi because there are consumers and settings have changed");
         wifiStationRestart = ssidSet;
     }
 
