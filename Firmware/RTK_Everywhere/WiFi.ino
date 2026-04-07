@@ -1045,6 +1045,14 @@ void wifiStationUpdate()
     // down WiFi station
     case WIFI_STATION_STATE_WAIT_NO_USERS:
         users = networkUserCount(NETWORK_WIFI_STATION);
+
+        // When Web Config is running, if STA needs to restart because the settings have been changed by the user,
+        // the user WEB_CONFIG will erroneously be seen as a network user. Proceed with STA restart.
+        if(wifiSoftApRunning == true && users == 1)
+        {
+            users = 0;
+        }
+
         if (users)
         {
             static uint32_t lastMsec;
