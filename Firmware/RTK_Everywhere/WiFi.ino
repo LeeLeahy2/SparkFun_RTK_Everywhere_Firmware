@@ -1208,21 +1208,6 @@ void wifiStationUpdate()
             wifiStationSetState(WIFI_STATION_STATE_WAIT_NO_USERS); // Force reset of state machine
         }
 
-        if (settings.wifiConfigOverAP == true)
-        {
-            // If WiFi Station is in a run state, but the webserver is running in AP mode then AP shows as 1 consumer
-            // If additional consumers are detected (ie, OTA) then restart the state machine so that we can start in STA
-            // mode
-            if (webServerIsRunning() == true && networkConsumerCount(NETWORK_WIFI_STATION) > 1)
-            {
-                if (settings.debugWifiState || settings.debugNetworkLayer)
-                    systemPrintf("WiFi: Resetting WiFi state machine due to Web Config AP mode with >1 consumers\r\n");
-
-                timer = millis();
-                wifiStationSetState(WIFI_STATION_STATE_WAIT_NO_USERS); // Force reset of state machine
-            }
-        }
-
         break;
 
     // WiFi station consumers have internet access
