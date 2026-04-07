@@ -522,12 +522,17 @@ void createNMEASentence(customNmeaType_e textID, char *nmeaMessage, size_t sizeO
     snprintf(nmeaMessage, sizeOfNmeaMessage, "%s%02X", nmeaTxt, CRC);
 }
 
+// Get the default settings
+void getDefaultSettings(struct Settings * tempSettings)
+{
+    static const Settings defaultSettings;
+    memcpy(tempSettings, &defaultSettings, sizeof(defaultSettings));
+}
+
 // Reset settings struct to default initializers
 void settingsToDefaults()
 {
-    static const Settings defaultSettings;
-    settings = defaultSettings;
-
+    getDefaultSettings(&settings);
     checkArrayDefaults();     // This does not call recordSystemSettings
     checkGNSSArrayDefaults(); // This calls recordSystemSettings if any GNSS defaults are applied
 }
@@ -1124,14 +1129,14 @@ bool gpioExpanderDetectGnssCommon(bool forceDetection)
             // Use 400kHz for speed
             if (present.i2c0BusSpeed_400 == false)
                 i2c_0->setClock(400000);
-            
+
             // Set GNSS Reset LOW
             gpioExpanderSwitches->digitalWrite(gpioExpanderSwitch_GNSS_Reset, LOW);
 
             // Flex LG290P with Tilt does not reset unless we delay just a little...
             if (forceDetection)
                 delayMicroseconds(50); // 250 OK. 100 OK. 50 OK. 25 OK. 10 not OK.
-            
+
             // Clock is ticking! Be quick!
             // Set GNSS Reset to INPUT as fast as possible
             i2c_0->beginTransmission(0x21); // FacetFP TCA9534 is on address 0x21
