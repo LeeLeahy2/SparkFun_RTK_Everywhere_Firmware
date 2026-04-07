@@ -1048,7 +1048,7 @@ SettingValueResponse updateSettingWithValue(bool inCommands, const char *setting
         // Handle the GNSS specific types
         if (knownSetting == false)
         {
-            if (gnssNewSettingValue(type, suffix, qualifier, settingValue))
+            if (gnssNewSettingValue(&settings, type, suffix, qualifier, settingValue))
                 knownSetting = true;
         }
 
@@ -1792,7 +1792,7 @@ void createSettingsString(char *newSettings)
     if (present.microSd)
     {
         stringRecord(newSettings, "sdMounted", online.microSD);
-        
+
         if (online.microSD)
         {
             // Add SD Characteristics

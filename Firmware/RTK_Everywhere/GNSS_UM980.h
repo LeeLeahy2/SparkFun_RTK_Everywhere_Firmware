@@ -505,7 +505,7 @@ void um980CommandTypeJson(JsonArray &command_types);
 bool um980CreateString(RTK_Settings_Types type, int settingsIndex, char *newSettings);
 bool um980GetSettingValue(RTK_Settings_Types type, const char *suffix, int settingsIndex, int qualifier,
                           char *settingValueStr);
-bool um980NewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifier, double d);
+bool um980NewSettingValue(struct Settings * tempSettings, RTK_Settings_Types type, const char *suffix, int qualifier, double d);
 bool um980SettingsToFile(File *settingsFile, RTK_Settings_Types type, int settingsIndex);
 
 #endif // COMPILE_UM980
