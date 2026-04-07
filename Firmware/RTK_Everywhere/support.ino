@@ -619,16 +619,16 @@ int AsciiToNibble(int data)
 }
 
 // Dump a buffer in hex and ASCII
-void dumpBuffer(uint8_t *buffer, size_t length)
+void dumpBuffer(const uint8_t *buffer, size_t length)
 {
     dumpBuffer(0, buffer, length);
 }
 
 // Dump a buffer in hex and ASCII
-void dumpBuffer(size_t offset, uint8_t *buffer, size_t length)
+void dumpBuffer(size_t offset, const uint8_t *buffer, size_t length)
 {
     int bytes;
-    uint8_t *end;
+    const uint8_t *end;
     int index;
 
     end = &buffer[length];
