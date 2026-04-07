@@ -716,7 +716,7 @@ void webServerFileDownload(httpd_req_t *req, const char *fileName)
             if (bytes == 0)
             {
                 response = &responseSuccessful;
-                
+
                 // Tell browser to initiate next file download, if applicable
                 webServerSendString("fmNext,1,");
 
@@ -1962,6 +1962,7 @@ bool webServerParseIncomingSettings()
 
     bool stationGeodeticSeen = false;
     bool stationECEFSeen = false;
+    bool wifiSettingsSeen = false;
 
     char *commaPtr = incomingSettings;
     char *headPtr = incomingSettings;
@@ -2008,6 +2009,12 @@ bool webServerParseIncomingSettings()
                 systemPrintln("Station ECEF coordinate file removed");
         }
 
+        // Check if we received new WiFi settings
+        if ((strstr(settingName, "wifiNetwork_0SSID") != nullptr) && (!wifiSettingsSeen))
+        {
+            wifiSettingsSeen = true;
+        }
+
         updateSettingWithValue(false, settingName, valueStr);
 
         // Avoid infinite loop if response is malformed
@@ -2017,6 +2024,14 @@ bool webServerParseIncomingSettings()
             systemPrintln("Error: Incoming settings malformed.");
             break;
         }
+    }
+
+    // Update WiFi settings if new WiFi settings were seen in the incoming settings
+    if (wifiSettingsSeen)
+    {
+        if (settings.debugWebServer == true || settings.debugNetworkLayer == true)
+            systemPrintln("Updating WiFi settings due to new parse data");
+        wifiUpdateSettings();
     }
 
     systemPrintln("Parsing complete");
