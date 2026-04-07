@@ -102,6 +102,145 @@ void setSettingsFileName()
         systemPrintf("Settings file name: %s\r\n", settingsFileName);
 }
 
+// Display the difference
+void nvmDisplayDifference(const uint8_t * u8_1,
+                          const char * name1,
+                          const uint8_t * u8_2,
+                          const char * name2,
+                          size_t diffStart,
+                          size_t diffEnd,
+                          const uint16_t * const sorted)
+{
+    if (sorted)
+    {
+        const uint8_t * u8_3 = (uint8_t *)&settings;
+
+        // Attempt to locate the parameter name at the difference start
+        const char * nameStart = "settings";
+        for (int y = 0; y < numRtkSettingsEntries; y++)
+        {
+            const uint8_t * u8_4 = (uint8_t *)(rtkSettingsEntries[sorted[y]].var);
+            ssize_t settingsOffset = u8_4 - u8_3;
+            if ((settingsOffset >= 0) && (settingsOffset < sizeof(struct Settings)))
+            {
+                if (settingsOffset <= diffStart)
+                    nameStart = rtkSettingsEntries[sorted[y]].name;
+                else
+                    break;
+            }
+        }
+
+        // Attempt to locate the parameter name at the difference end
+        const char * nameEnd = "sizeof(settings)";
+        for (int y = numRtkSettingsEntries - 1; y >= 0 ; y--)
+        {
+            const uint8_t * u8_4 = (uint8_t *)(rtkSettingsEntries[sorted[y]].var);
+            ssize_t settingsOffset = u8_4 - u8_3;
+            if ((settingsOffset >= 0) && (settingsOffset < sizeof(struct Settings)))
+            {
+                if (settingsOffset >= diffEnd)
+                    nameEnd = rtkSettingsEntries[sorted[y]].name;
+                else
+                    break;
+            }
+        }
+
+        // Display the variable range
+        systemPrintf("%s <= difference < %s\r\n", nameStart, nameEnd);
+    }
+
+    // Display the differences
+    systemPrintf("%s:\r\n", name1);
+    dumpBuffer(diffStart, &u8_1[diffStart], diffEnd - diffStart);
+    systemPrintf("%s:\r\n", name2);
+    dumpBuffer(diffStart, &u8_2[diffStart], diffEnd - diffStart);
+}
+
+// Compare two sets of settings
+bool nvmCompareSettings(struct Settings * settings1, const char * name1,
+                        struct Settings * settings2, const char * name2)
+{
+    bool difference;
+    bool differenceFound;
+    size_t diffStart;
+    static uint16_t * sorted = nullptr;
+    const uint8_t * u8_1;
+    const uint8_t * u8_2;
+
+    // Do a fast check for differences
+    if (memcmp(settings1, settings2, sizeof(struct Settings)) == 0)
+        return false;
+
+    // Differences were found
+    u8_1 = (const uint8_t *)settings1;
+    u8_2 = (const uint8_t *)settings2;
+
+    // Allocate the sort array
+    if (sorted == nullptr)
+    {
+        sorted = (uint16_t *)rtkMalloc(numRtkSettingsEntries * sizeof(*sorted),
+                                       "Command sort buffer");
+        if (sorted != nullptr)
+        {
+            // Initialize the index values
+            for (int x = 0; x < numRtkSettingsEntries; x++)
+                sorted[x] = x;
+
+            // Perform a bubble sort on the setting address
+            for (int x = 0; x < numRtkSettingsEntries - 1; x++)
+                for (int y = x + 1; y < numRtkSettingsEntries; y++)
+                    if (rtkSettingsEntries[sorted[y]].var < rtkSettingsEntries[sorted[x]].var)
+                    {
+                        // Swap the two entries
+                        uint16_t temp = sorted[x];
+                        sorted[x] = sorted[y];
+                        sorted[y] = temp;
+                    }
+        }
+    }
+
+    // Walk the settings to determine the difference locations
+    differenceFound = false;
+    difference = false;
+    for (size_t x = 0; x < sizeof(settings); x++)
+    {
+        if (difference)
+        {
+            if (u8_1[x] == u8_2[x])
+            {
+                difference = false;
+                nvmDisplayDifference(u8_1, name1,
+                                     u8_2, name2,
+                                     diffStart, x, sorted);
+            }
+        }
+        else if (u8_1[x] != u8_2[x])
+        {
+            if (differenceFound == false)
+            {
+                differenceFound = true;
+                systemPrintf("Differences:\r\n");
+            }
+            diffStart = x;
+            difference = true;
+        }
+    }
+
+    // Display the final differences
+    if (difference)
+        nvmDisplayDifference(u8_1, name1,
+                             u8_2, name2,
+                             diffStart, sizeof(settings), sorted);
+
+    // Done with the sorted array
+//    if (sorted)
+//    {
+//        rtkFree(sorted, "Command sort buffer");
+//        sorted = nullptr;
+//    }
+    return true;
+}
+
 // Load only LFS settings without recording
 // Used at very first boot to test for resetCounter
 void loadSettingsPartial()
