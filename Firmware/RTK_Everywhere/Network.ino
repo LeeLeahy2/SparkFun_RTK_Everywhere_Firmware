@@ -2142,7 +2142,7 @@ void networkSoftApConsumerAdd(NETCONSUMER_t consumer, const char *fileName, uint
         }
         
         // If the WiFi station interface is running, mark the network priority so that consumers within Soft AP will use it
-        if(wifiStationRunning == true && networkPriority != 1)
+        if(wifiStationRunning == true && networkPriority == NETWORK_OFFLINE)
         {
             if(settings.debugNetworkLayer)
                 systemPrintf("Network: WiFi station interface running, setting WiFi as highest network priority\r\n");
