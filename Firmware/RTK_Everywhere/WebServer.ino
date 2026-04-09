@@ -429,7 +429,8 @@ void webServerCreateFirmwareVersionString(char *firmwareString)
     firmwareVersionGet(currentVersion, sizeof(currentVersion), enableRCFirmware);
 
     // Compare the unit's version against the reported version from OTA
-    if (firmwareVersionIsReportedNewer(otaReportedVersion, currentVersion) == true)
+    // Allow updates if locally compiled developer version is detected
+    if ((firmwareVersionIsReportedNewer(otaReportedVersion, &currentVersion[1]) == true) || ((currentVersion[1] == '9') && (currentVersion[2] == '9')))
     {
         if (settings.debugWebServer == true)
             systemPrintln("WebServer: New firmware version detected");
@@ -438,7 +439,7 @@ void webServerCreateFirmwareVersionString(char *firmwareString)
     else
     {
         if (settings.debugWebServer == true)
-            systemPrintln("No new firmware available");
+            systemPrintln("WebServer: No new firmware available");
         snprintf(newVersionCSV, sizeof(newVersionCSV), "CURRENT,");
     }
 
@@ -716,7 +717,7 @@ void webServerFileDownload(httpd_req_t *req, const char *fileName)
             if (bytes == 0)
             {
                 response = &responseSuccessful;
-                
+
                 // Tell browser to initiate next file download, if applicable
                 webServerSendString("fmNext,1,");
 
@@ -1962,6 +1963,7 @@ bool webServerParseIncomingSettings()
 
     bool stationGeodeticSeen = false;
     bool stationECEFSeen = false;
+    bool wifiSettingsSeen = false;
 
     char *commaPtr = incomingSettings;
     char *headPtr = incomingSettings;
@@ -2008,6 +2010,12 @@ bool webServerParseIncomingSettings()
                 systemPrintln("Station ECEF coordinate file removed");
         }
 
+        // Check if we received new WiFi settings
+        if ((strstr(settingName, "wifiNetwork_0SSID") != nullptr) && (!wifiSettingsSeen))
+        {
+            wifiSettingsSeen = true;
+        }
+
         updateSettingWithValue(false, settingName, valueStr);
 
         // Avoid infinite loop if response is malformed
@@ -2017,6 +2025,14 @@ bool webServerParseIncomingSettings()
             systemPrintln("Error: Incoming settings malformed.");
             break;
         }
+    }
+
+    // Update WiFi settings if new WiFi settings were seen in the incoming settings
+    if (wifiSettingsSeen)
+    {
+        if (settings.debugWebServer == true || settings.debugNetworkLayer == true)
+            systemPrintln("Updating WiFi settings due to new parse data");
+        wifiUpdateSettings();
     }
 
     systemPrintln("Parsing complete");
@@ -2643,8 +2659,10 @@ void webServerStart()
                 networkConsumerAdd(NETCONSUMER_WEB_CONFIG, NETWORK_ANY, __FILE__, __LINE__);
                 break;
             }
+
             if ((settings.wifiConfigOverAP == false) || networkInterfaceHasInternet(NETWORK_WIFI_STATION))
                 networkConsumerAdd(NETCONSUMER_WEB_CONFIG, NETWORK_ANY, __FILE__, __LINE__);
+
             if (settings.wifiConfigOverAP)
                 networkSoftApConsumerAdd(NETCONSUMER_WEB_CONFIG, __FILE__, __LINE__);
         } while (0);

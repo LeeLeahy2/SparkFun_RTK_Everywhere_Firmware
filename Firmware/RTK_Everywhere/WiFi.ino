@@ -51,14 +51,9 @@ enum WIFI_STATION_STATES
 };
 uint8_t wifiStationState;
 
-const char * wifiStationStateName[] =
-{
-    "WIFI_STATION_STATE_OFF",
-    "WIFI_STATION_STATE_WAIT_NO_USERS",
-    "WIFI_STATION_STATE_RESTART_DELAY",
-    "WIFI_STATION_STATE_STARTING",
-    "WIFI_STATION_STATE_ONLINE",
-    "WIFI_STATION_STATE_STABLE",
+const char *wifiStationStateName[] = {
+    "WIFI_STATION_STATE_OFF",      "WIFI_STATION_STATE_WAIT_NO_USERS", "WIFI_STATION_STATE_RESTART_DELAY",
+    "WIFI_STATION_STATE_STARTING", "WIFI_STATION_STATE_ONLINE",        "WIFI_STATION_STATE_STABLE",
 };
 const int wifiStationStateNameEntries = sizeof(wifiStationStateName) / sizeof(wifiStationStateName[0]);
 
@@ -257,40 +252,40 @@ const int wifiStationStateNameEntries = sizeof(wifiStationStateName) / sizeof(wi
 //****************************************
 
 // Radio operations
-#define WIFI_AP_SET_MODE 1
-#define WIFI_EN_SET_MODE 2
-#define WIFI_STA_SET_MODE 4
-#define WIFI_AP_SET_PROTOCOLS 8
-#define WIFI_EN_SET_PROTOCOLS 0x00000010
-#define WIFI_STA_SET_PROTOCOLS 0x00000020
-#define WIFI_STA_START_SCAN 0x00000040
-#define WIFI_STA_SELECT_REMOTE_AP 0x00000080
-#define WIFI_AP_SELECT_CHANNEL 0x00000100
-#define WIFI_EN_SELECT_CHANNEL 0x00000200
-#define WIFI_STA_SELECT_CHANNEL 0x00000400
+#define WIFI_AP_SET_MODE (1 << 0)
+#define WIFI_EN_SET_MODE (1 << 1)
+#define WIFI_STA_SET_MODE (1 << 2)
+#define WIFI_AP_SET_PROTOCOLS (1 << 3)
+#define WIFI_EN_SET_PROTOCOLS (1 << 4)
+#define WIFI_STA_SET_PROTOCOLS (1 << 5)
+#define WIFI_STA_START_SCAN (1 << 6)
+#define WIFI_STA_SELECT_REMOTE_AP (1 << 7)
+#define WIFI_AP_SELECT_CHANNEL (1 << 8)
+#define WIFI_EN_SELECT_CHANNEL (1 << 9)
+#define WIFI_STA_SELECT_CHANNEL (1 << 10)
 
 // Soft AP
-#define WIFI_AP_SET_SSID_PASSWORD 0x00000800
-#define WIFI_AP_SET_IP_ADDR 0x00001000
-#define WIFI_AP_SET_HOST_NAME 0x00002000
-#define WIFI_AP_START_DNS_SERVER 0x00004000
-#define WIFI_AP_ONLINE 0x00008000
+#define WIFI_AP_SET_SSID_PASSWORD (1 << 11)
+#define WIFI_AP_SET_IP_ADDR (1 << 12)
+#define WIFI_AP_SET_HOST_NAME (1 << 13)
+#define WIFI_AP_START_DNS_SERVER (1 << 14)
+#define WIFI_AP_ONLINE (1 << 15)
 
 // WiFi station
-#define WIFI_STA_SET_HOST_NAME 0x00010000
-#define WIFI_STA_DISABLE_AUTO_RECONNECT 0x00020000
-#define WIFI_STA_CONNECT_TO_REMOTE_AP 0x00040000
-#define WIFI_STA_ONLINE 0x00080000
+#define WIFI_STA_SET_HOST_NAME (1 << 16)
+#define WIFI_STA_DISABLE_AUTO_RECONNECT (1 << 17)
+#define WIFI_STA_CONNECT_TO_REMOTE_AP (1 << 18)
+#define WIFI_STA_ONLINE (1 << 19)
 
 // ESP-NOW
-#define WIFI_EN_SET_CHANNEL 0x00100000
-#define WIFI_EN_SET_PROMISCUOUS_MODE 0x00200000
-#define WIFI_EN_PROMISCUOUS_RX_CALLBACK 0x00400000
-#define WIFI_EN_START_ESP_NOW 0x00800000
-#define WIFI_EN_ESP_NOW_ONLINE 0x01000000
+#define WIFI_EN_SET_CHANNEL (1 << 20)
+#define WIFI_EN_SET_PROMISCUOUS_MODE (1 << 21)
+#define WIFI_EN_PROMISCUOUS_RX_CALLBACK (1 << 22)
+#define WIFI_EN_START_ESP_NOW (1 << 23)
+#define WIFI_EN_ESP_NOW_ONLINE (1 << 24)
 
 // WIFI_MAX_START must be the last value in the define list
-#define WIFI_MAX_START 0x02000000
+#define WIFI_MAX_START (1 << 25)
 
 const char *const wifiStartNames[] = {
     "WIFI_AP_SET_MODE",
@@ -370,7 +365,7 @@ static struct Settings *wifiPreviousSettings;
 // Set WiFi credentials
 // Enable TCP connections
 
-#ifdef  COMPILE_MENU_WIFI
+#ifdef COMPILE_MENU_WIFI
 
 void menuWiFi()
 {
@@ -448,7 +443,7 @@ void menuWiFi()
     clearBuffer(); // Empty buffer of any newline chars
 }
 
-#endif  // COMPILE_MENU_WIFI
+#endif // COMPILE_MENU_WIFI
 
 //----------------------------------------
 // Check the settings and free the settings structure
@@ -953,69 +948,69 @@ void wifiStationUpdate()
     static uint32_t timer;
     int users;
 
-/*
-        WiFi Station States:
+    /*
+            WiFi Station States:
 
-                     WIFI_STATION_STATE_OFF <--------------+<---.
-                               |                           ^    |
-                               | enabled                   |    |
-                               |                           |    |
-                               V                  !enabled |    |
-           .--> WIFI_STATION_STATE_RESTART_DELAY ----------'    |
-           |                   |                                |
-           |                   | Timeout                        |
-           |                   | Complete                       |
-           |                   V                  !enabled      |
-           |      WIFI_STATION_STATE_STARTING -------------.    |
-           |                   |                           |    |
-           |                   | WiFi connected            |    |
-           |                   V                  !enabled |    |
-           |       WIFI_STATION_STATE_ONLINE ------------->+    |
-           |                   |                           ^    |
-           |                   | Long delay                |    |
-           |                   V                           |    |
-           |       WIFI_STATION_STATE_STABLE               |    |
-           |                   |                           |    |
-           |                   | !enabled                  |    |
-           |                   V                           |    |
-           | Display           +<--------------------------'    |
-           | delay             |                                |
-           |                   V                                |
-           |    WIFI_STATION_STATE_WAIT_NO_USERS                |
-           |                   |                                |
-           |                   | No Users                       |
-           |      enabled      V                 !enabled       |
-           '-------------------+--------------------------------'
+                         WIFI_STATION_STATE_OFF <--------------+<---.
+                                   |                           ^    |
+                                   | enabled                   |    |
+                                   |                           |    |
+                                   V                  !enabled |    |
+               .--> WIFI_STATION_STATE_RESTART_DELAY ----------'    |
+               |                   |                                |
+               |                   | Timeout                        |
+               |                   | Complete                       |
+               |                   V                  !enabled      |
+               |      WIFI_STATION_STATE_STARTING -------------.    |
+               |                   |                           |    |
+               |                   | WiFi connected            |    |
+               |                   V                  !enabled |    |
+               |       WIFI_STATION_STATE_ONLINE ------------->+    |
+               |                   |                           ^    |
+               |                   | Long delay                |    |
+               |                   V                           |    |
+               |       WIFI_STATION_STATE_STABLE               |    |
+               |                   |                           |    |
+               |                   | !enabled                  |    |
+               |                   V                           |    |
+               | Display           +<--------------------------'    |
+               | delay             |                                |
+               |                   V                                |
+               |    WIFI_STATION_STATE_WAIT_NO_USERS                |
+               |                   |                                |
+               |                   | No Users                       |
+               |      enabled      V                 !enabled       |
+               '-------------------+--------------------------------'
 
-    Network Loss Handling:
+        Network Loss Handling:
 
-                 ARDUINO_EVENT_WIFI_STA_LOST_IP
-                               |
-                               |
-                               V
-                networkInterfaceEventInternetLost
-                               |
-                               | Set internet lost event flag
-                               V
-                         networkUpdate
-                               |
-                               | Clear internet lost event flag
-                               V
-                               +<------- Fake connection loss
-                               |
-                               V
-              networkInterfaceInternetConnectionLost
-                               |
-                               | Notify Interface of connection loss
-                               V
-              .----------------+----------------.
-              |                                 |
-              |                                 |
-              V                                 V
-    networkInterfaceRunning          Interface stop sequence
-     in wifiStationEnabled
+                     ARDUINO_EVENT_WIFI_STA_LOST_IP
+                                   |
+                                   |
+                                   V
+                    networkInterfaceEventInternetLost
+                                   |
+                                   | Set internet lost event flag
+                                   V
+                             networkUpdate
+                                   |
+                                   | Clear internet lost event flag
+                                   V
+                                   +<------- Fake connection loss
+                                   |
+                                   V
+                  networkInterfaceInternetConnectionLost
+                                   |
+                                   | Notify Interface of connection loss
+                                   V
+                  .----------------+----------------.
+                  |                                 |
+                  |                                 |
+                  V                                 V
+        networkInterfaceRunning          Interface stop sequence
+         in wifiStationEnabled
 
-*/
+    */
 
     // Determine if WiFi station should start or stop
     enabled = wifiStationEnabled(&reason);
@@ -1050,6 +1045,14 @@ void wifiStationUpdate()
     // down WiFi station
     case WIFI_STATION_STATE_WAIT_NO_USERS:
         users = networkUserCount(NETWORK_WIFI_STATION);
+
+        // When Web Config is running, if STA needs to restart because the settings have been changed by the user,
+        // the user WEB_CONFIG will erroneously be seen as a network user. Proceed with STA restart.
+        if(wifiSoftApRunning == true && users == 1)
+        {
+            users = 0;
+        }
+
         if (users)
         {
             static uint32_t lastMsec;
@@ -1235,6 +1238,21 @@ void wifiStationUpdate()
             wifiStationSetState(WIFI_STATION_STATE_WAIT_NO_USERS); // Force reset of state machine
         }
 
+        if (settings.wifiConfigOverAP == true)
+        {
+            // If WiFi Station is in a run state, but the webserver is running in AP mode then AP shows as 1 consumer
+            // If additional consumers are detected (ie, OTA) then restart the state machine so that we can start in STA
+            // mode
+            if (webServerIsRunning() == true && networkConsumerCount(NETWORK_WIFI_STATION) > 1)
+            {
+                if (settings.debugWifiState || settings.debugNetworkLayer)
+                    systemPrintf("WiFi: Resetting WiFi state machine due to Web Config AP mode with >1 consumers\r\n");
+
+                timer = millis();
+                wifiStationSetState(WIFI_STATION_STATE_WAIT_NO_USERS); // Force reset of state machine
+            }
+        }
+
         break;
     }
 
@@ -1298,7 +1316,7 @@ void wifiUpdateSettings()
         (networkInterfaceHasInternet(NETWORK_WIFI_STATION) == false))
     {
         if (settings.debugWifiState)
-            systemPrintln("Restarting WiFi because settings have changed");
+            systemPrintln("Restarting WiFi because there are consumers and settings have changed");
         wifiStationRestart = ssidSet;
     }
 
@@ -1347,10 +1365,11 @@ void wifiVerifyTables()
 // For AP on RTK Firmware, we set the Gateway to 192.168.4.1, not 0.0.0.0. Let's do the same here.
 RTK_WIFI::RTK_WIFI(bool verbose)
     : _apChannel{0}, _apCount{0}, _apDnsAddress{IPAddress((uint32_t)0)}, _apFirstDhcpAddress{IPAddress("192.168.4.32")},
-      _apGatewayAddress{IPAddress("192.168.4.1")}, _apIpAddress{IPAddress("192.168.4.1")}, _apMacAddress{0, 0, 0, 0, 0, 0},
-      _apSubnetMask{IPAddress("255.255.255.0")}, _espNowChannel{0}, _scanRunning{false},
-      _staIpAddress{IPAddress((uint32_t)0)}, _staIpType{0}, _staMacAddress{0, 0, 0, 0, 0, 0}, _staRemoteApSsid{nullptr},
-      _staRemoteApPassword{nullptr}, _started{false}, _stationChannel{0}, _usingDefaultChannel{true}, _verbose{verbose}
+      _apGatewayAddress{IPAddress("192.168.4.1")}, _apIpAddress{IPAddress("192.168.4.1")},
+      _apMacAddress{0, 0, 0, 0, 0, 0}, _apSubnetMask{IPAddress("255.255.255.0")}, _espNowChannel{0},
+      _scanRunning{false}, _staIpAddress{IPAddress((uint32_t)0)}, _staIpType{0}, _staMacAddress{0, 0, 0, 0, 0, 0},
+      _staRemoteApSsid{nullptr}, _staRemoteApPassword{nullptr}, _started{false}, _stationChannel{0},
+      _usingDefaultChannel{true}, _verbose{verbose}
 {
     wifiChannel = 0;
     wifiEspNowOnline = false;
@@ -1429,7 +1448,7 @@ void RTK_WIFI::displayComponents(const char *text, WIFI_ACTION_t components)
 // Inputs:
 //   enableESPNow: Enable ESP-NOW mode
 //   enableSoftAP: Enable soft AP mode
-//   enableStataion: Enable station mode
+//   enableStation: Enable station mode
 //   fileName: Name of file calling the enable routine
 //   lineNumber: Line number in the file calling the enable routine
 // Outputs:
@@ -1936,7 +1955,7 @@ bool RTK_WIFI::softApSetHostName(const char *hostName)
 
         // Set the host name
         if (settings.debugWifiState)
-            systemPrintf("WiFI setting AP host name\r\n");
+            systemPrintf("WiFi setting AP host name\r\n");
         nameSet = WiFi.AP.setHostname(hostName);
         if (!nameSet)
         {
@@ -2130,7 +2149,7 @@ bool RTK_WIFI::stationDisconnect()
 
         // Disconnect from the remote AP
         if (settings.debugWifiState)
-            systemPrintf("WiFI disconnecting station from remote AP\r\n");
+            systemPrintf("WiFi disconnecting station from remote AP\r\n");
         disconnected = WiFi.STA.disconnect();
         if (!disconnected)
         {
@@ -2283,7 +2302,7 @@ bool RTK_WIFI::stationHostName(const char *hostName)
 
         // Set the host name
         if (settings.debugWifiState)
-            systemPrintf("WiFI setting station host name\r\n");
+            systemPrintf("WiFi setting station host name\r\n");
         nameSet = WiFi.STA.setHostname(hostName);
         if (!nameSet)
         {
@@ -2338,9 +2357,9 @@ int16_t RTK_WIFI::stationScanForAPs(WIFI_CHANNEL_t channel)
         if (settings.debugWifiState)
         {
             if (channel)
-                systemPrintf("WiFI starting scan for remote APs on channel %d\r\n", channel);
+                systemPrintf("WiFi starting scan for remote APs on channel %d\r\n", channel);
             else
-                systemPrintf("WiFI starting scan for remote APs\r\n");
+                systemPrintf("WiFi starting scan for remote APs\r\n");
         }
 
         // Start the WiFi scan
@@ -2458,7 +2477,7 @@ const char *RTK_WIFI::stationSsid()
 // Stop and start WiFi components
 // Inputs:
 //   stopping: WiFi components that need to be stopped
-//   starting: WiFi components that neet to be started
+//   starting: WiFi components that need to be started
 // Outputs:
 //   Returns true if the modes were successfully configured
 bool RTK_WIFI::stopStart(WIFI_ACTION_t stopping, WIFI_ACTION_t starting)

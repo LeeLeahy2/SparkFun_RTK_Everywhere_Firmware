@@ -43,7 +43,7 @@ bool newOTAFirmwareAvailable = false;
 // Menu
 //----------------------------------------
 
-#ifdef  COMPILE_MENU_FIRMWARE
+#ifdef COMPILE_MENU_FIRMWARE
 
 //----------------------------------------
 // Update firmware if bin files found
@@ -93,7 +93,7 @@ void firmwareMenu()
     clearBuffer(); // Empty buffer of any newline chars
 }
 
-#endif  // COMPILE_MENU_FIRMWARE
+#endif // COMPILE_MENU_FIRMWARE
 
 //----------------------------------------
 // Version number comes in as v2.7-Jan 5 2023
@@ -965,7 +965,7 @@ void otaUpdate()
                     // state machine
                     otaSetState(OTA_STATE_UPDATE_FIRMWARE);
                 }
-                else
+                else // Current firmware is up to date
                 {
                     systemPrintln("Version Check: Firmware is up to date. No new firmware available.");
                     if (webServerIsConnected())
