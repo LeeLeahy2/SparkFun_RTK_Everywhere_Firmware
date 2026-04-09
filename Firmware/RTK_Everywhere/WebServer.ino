@@ -429,7 +429,8 @@ void webServerCreateFirmwareVersionString(char *firmwareString)
     firmwareVersionGet(currentVersion, sizeof(currentVersion), enableRCFirmware);
 
     // Compare the unit's version against the reported version from OTA
-    if (firmwareVersionIsReportedNewer(otaReportedVersion, &currentVersion[1]) == true)
+    // Allow updates if locally compiled developer version is detected
+    if ((firmwareVersionIsReportedNewer(otaReportedVersion, &currentVersion[1]) == true) || ((currentVersion[1] == '9') && (currentVersion[2] == '9')))
     {
         if (settings.debugWebServer == true)
             systemPrintln("WebServer: New firmware version detected");
@@ -438,7 +439,7 @@ void webServerCreateFirmwareVersionString(char *firmwareString)
     else
     {
         if (settings.debugWebServer == true)
-            systemPrintln("No new firmware available");
+            systemPrintln("WebServer: No new firmware available");
         snprintf(newVersionCSV, sizeof(newVersionCSV), "CURRENT,");
     }
 
@@ -2658,8 +2659,10 @@ void webServerStart()
                 networkConsumerAdd(NETCONSUMER_WEB_CONFIG, NETWORK_ANY, __FILE__, __LINE__);
                 break;
             }
+
             if ((settings.wifiConfigOverAP == false) || networkInterfaceHasInternet(NETWORK_WIFI_STATION))
                 networkConsumerAdd(NETCONSUMER_WEB_CONFIG, NETWORK_ANY, __FILE__, __LINE__);
+
             if (settings.wifiConfigOverAP)
                 networkSoftApConsumerAdd(NETCONSUMER_WEB_CONFIG, __FILE__, __LINE__);
         } while (0);
