@@ -429,7 +429,7 @@ void webServerCreateFirmwareVersionString(char *firmwareString)
     firmwareVersionGet(currentVersion, sizeof(currentVersion), enableRCFirmware);
 
     // Compare the unit's version against the reported version from OTA
-    if (firmwareVersionIsReportedNewer(otaReportedVersion, currentVersion) == true)
+    if (firmwareVersionIsReportedNewer(otaReportedVersion, &currentVersion[1]) == true)
     {
         if (settings.debugWebServer == true)
             systemPrintln("WebServer: New firmware version detected");
