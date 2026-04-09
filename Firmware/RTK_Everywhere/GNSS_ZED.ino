@@ -3174,7 +3174,6 @@ bool zedCreateString(RTK_Settings_Types type, int settingsIndex, char *newSettin
             snprintf(tempString, sizeof(tempString), "%s%s,%d,", rtkSettingsEntries[settingsIndex].name,
                      ubxMessages[x].msgTextName, settings.ubxMessageRates[x]);
             stringRecord(newSettings, tempString);
-            Serial.printf("Adding to settings string: %s", tempString);
         }
     }
     break;
