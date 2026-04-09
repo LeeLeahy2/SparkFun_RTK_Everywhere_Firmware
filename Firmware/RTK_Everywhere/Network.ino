@@ -510,6 +510,15 @@ void networkConsumerAdd(NETCONSUMER_t consumer, NetIndex_t network, const char *
             if (settings.debugNetworkLayer)
                 networkDisplayStatus();
         }
+
+        // When Web Config is started, all consumers are stopped marking the networkPriority as offline. 
+        // If the ethernet interface is running, mark the network priority so that consumers within Web Config will use it
+        if(networkPriority == NETWORK_OFFLINE && ethernetLinkUp() == true)
+        {
+            if(settings.debugNetworkLayer)
+                systemPrintf("Network: Ethernet interface running, setting Ethernet as highest network priority\r\n");
+            networkPriority = 0;
+        }        
     }
     else
     {
