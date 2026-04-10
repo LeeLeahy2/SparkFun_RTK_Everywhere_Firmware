@@ -2642,9 +2642,9 @@ void GNSS_ZED::storeMONCOMMSdataRadio(UBX_MON_COMMS_data_t *ubxDataStruct)
         // Check for the appropriate ID based on variant
 
         uint16_t portId = COM_PORT_ID_UART2; // For the EVK
-        if (productVariant == RTK_FACET_FP)
+        if (present.gnss_zedx20p)
             portId = 0x200; // For the Facet FP
-            
+
         if (ubxDataStruct->port[port].portId == portId) // If this is the port we are looking for
         {
             uint32_t rxBytes = ubxDataStruct->port[port].rxBytes;
@@ -3252,7 +3252,8 @@ bool zedGetSettingValue(RTK_Settings_Types type, const char *suffix, int setting
 //----------------------------------------
 // Called by gnssNewSettingValue to save a ZED specific setting
 //----------------------------------------
-bool zedNewSettingValue(struct Settings * tempSettings, RTK_Settings_Types type, const char *suffix, int qualifier, double d)
+bool zedNewSettingValue(struct Settings *tempSettings, RTK_Settings_Types type, const char *suffix, int qualifier,
+                        double d)
 {
     switch (type)
     {
