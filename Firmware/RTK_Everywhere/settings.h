@@ -542,12 +542,14 @@ typedef enum
 typedef enum
 {
     PRINT_ENDPOINT_SERIAL = 0,
+    PRINT_ENDPOINT_TCP_SERVER,
     PRINT_ENDPOINT_BLUETOOTH,
     PRINT_ENDPOINT_BLUETOOTH_COMMAND,
     PRINT_ENDPOINT_ALL,
     PRINT_ENDPOINT_COUNT_COMMANDS,
 } PrintEndpoint;
-PrintEndpoint printEndpoint = PRINT_ENDPOINT_SERIAL; // Controls where the configuration menu gets piped to
+PrintEndpoint printEndpoint = PRINT_ENDPOINT_SERIAL; // Controls where the configuration menu data gets printed to
+PrintEndpoint readEndpoint = PRINT_ENDPOINT_SERIAL; // Controls where data for the configuration menu is read from
 
 typedef enum
 {
