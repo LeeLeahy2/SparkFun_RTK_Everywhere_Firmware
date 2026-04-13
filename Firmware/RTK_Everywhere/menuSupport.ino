@@ -1005,7 +1005,7 @@ void terminalUpdate()
             else
             {
                 // When outputting GNSS data to USB serial, check for +++
-                if (!forwardGnssDataToUsbSerial)
+                if (forwardGnssDataToUsbSerial == false)
                     menuMain(); // Present user menu
                 else
                 {

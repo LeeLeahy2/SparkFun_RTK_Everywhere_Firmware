@@ -101,13 +101,12 @@ const char *const tcpServerClientStateName[] = {
 const int tcpServerClientStateNameEntries = sizeof(tcpServerClientStateName) / sizeof(tcpServerClientStateName[0]);
 
 const RtkMode_t baseCasterMode = RTK_MODE_BASE_FIXED;
-const RtkMode_t tcpServerMode = RTK_MODE_ROVER
-                              | RTK_MODE_BASE_SURVEY_IN;
+const RtkMode_t tcpServerMode = RTK_MODE_ROVER | RTK_MODE_BASE_SURVEY_IN;
 
 const char *const tcpServerModeNames[] = {
     "TCP Server (Uninitialized)",
-    "TCP Server", // TCP server running in Rover mode (non-Caster Mode)
-    "Base Caster", // Base caster using soft AP WiFi
+    "TCP Server",   // TCP server running in Rover mode (non-Caster Mode)
+    "Base Caster",  // Base caster using soft AP WiFi
     "NTRIP Caster", // Base Caster using WiFi STN
 };
 
@@ -133,7 +132,7 @@ static uint16_t tcpServerPort;
 static uint8_t tcpServerState;
 static uint32_t tcpServerTimer;
 static bool tcpServerWiFiSoftAp;
-static const char * tcpServerName = tcpServerModeNames[TCP_SERVER_MODE_UNINITIALIZED];
+static const char *tcpServerName = tcpServerModeNames[TCP_SERVER_MODE_UNINITIALIZED];
 
 // TCP server clients
 static volatile uint8_t tcpServerClientConnected;
@@ -145,6 +144,10 @@ static NetworkClient *tcpServerClient[TCP_SERVER_MAX_CLIENTS];
 static IPAddress tcpServerClientIpAddress[TCP_SERVER_MAX_CLIENTS];
 static uint8_t tcpServerClientState[TCP_SERVER_MAX_CLIENTS];
 static volatile RING_BUFFER_OFFSET tcpServerClientTails[TCP_SERVER_MAX_CLIENTS];
+
+#define TCP_SERVER_NO_CONFIG_CLIENT 255
+uint8_t tcpServerRemoteClientIndex =
+    TCP_SERVER_NO_CONFIG_CLIENT; // Set to the index of the TCP client when in the serial config menu system.
 
 //----------------------------------------
 // TCP Server handleGnssDataTask Support Routines
@@ -194,8 +197,7 @@ int32_t tcpServerClientSendData(int index, uint8_t *data, uint16_t length)
                 tcpServerClientTimer[index] = millis();
             }
             if ((settings.debugTcpServer || PERIODIC_DISPLAY(PD_TCP_SERVER_CLIENT_DATA)) && (!inMainMenu))
-                systemPrintf("%s wrote %d bytes to %s\r\n",
-                             tcpServerName, length,
+                systemPrintf("%s wrote %d bytes to %s\r\n", tcpServerName, length,
                              tcpServerClientIpAddress[index].toString().c_str());
         }
 
@@ -213,11 +215,11 @@ int32_t tcpServerClientSendData(int index, uint8_t *data, uint16_t length)
 //----------------------------------------
 // Determine if the TCP server may be enabled
 //----------------------------------------
-bool tcpServerEnabled(const char ** line)
+bool tcpServerEnabled(const char **line)
 {
     bool casterMode;
     bool enabled;
-    const char * name = tcpServerModeNames[TCP_SERVER_MODE_UNINITIALIZED];
+    const char *name = tcpServerModeNames[TCP_SERVER_MODE_UNINITIALIZED];
     uint16_t port;
     bool softAP;
 
@@ -225,9 +227,7 @@ bool tcpServerEnabled(const char ** line)
     {
         // Determine if the server is enabled
         enabled = false;
-        if ((settings.enableTcpServer
-            || settings.enableNtripCaster
-            || settings.baseCasterOverride) == false)
+        if ((settings.enableTcpServer || settings.enableNtripCaster || settings.baseCasterOverride) == false)
         {
             if (line)
                 *line = ", Not enabled!";
@@ -245,8 +245,7 @@ bool tcpServerEnabled(const char ** line)
         }
 
         // Determine if the base caster should be running
-        else if (EQ_RTK_MODE(baseCasterMode)
-            && (settings.enableNtripCaster || settings.baseCasterOverride))
+        else if (EQ_RTK_MODE(baseCasterMode) && (settings.enableNtripCaster || settings.baseCasterOverride))
         {
             // TCP server running in caster mode
             casterMode = true;
@@ -287,10 +286,8 @@ bool tcpServerEnabled(const char ** line)
         }
 
         // Shutdown and restart the TCP server when configuration changes
-        else if ((name != tcpServerName)
-            || (casterMode != tcpServerInCasterMode)
-            || (port != tcpServerPort)
-            || (softAP != tcpServerWiFiSoftAp))
+        else if ((name != tcpServerName) || (casterMode != tcpServerInCasterMode) || (port != tcpServerPort) ||
+                 (softAP != tcpServerWiFiSoftAp))
         {
             if (line)
                 *line = ", Wrong state to switch configuration!";
@@ -376,30 +373,48 @@ void tcpServerClientUpdate(uint8_t index)
     char response[512];
     int spot;
 
+    static unsigned long tcpLastByteReceived = 0; // Track when the last TCP byte was received.
+    static uint8_t tcpEscapeCharsReceived = 0;    // Used to enter remote command mode
+    const long tcpMinEscapeTime = 2000; // TCPserial traffic must stop this amount before an escape char is recognized
+    const uint8_t tcpEscapeCharacter = '+';
+    const uint8_t tcpMaxEscapeCharacters = 3; // Number of escape characters in a row to enter remote command mode
+
     // Determine if the client data structure is in use
-    while (tcpServerClientConnected & (1 << index))
+    if (tcpServerClientConnected & (1 << index))
     {
         // The client data structure is in use
         // Check for a working TCP server client connection
         clientConnected = tcpServerClient[index]->connected();
-        dataSent = ((millis() - tcpServerClientTimer[index]) < TCP_SERVER_CLIENT_DATA_TIMEOUT)
-            || (tcpServerClientDataSent & (1 << index));
+        dataSent = ((millis() - tcpServerClientTimer[index]) < TCP_SERVER_CLIENT_DATA_TIMEOUT) ||
+                   (tcpServerClientDataSent & (1 << index));
+
+        // Increase the dataSent timeout if there is a remote connection and in the menu system
+        if (tcpServerInRemoteConfig() && inMainMenu)
+        {
+            dataSent =
+                ((millis() - tcpServerClientTimer[index]) < menuTimeout) || (tcpServerClientDataSent & (1 << index));
+        }
+
         if ((clientConnected && dataSent) == false)
         {
             // Broken connection, shutdown the TCP server client link
             tcpServerStopClient(index);
-            break;
+            return;
         }
 
         // Periodically display this client connection
         if (PERIODIC_DISPLAY(PD_TCP_SERVER_DATA) && (!inMainMenu))
-            systemPrintf("%s client %d connected to %s\r\n",
-                         tcpServerName, index,
+            systemPrintf("%s client %d connected to %s\r\n", tcpServerName, index,
                          tcpServerClientIpAddress[index].toString().c_str());
 
         // Process the client state
         switch (tcpServerClientState[index])
         {
+        default:
+            systemPrintf("Unknown %s client state: %d\r\n", tcpServerName, tcpServerClientState[index]);
+            delay(250);
+            break;
+
         // Wait until the request is received from the NTRIP client
         case TCP_SERVER_CLIENT_WAIT_REQUEST:
             if (tcpServerClient[index]->available())
@@ -417,6 +432,7 @@ void tcpServerClientUpdate(uint8_t index)
             spot = 0;
             while (tcpServerClient[index]->available())
             {
+                Serial.println("Reading at request");
                 response[spot++] = tcpServerClient[index]->read();
                 if (spot == sizeof(response))
                     spot = 0; // Wrap
@@ -469,26 +485,68 @@ void tcpServerClientUpdate(uint8_t index)
             }
             break;
 
-        case TCP_SERVER_CLIENT_SENDING_DATA:
-            break;
+        case TCP_SERVER_CLIENT_SENDING_DATA: {
+            // Outgoing data is sent to connected clients from within the handleGnssDataTask.
+            // Here we monitor for incoming data: '+++' triggers remote entry into the menu system.
+
+            // tcpServerRemoteClientIndex is set to the index of the TCP client. Once one client is in echo mode, all
+            // other clients are blocked from entering.
+            if (tcpServerRemoteClientIndex == TCP_SERVER_NO_CONFIG_CLIENT && (tcpServerClient[index]->available() > 0))
+            {
+                // Check stream for command characters
+                byte incoming = tcpServerClient[index]->read();
+
+                if (incoming == tcpEscapeCharacter)
+                {
+                    // Ignore escape characters received within 2 seconds of serial traffic
+                    // Allow escape characters received within the first 2 seconds of power on
+                    if (((millis() - tcpLastByteReceived) > tcpMinEscapeTime) || (millis() < tcpMinEscapeTime))
+                    {
+                        tcpEscapeCharsReceived++;
+                        if (tcpEscapeCharsReceived == tcpMaxEscapeCharacters)
+                        {
+                            printEndpoint = PRINT_ENDPOINT_ALL;
+                            readEndpoint = PRINT_ENDPOINT_TCP_SERVER;
+                            systemPrintln("Echoing all serial to TCP device");
+                            tcpServerRemoteClientIndex = index; // Mark this client as in TCP serial echo mode
+
+                            tcpLastByteReceived = millis();
+                            tcpEscapeCharsReceived = 0; // Update timeout check for escape char and partial frame
+                        }
+                    }
+                    else
+                    {
+                        // This escape character was received outside of the timeout
+                        tcpLastByteReceived = millis();
+                        tcpEscapeCharsReceived = 0; // Update timeout check for escape char and partial frame
+                    }
+                }
+                else // This character is not a command character
+                {
+                    tcpLastByteReceived = millis();
+                    tcpEscapeCharsReceived = 0; // Update timeout check for escape char and partial frame
+                } // End just a character in the stream
+
+            } // End tcpServerRemoteClientIndex == TCP_SERVER_NO_CONFIG_CLIENT && tcpServerClient[index]->available()
         }
         break;
-    }
+        } // End switch on client state
+    } // End if(tcpServerClientConnected & (1 << index))
 
     // Determine if the client data structure is not in use
-    while ((tcpServerClientConnected & (1 << index)) == 0)
+    if ((tcpServerClientConnected & (1 << index)) == 0)
     {
         // Data structure not in use
-        if(tcpServerClient[index] == nullptr)
+        if (tcpServerClient[index] == nullptr)
         {
             tcpServerClient[index] = new NetworkClient;
 
             // Check for allocation failure
-            if(tcpServerClient[index] == nullptr)
+            if (tcpServerClient[index] == nullptr)
             {
                 if (settings.debugTcpServer)
                     systemPrintf("ERROR: Failed to allocate %s client!\r\n", tcpServerName);
-                break;
+                return;
             }
         }
 
@@ -497,15 +555,14 @@ void tcpServerClientUpdate(uint8_t index)
 
         // Exit if no TCP server client found
         if (!*tcpServerClient[index])
-            break;
+            return;
 
         // Get the remote IP address
         tcpServerClientIpAddress[index] = tcpServerClient[index]->remoteIP();
 
         // Display the connection
-        if ((settings.debugTcpServer || PERIODIC_DISPLAY(PD_TCP_SERVER_DATA)) && (!inMainMenu))
-            systemPrintf("%s client %d connected to %s\r\n",
-                         tcpServerName, index,
+        if (!inMainMenu)
+            systemPrintf("%s client %d connected to %s\r\n", tcpServerName, index,
                          tcpServerClientIpAddress[index].toString().c_str());
 
         // Mark this client as connected
@@ -524,7 +581,6 @@ void tcpServerClientUpdate(uint8_t index)
             tcpServerClientSendingData = tcpServerClientSendingData | (1 << index);
             tcpServerClientState[index] = TCP_SERVER_CLIENT_SENDING_DATA;
         }
-        break;
     }
 }
 
@@ -572,8 +628,7 @@ bool tcpServerStart()
     online.tcpServer = true;
 
     localIp = networkGetIpAddress();
-    systemPrintf("%s online, IP address %s:%d\r\n", tcpServerName,
-                     localIp.toString().c_str(), tcpServerPort);
+    systemPrintf("%s online, IP address %s:%d\r\n", tcpServerName, localIp.toString().c_str(), tcpServerPort);
     return true;
 }
 
@@ -588,8 +643,7 @@ void tcpServerStop()
     if (online.tcpServer)
     {
         if (settings.debugTcpServer && (!inMainMenu))
-            systemPrintf("%s: Notifying GNSS UART task to stop sending data\r\n",
-                         tcpServerName);
+            systemPrintf("%s: Notifying GNSS UART task to stop sending data\r\n", tcpServerName);
 
         // Notify the GNSS UART tasks of the TCP server shutdown
         online.tcpServer = false;
@@ -628,6 +682,8 @@ void tcpServerStop()
         tcpServerSetState(TCP_SERVER_STATE_OFF);
         tcpServerTimer = millis();
     }
+
+    tcpServerDisableEndpoint(); // Remove the TCP Server print endpoint
 }
 
 //----------------------------------------
@@ -648,20 +704,19 @@ void tcpServerStopClient(int index)
         if ((settings.debugTcpServer || PERIODIC_DISPLAY(PD_TCP_SERVER_DATA)) && (!inMainMenu))
         {
             // Determine the shutdown reason
-            connected = tcpServerClient[index]->connected()
-                      && (!(tcpServerClientWriteError & (1 << index)));
-            dataSent = ((millis() - tcpServerClientTimer[index]) < TCP_SERVER_CLIENT_DATA_TIMEOUT)
-                     || (tcpServerClientDataSent & (1 << index));
+            connected = tcpServerClient[index]->connected() && (!(tcpServerClientWriteError & (1 << index)));
+            dataSent = ((millis() - tcpServerClientTimer[index]) < TCP_SERVER_CLIENT_DATA_TIMEOUT) ||
+                       (tcpServerClientDataSent & (1 << index));
             if (!dataSent)
-                systemPrintf("%s: No data sent over %d seconds\r\n",
-                             tcpServerName,
+                systemPrintf("%s: No data sent over %d seconds\r\n", tcpServerName,
                              TCP_SERVER_CLIENT_DATA_TIMEOUT / 1000);
             if (!connected)
                 systemPrintf("%s: Link to client broken\r\n", tcpServerName);
-            systemPrintf("%s client %d disconnected from %s\r\n",
-                         tcpServerName, index,
-                         tcpServerClientIpAddress[index].toString().c_str());
         }
+
+        if (!inMainMenu)
+            systemPrintf("%s client %d disconnected from %s\r\n", tcpServerName, index,
+                         tcpServerClientIpAddress[index].toString().c_str());
 
         // Shutdown the TCP server client link
         tcpServerClient[index]->stop();
@@ -670,6 +725,10 @@ void tcpServerStopClient(int index)
     }
     tcpServerClientConnected = tcpServerClientConnected & (~(1 << index));
     tcpServerClientWriteError = tcpServerClientWriteError & (~(1 << index));
+
+    printEndpoint = PRINT_ENDPOINT_SERIAL;
+    readEndpoint = PRINT_ENDPOINT_SERIAL;
+    tcpServerRemoteClientIndex = TCP_SERVER_NO_CONFIG_CLIENT; // Mark all clients as not in TCP serial echo mode
 }
 
 //----------------------------------------
@@ -681,12 +740,11 @@ void tcpServerUpdate()
     bool enabled;
     int index;
     IPAddress ipAddress;
-    const char * line = "";
+    const char *line = "";
 
     // Shutdown the TCP server when the mode or setting changes
     DMW_st(tcpServerSetState, tcpServerState);
-    connected = networkConsumerIsConnected(NETCONSUMER_TCP_SERVER)
-              || (tcpServerWiFiSoftAp && wifiSoftApOnline);
+    connected = networkConsumerIsConnected(NETCONSUMER_TCP_SERVER) || (tcpServerWiFiSoftAp && wifiSoftApOnline);
     enabled = tcpServerEnabled(&line);
     if ((tcpServerState > TCP_SERVER_STATE_OFF) && !enabled)
         tcpServerStop();
@@ -788,8 +846,7 @@ void tcpServerUpdate()
     // Periodically display the TCP state
     if (PERIODIC_DISPLAY(PD_TCP_SERVER_STATE) && (!inMainMenu))
     {
-        systemPrintf("%s state: %s%s\r\n", tcpServerName,
-                     tcpServerStateName[tcpServerState], line);
+        systemPrintf("%s state: %s%s\r\n", tcpServerName, tcpServerStateName[tcpServerState], line);
         PERIODIC_CLEAR(PD_TCP_SERVER_STATE);
     }
 }
@@ -828,6 +885,64 @@ void tcpServerZeroTail()
 
     for (index = 0; index < TCP_SERVER_MAX_CLIENTS; index++)
         tcpServerClientTails[index] = 0;
+}
+
+//----------------------------------------
+// Functions for the TCP server client in remote config mode
+//----------------------------------------
+
+// Return the available byte count from the active client that is in remote config mode
+uint8_t tcpServerDataAvailable()
+{
+    if (tcpServerInRemoteConfig() == false)
+        return 0; // No client in remote config mode
+
+    return (tcpServerClient[tcpServerRemoteClientIndex]->available());
+}
+
+// Read data from the TCP client that is in remote config mode
+uint8_t tcpServerRead()
+{
+    if (tcpServerInRemoteConfig() == false)
+        return 0; // No client in remote config mode
+
+    return (tcpServerClient[tcpServerRemoteClientIndex]->read());
+}
+
+// Write data to the TCP server client
+int tcpServerWrite(const uint8_t *buffer, int length)
+{
+    if (tcpServerInRemoteConfig() == false)
+        return 0; // No client in remote config mode
+
+    // Update the data sent flag and timer when data successfully sent
+    tcpServerClientDataSent = tcpServerClientDataSent | (1 << tcpServerRemoteClientIndex);
+    tcpServerClientTimer[tcpServerRemoteClientIndex] = millis();
+
+    return (tcpServerClient[tcpServerRemoteClientIndex]->write(buffer, length));
+}
+
+// Flush data to the TCP server client
+void tcpServerFlush()
+{
+    if (tcpServerInRemoteConfig() == false)
+        return; // No client in remote config mode
+
+    tcpServerClient[tcpServerRemoteClientIndex]->flush();
+}
+
+// Returns true if a remote client is in remote config mode
+bool tcpServerInRemoteConfig()
+{
+    if (tcpServerRemoteClientIndex == TCP_SERVER_NO_CONFIG_CLIENT)
+        return false; // No client in remote config mode
+    return true;
+}
+
+// Remove the TCP Server print endpoint
+void tcpServerDisableEndpoint()
+{
+    tcpServerRemoteClientIndex = TCP_SERVER_NO_CONFIG_CLIENT; // Mark all clients as not in TCP serial echo mode
 }
 
 #endif // COMPILE_TCP_SERVER
