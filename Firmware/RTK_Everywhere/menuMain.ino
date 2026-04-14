@@ -109,8 +109,8 @@ void menuMain()
 
         systemPrintln("u) Configure User Profiles");
 
-        if (btPrintEcho)
-            systemPrintln("b) Exit Bluetooth Echo mode");
+        if (btPrintEcho || tcpServerInRemoteConfig())
+            systemPrintln("b) Exit Remote Echo mode");
 
         systemPrintln("+) Enter Command line mode");
 
@@ -150,11 +150,13 @@ void menuMain()
             menuSystem();
         else if ((incoming == 't') && present.imu_im19)
             menuInstrument();
-        else if (incoming == 'b' && btPrintEcho == true)
+        else if ((incoming == 'b') && (btPrintEcho == true || tcpServerInRemoteConfig() == true))
         {
             printEndpoint = PRINT_ENDPOINT_SERIAL;
-            systemPrintln("BT device has exited echo mode");
+            readEndpoint = PRINT_ENDPOINT_SERIAL;
+            systemPrintln("Remote device has exited echo mode");
             btPrintEcho = false;
+            tcpServerDisableEndpoint();
             break; // Exit config menu
         }
         else if (incoming == '+')

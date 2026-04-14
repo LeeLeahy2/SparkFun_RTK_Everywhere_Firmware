@@ -1,13 +1,19 @@
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 Support.ino
 
-  Helper functions to support printing to eiter the serial port or bluetooth connection
+  Helper functions to support printing to either the serial port or bluetooth connection
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
-// If we are printing to all endpoints, BT gets priority
+// Return the number of bytes available to read from the selected input endpoint
 int systemAvailable()
 {
-    if (printEndpoint == PRINT_ENDPOINT_BLUETOOTH || printEndpoint == PRINT_ENDPOINT_ALL)
+    if (readEndpoint == PRINT_ENDPOINT_SERIAL)
+        return (Serial.available());
+
+    else if (readEndpoint == PRINT_ENDPOINT_TCP_SERVER)
+        return (tcpServerDataAvailable());
+
+    else if (readEndpoint == PRINT_ENDPOINT_BLUETOOTH)
         return (bluetoothRxDataAvailable());
 
     // If the CH34x is disconnected (we are listening to LoRa), avoid reading characters from UART0
@@ -15,42 +21,41 @@ int systemAvailable()
     else if (usbSerialIsSelected == false)
         return (0);
 
+    systemPrintf("Unhandled read endpoint: %d\r\n", readEndpoint);
     return (Serial.available());
 }
 
-// If we are reading from all endpoints, BT gets priority
 int systemRead()
 {
-    if (printEndpoint == PRINT_ENDPOINT_BLUETOOTH || printEndpoint == PRINT_ENDPOINT_ALL)
+    if (readEndpoint == PRINT_ENDPOINT_SERIAL)
+        return (Serial.read());
+    else if (readEndpoint == PRINT_ENDPOINT_TCP_SERVER)
+        return (tcpServerRead());
+    else if (readEndpoint == PRINT_ENDPOINT_BLUETOOTH)
         return (bluetoothRead());
+
+    systemPrintf("Unhandled read endpoint: %d\r\n", readEndpoint);
     return (Serial.read());
 }
 
-// Output a buffer of the specified length to the serial port
+// Output a buffer of the specified length to the specified endpoint
 void systemWrite(const uint8_t *buffer, uint16_t length)
 {
-    // Output data to all endpoints
-    if (printEndpoint == PRINT_ENDPOINT_ALL)
+    // Output to only USB serial
+    if (printEndpoint == PRINT_ENDPOINT_SERIAL)
     {
-        bluetoothWrite(buffer, length);
-
+        // Suppress output to USB serial if we are forwarding GNSS data to it
         if (forwardGnssDataToUsbSerial == false)
         {
             if (usbSerialIsSelected == true) // Only use UART0 if we have the mux on the ESP's UART pointed at the CH34x
                 Serial.write(buffer, length);
         }
-
-        bluetoothCommandWrite(buffer, length);
     }
 
-    // Output to only USB serial
-    else if (printEndpoint == PRINT_ENDPOINT_SERIAL)
+    // Output to only TCP server
+    else if (printEndpoint == PRINT_ENDPOINT_TCP_SERVER)
     {
-        if (forwardGnssDataToUsbSerial == false)
-        {
-            if (usbSerialIsSelected == true) // Only use UART0 if we have the mux on the ESP's UART pointed at the CH34x
-                Serial.write(buffer, length);
-        }
+        tcpServerWrite(buffer, length);
     }
 
     // Output to only Bluetooth
@@ -65,10 +70,30 @@ void systemWrite(const uint8_t *buffer, uint16_t length)
         bluetoothCommandWrite(buffer, length);
     }
 
+    // Output data to all endpoints
+    else if (printEndpoint == PRINT_ENDPOINT_ALL)
+    {
+        if (forwardGnssDataToUsbSerial == false)
+        {
+            if (usbSerialIsSelected == true) // Only use UART0 if we have the mux on the ESP's UART pointed at the CH34x
+                Serial.write(buffer, length);
+        }
+
+        bluetoothWrite(buffer, length);
+        bluetoothCommandWrite(buffer, length);
+        tcpServerWrite(buffer, length);
+    }
+
     // Count the number of commands, 1 systemPrint call per command
     else if (printEndpoint == PRINT_ENDPOINT_COUNT_COMMANDS)
     {
         systemWriteCounts++;
+    }
+
+    else
+    {
+        systemPrintf("Unhandled write endpoint: %d\r\n", printEndpoint);
+        Serial.write(buffer, length);
     }
 }
 
@@ -76,8 +101,11 @@ void systemWrite(const uint8_t *buffer, uint16_t length)
 size_t systemWriteGnssDataToUsbSerial(const uint8_t *buffer, uint16_t length)
 {
     // Determine if status and debug messages are being output to USB serial
-    if (!forwardGnssDataToUsbSerial)
+    if (forwardGnssDataToUsbSerial == false)
+    {
+        // Discard the data
         return length;
+    }
 
     // Output GNSS data to USB serial
     return Serial.write(buffer, length);
@@ -97,6 +125,9 @@ void systemFlush()
 
     // Flush active Bluetooth device, does nothing when Bluetooth is off
     bluetoothFlush();
+
+    // Flush active TCP client, does nothing when no client is connected
+    tcpServerFlush();
 }
 
 // Output a byte to the serial port
@@ -1228,18 +1259,15 @@ void assembleDeviceName()
     }
 
     // Set the display name for the OLED: "TX2", "FPLT", "Facet LB"
-    snprintf(displayName, sizeof(displayName), "%s%s%s",
-             productVariantProperties->displayName,
-             gnssModelIdentifier, tiltIdentifier);
+    snprintf(displayName, sizeof(displayName), "%s%s%s", productVariantProperties->displayName, gnssModelIdentifier,
+             tiltIdentifier);
 
     // Set the prefix for broadcast names: "TX2", "FPLT"
-    snprintf(platformPrefix, sizeof(platformPrefix), "%s%s%s",
-             productVariantProperties->name,
-             gnssModelIdentifier, tiltIdentifier);
+    snprintf(platformPrefix, sizeof(platformPrefix), "%s%s%s", productVariantProperties->name, gnssModelIdentifier,
+             tiltIdentifier);
 
     // Set the accessory name for MFi: "SparkPNT TX2", "SparkPNT FPLT"
-    snprintf(accessoryName, sizeof(accessoryName), "%s %s", brandAttributes->name,
-             platformPrefix);
+    snprintf(accessoryName, sizeof(accessoryName), "%s %s", brandAttributes->name, platformPrefix);
 
     // Set the device name for BT broadcast: "SparkPNT TX2-ABCD07"
     snprintf(deviceName, sizeof(deviceName), "%s-%s", accessoryName, serialNumber);
@@ -1247,15 +1275,16 @@ void assembleDeviceName()
     if (strlen(deviceName) > 28) // "SparkPNT Facet v2 LB-ABCD04" is 27 chars. We are just OK
     {
         // BLE will fail quietly if broadcast name is more than 28 characters
-        systemPrintf(
-            "ERROR! The Bluetooth device name \"%s\" is %d characters long. It will not work in BLE mode.\r\n",
-            deviceName, strlen(deviceName));
+        systemPrintf("ERROR! The Bluetooth device name \"%s\" is %d characters long. It will not work in BLE mode.\r\n",
+                     deviceName, strlen(deviceName));
         reportFatalError("Bluetooth device name is longer than 28 characters.");
     }
 }
 
-const productProperties * getProductPropertiesFromVariant(ProductVariant variant) {
-    for (int i = 0; i < productPropertiesEntries; i++) {
+const productProperties *getProductPropertiesFromVariant(ProductVariant variant)
+{
+    for (int i = 0; i < productPropertiesEntries; i++)
+    {
         if (productPropertiesTable[i].productVariant == variant)
             return &productPropertiesTable[i];
     }

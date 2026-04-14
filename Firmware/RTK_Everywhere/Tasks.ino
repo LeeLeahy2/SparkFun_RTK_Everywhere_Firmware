@@ -167,6 +167,7 @@ void btReadTask(void *e)
                         if (btEscapeCharsReceived == btMaxEscapeCharacters)
                         {
                             printEndpoint = PRINT_ENDPOINT_ALL;
+                            readEndpoint = PRINT_ENDPOINT_BLUETOOTH;
                             systemPrintln("Echoing all serial to BT device");
                             btPrintEcho = true;
 
@@ -1706,7 +1707,7 @@ void handleGnssDataTask(void *e)
             startMillis = millis();
 
             // Determine USB serial connection state
-            if (!forwardGnssDataToUsbSerial)
+            if (forwardGnssDataToUsbSerial == false)
                 // Discard the data
                 usbRingBufferTail = dataHead;
             else
@@ -1772,12 +1773,16 @@ void handleGnssDataTask(void *e)
 
             startMillis = millis();
 
-            // Update space available for use in UART task
-            bytesToSend = tcpServerSendData(dataHead);
-            if (usedSpace < bytesToSend)
+            // If a remote client is in config mode, suppress GNSS data flowing to the client
+            if (tcpServerInRemoteConfig() == false)
             {
-                usedSpace = bytesToSend;
-                slowConsumer = "TCP server";
+                // Update space available for use in UART task
+                bytesToSend = tcpServerSendData(dataHead);
+                if (usedSpace < bytesToSend)
+                {
+                    usedSpace = bytesToSend;
+                    slowConsumer = "TCP server";
+                }
             }
 
             // Remember the maximum transfer time
