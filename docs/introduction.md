@@ -101,7 +101,7 @@ The line of RTK Everywhere products offered by SparkFun all run identical firmwa
 
 	<center>
 
-	Hookup Guide *(Coming Soon)*
+	[Hookup Guide](https://docs.sparkpnt.com/TX2/){ .md-button .md-button--primary }
 	</center>
 
 </div>
