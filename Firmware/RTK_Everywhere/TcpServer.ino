@@ -392,7 +392,7 @@ void tcpServerClientUpdate(uint8_t index)
         if (tcpServerInRemoteConfig() && inMainMenu)
         {
             dataSent =
-                ((millis() - tcpServerClientTimer[index]) < menuTimeout) || (tcpServerClientDataSent & (1 << index));
+                ((millis() - tcpServerClientTimer[index]) < (menuTimeout * 1000)) || (tcpServerClientDataSent & (1 << index));
         }
 
         if ((clientConnected && dataSent) == false)
