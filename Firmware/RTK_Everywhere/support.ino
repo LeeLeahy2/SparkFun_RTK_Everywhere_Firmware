@@ -1317,3 +1317,18 @@ const productHousingProperties *getProductHousingPropertiesFromVariant(ProductVa
     }
     return getProductHousingPropertiesFromVariant(RTK_UNKNOWN);
 }
+
+// Used to report delay until next WiFi/NTRIP/etc connection attempt
+// Given a number of milliseconds, print the minutes and seconds
+const char *printMinuteSecondFromMilliseconds(uint32_t msToConvert)
+{
+    static char theTime[30];
+
+    uint32_t seconds = msToConvert / MILLISECONDS_IN_A_SECOND;
+    uint32_t minutes = seconds / SECONDS_IN_A_MINUTE;
+    seconds -= minutes * SECONDS_IN_A_MINUTE;
+
+    snprintf(theTime, sizeof(theTime), "%01d:%02d", minutes, seconds);
+
+    return (const char *)theTime;
+}

@@ -1092,10 +1092,7 @@ void wifiStationUpdate()
                 if (startTimeout && settings.debugWifiState)
                 {
                     // Display the delay
-                    uint32_t seconds = startTimeout / MILLISECONDS_IN_A_SECOND;
-                    uint32_t minutes = seconds / SECONDS_IN_A_MINUTE;
-                    seconds -= minutes * SECONDS_IN_A_MINUTE;
-                    systemPrintf("WiFi: Delaying %01d:%02d before restarting WiFi\r\n", minutes, seconds);
+                    systemPrintf("WiFi: Delaying %s before restarting WiFi\r\n", printMinuteSecondFromMilliseconds(startTimeout));
                 }
                 timer = millis();
                 wifiStationSetState(WIFI_STATION_STATE_RESTART_DELAY);
@@ -1169,10 +1166,7 @@ void wifiStationUpdate()
                 systemPrintf("WiFi: WiFi station failed to start!\r\n");
 
             // Display the delay
-            uint32_t seconds = startTimeout / MILLISECONDS_IN_A_SECOND;
-            uint32_t minutes = seconds / SECONDS_IN_A_MINUTE;
-            seconds -= minutes * SECONDS_IN_A_MINUTE;
-            systemPrintf("WiFi Retry in %01d:%02d\r\n", minutes, seconds);
+            systemPrintf("WiFi Retry in %s\r\n", printMinuteSecondFromMilliseconds(startTimeout));
 
             // Start the next network interface if necessary
             if (connectionAttempts >= 2)
@@ -1211,11 +1205,8 @@ void wifiStationUpdate()
             if (settings.debugWifiState || settings.debugNetworkLayer)
             {
                 // Display the delay
-                uint32_t seconds = startTimeout / MILLISECONDS_IN_A_SECOND;
-                uint32_t minutes = seconds / SECONDS_IN_A_MINUTE;
-                seconds -= minutes * SECONDS_IN_A_MINUTE;
-                systemPrintf("WiFi: WiFi station lost internet connection while online, restarting in %01d:%02d\r\n",
-                             minutes, seconds);
+                systemPrintf("WiFi: WiFi station lost internet connection while online, restarting in %s\r\n",
+                             printMinuteSecondFromMilliseconds(startTimeout));
             }
 
             timer = millis();
@@ -1233,11 +1224,8 @@ void wifiStationUpdate()
             if (settings.debugWifiState || settings.debugNetworkLayer)
             {
                 // Display the delay
-                uint32_t seconds = startTimeout / MILLISECONDS_IN_A_SECOND;
-                uint32_t minutes = seconds / SECONDS_IN_A_MINUTE;
-                seconds -= minutes * SECONDS_IN_A_MINUTE;
-                systemPrintf("WiFi: WiFi station lost internet connection while stable, restarting in %01d:%02d\r\n",
-                             minutes, seconds);
+                systemPrintf("WiFi: WiFi station lost internet connection while stable, restarting in %s\r\n",
+                             printMinuteSecondFromMilliseconds(startTimeout));
             }
 
             timer = millis();
@@ -1270,10 +1258,7 @@ void wifiStationUpdate()
         if (wifiStationState == WIFI_STATION_STATE_RESTART_DELAY)
         {
             // Display the delay
-            uint32_t seconds = (startTimeout - (millis() - timer)) / MILLISECONDS_IN_A_SECOND;
-            uint32_t minutes = seconds / SECONDS_IN_A_MINUTE;
-            seconds -= minutes * SECONDS_IN_A_MINUTE;
-            systemPrintf(" - WiFi Restart in %01d:%02d", minutes, seconds);
+            systemPrintf(" - WiFi Restart in %s", printMinuteSecondFromMilliseconds(startTimeout - (millis() - timer)));
         }
 
         systemPrintln();
