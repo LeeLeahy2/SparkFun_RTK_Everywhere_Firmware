@@ -391,8 +391,8 @@ void tcpServerClientUpdate(uint8_t index)
         // Increase the dataSent timeout if there is a remote connection and in the menu system
         if (tcpServerInRemoteConfig() && inMainMenu)
         {
-            dataSent =
-                ((millis() - tcpServerClientTimer[index]) < (menuTimeout * 1000)) || (tcpServerClientDataSent & (1 << index));
+            dataSent = ((millis() - tcpServerClientTimer[index]) < (menuTimeout * 1000)) ||
+                       (tcpServerClientDataSent & (1 << index));
         }
 
         if ((clientConnected && dataSent) == false)
@@ -726,6 +726,7 @@ void tcpServerStopClient(int index)
     tcpServerClientConnected = tcpServerClientConnected & (~(1 << index));
     tcpServerClientWriteError = tcpServerClientWriteError & (~(1 << index));
 
+    forceMenuExit = true; // Force exit all config menus and/or command modes
     printEndpoint = PRINT_ENDPOINT_SERIAL;
     readEndpoint = PRINT_ENDPOINT_SERIAL;
     tcpServerRemoteClientIndex = TCP_SERVER_NO_CONFIG_CLIENT; // Mark all clients as not in TCP serial echo mode
