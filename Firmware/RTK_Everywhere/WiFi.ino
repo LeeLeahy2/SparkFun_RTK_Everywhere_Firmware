@@ -1048,7 +1048,7 @@ void wifiStationUpdate()
 
         // When Web Config is running, if STA needs to restart because the settings have been changed by the user,
         // the user WEB_CONFIG will erroneously be seen as a network user. Proceed with STA restart.
-        if(wifiSoftApRunning == true && users == 1)
+        if (wifiSoftApRunning == true && users == 1)
         {
             users = 0;
         }
@@ -1167,6 +1167,12 @@ void wifiStationUpdate()
             // Failed to connect to a remote AP
             if (settings.debugWifiState)
                 systemPrintf("WiFi: WiFi station failed to start!\r\n");
+
+            // Display the delay
+            uint32_t seconds = startTimeout / MILLISECONDS_IN_A_SECOND;
+            uint32_t minutes = seconds / SECONDS_IN_A_MINUTE;
+            seconds -= minutes * SECONDS_IN_A_MINUTE;
+            systemPrintf("WiFi Retry in %01d:%02d\r\n", minutes, seconds);
 
             // Start the next network interface if necessary
             if (connectionAttempts >= 2)
