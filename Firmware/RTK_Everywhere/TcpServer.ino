@@ -432,7 +432,6 @@ void tcpServerClientUpdate(uint8_t index)
             spot = 0;
             while (tcpServerClient[index]->available())
             {
-                Serial.println("Reading at request");
                 response[spot++] = tcpServerClient[index]->read();
                 if (spot == sizeof(response))
                     spot = 0; // Wrap
