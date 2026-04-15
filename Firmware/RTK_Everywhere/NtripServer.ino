@@ -685,7 +685,6 @@ void ntripServerSendRTCM(int serverIndex, uint8_t *rtcmData, uint16_t dataLength
             // pinDebugOn();
             if (ntripServer->networkClientWrite(rtcmData, dataLength) == dataLength) // Send this byte to socket
             {
-                // pinDebugOff();
                 ntripServer->updateTimerAndBytesSent(dataLength);
                 netOutgoingRTCM = true;
                 ntripServer->networkClientAbsorb(); // Absorb any unwanted incoming traffic
@@ -698,7 +697,6 @@ void ntripServerSendRTCM(int serverIndex, uint8_t *rtcmData, uint16_t dataLength
                     systemPrintf("NTRIP Server %d broken connection to %s\r\n", serverIndex,
                                  settings.ntripServer_CasterHost[serverIndex]);
             }
-            // pinDebugOff();
 
             if (((millis() - entryTime) > settings.networkClientWriteTimeout_ms) && settings.debugNtripServerRtcm &&
                 (!inMainMenu))

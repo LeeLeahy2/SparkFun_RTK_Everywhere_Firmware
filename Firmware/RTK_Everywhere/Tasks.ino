@@ -474,9 +474,7 @@ void gnssReadTask(void *e)
                     // On mosaic-X5, pass the byte to sbfParse. On all other platforms, pass it straight to rtkParse
                     if (!sbfParserNeeded)
                     {
-                        // pinDebugOn();
                         sempParseNextByte(rtkParse, incomingData[x]);
-                        // pinDebugOff();
                     }
 
                     // See notes above. On the mosaic-X5, check that the incoming SBF blocks have expected IDs and
@@ -1127,9 +1125,7 @@ void processUart1Message(SEMP_PARSE_STATE *parse, uint16_t type)
     if (inBaseMode() && type == RTK_RTCM_PARSER_INDEX)
     {
         // Pass data along to NTRIP Server, ESP-NOW radio, or LoRa
-        // pinDebugOn();
         processRTCM(parse->buffer, parse->length);
-        // pinDebugOff();
     }
 
     // Determine if we are using the PPL - UM980, LG290P, or mosaic-X5
@@ -1993,8 +1989,6 @@ void handleGnssDataTask(void *e)
                                                  deltaMillis, logFileSize, bytesToSend, combinedSpaceRemaining);
                             }
                         } while (0);
-
-                        // pinDebugOff();
 
                         xSemaphoreGive(sdCardSemaphore);
                     } // End sdCardSemaphore
