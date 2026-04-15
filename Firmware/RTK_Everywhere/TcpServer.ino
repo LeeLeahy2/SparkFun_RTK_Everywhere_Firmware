@@ -101,12 +101,11 @@ const char *const tcpServerClientStateName[] = {
 const int tcpServerClientStateNameEntries = sizeof(tcpServerClientStateName) / sizeof(tcpServerClientStateName[0]);
 
 const RtkMode_t baseCasterMode = RTK_MODE_BASE_FIXED;
-const RtkMode_t tcpServerMode = RTK_MODE_ROVER | RTK_MODE_BASE_SURVEY_IN;
 
 const char *const tcpServerModeNames[] = {
     "TCP Server (Uninitialized)",
-    "TCP Server",   // TCP server running in non-Caster Mode
-    "Base Caster AP", // Base Caster using WiFi Soft AP
+    "TCP Server",      // TCP server running in non-Caster Mode
+    "Base Caster AP",  // Base Caster using WiFi Soft AP
     "Base Caster STN", // Base Caster using WiFi Station
 };
 
@@ -235,7 +234,7 @@ bool tcpServerEnabled(const char **line)
         }
 
         // Determine if the TCP server should be running
-        if ((EQ_RTK_MODE(tcpServerMode) && settings.enableTcpServer))
+        if (settings.enableTcpServer)
         {
             // TCP server running in Rover mode
             name = tcpServerModeNames[TCP_SERVER_MODE_SERVER];
