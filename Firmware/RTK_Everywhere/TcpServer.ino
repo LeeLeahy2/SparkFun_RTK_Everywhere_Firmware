@@ -101,21 +101,20 @@ const char *const tcpServerClientStateName[] = {
 const int tcpServerClientStateNameEntries = sizeof(tcpServerClientStateName) / sizeof(tcpServerClientStateName[0]);
 
 const RtkMode_t baseCasterMode = RTK_MODE_BASE_FIXED;
-const RtkMode_t tcpServerMode = RTK_MODE_ROVER | RTK_MODE_BASE_SURVEY_IN;
 
 const char *const tcpServerModeNames[] = {
     "TCP Server (Uninitialized)",
-    "TCP Server",   // TCP server running in Rover mode (non-Caster Mode)
-    "Base Caster",  // Base caster using soft AP WiFi
-    "NTRIP Caster", // Base Caster using WiFi STN
+    "TCP Server",      // TCP server running in non-Caster Mode
+    "Base Caster AP",  // Base Caster using WiFi Soft AP
+    "Base Caster STN", // Base Caster using WiFi Station
 };
 
 enum tcpServerModeIds
 {
     TCP_SERVER_MODE_UNINITIALIZED,
     TCP_SERVER_MODE_SERVER,
-    TCP_SERVER_MODE_BASE_CASTER,
-    TCP_SERVER_MODE_NTRIP_CASTER,
+    TCP_SERVER_MODE_NTRIP_CASTER_AP,
+    TCP_SERVER_MODE_NTRIP_CASTER_STN,
     // Insert new modes here
     TCP_SERVER_MODE_MAX // Last entry
 };
@@ -235,13 +234,13 @@ bool tcpServerEnabled(const char **line)
         }
 
         // Determine if the TCP server should be running
-        if ((EQ_RTK_MODE(tcpServerMode) && settings.enableTcpServer))
+        if (settings.enableTcpServer)
         {
             // TCP server running in Rover mode
             name = tcpServerModeNames[TCP_SERVER_MODE_SERVER];
             casterMode = false;
             port = settings.tcpServerPort;
-            softAP = false;
+            softAP = !settings.tcpOverWiFiStation; // Use soft AP if not using WiFi station
         }
 
         // Determine if the base caster should be running
@@ -254,13 +253,13 @@ bool tcpServerEnabled(const char **line)
             if (settings.baseCasterOverride || (settings.tcpOverWiFiStation == false))
             {
                 // Using soft AP
-                name = tcpServerModeNames[TCP_SERVER_MODE_BASE_CASTER];
+                name = tcpServerModeNames[TCP_SERVER_MODE_NTRIP_CASTER_AP];
                 port = 2101;
                 softAP = true;
             }
             else
             {
-                name = tcpServerModeNames[TCP_SERVER_MODE_NTRIP_CASTER];
+                name = tcpServerModeNames[TCP_SERVER_MODE_NTRIP_CASTER_STN];
                 // Using WiFi station
                 port = settings.tcpServerPort;
                 softAP = false;
