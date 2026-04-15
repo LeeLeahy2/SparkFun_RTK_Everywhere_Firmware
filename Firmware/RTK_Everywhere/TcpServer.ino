@@ -240,7 +240,7 @@ bool tcpServerEnabled(const char **line)
             name = tcpServerModeNames[TCP_SERVER_MODE_SERVER];
             casterMode = false;
             port = settings.tcpServerPort;
-            softAP = false;
+            softAP = !settings.tcpOverWiFiStation; // Use soft AP if not using WiFi station
         }
 
         // Determine if the base caster should be running
