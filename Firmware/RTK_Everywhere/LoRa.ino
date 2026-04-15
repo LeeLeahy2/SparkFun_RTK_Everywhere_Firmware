@@ -1402,6 +1402,7 @@ void loraTxDirectConnectTorch()
     }
 }
 
+// Used for link testing. Generate and transmit a dummy NMEA sentence.
 void loraTxDirectConnectFacetFP()
 {
     // Facet FP:
@@ -1478,6 +1479,10 @@ void loraTxDirectConnectFacetFP()
     }
 }
 
+// Send stored RTCM out the radio. Data from GNSS has been filtered to *only* RTCM.
+// Fed from processUart1Message. See storeRTCMForConsumers()/sendRTCMToConsumers()
+// Note this only applies to Torch. FP has a direct GNSS UART2 to LoRa UART0 connection.
+// See settings.enableNmeaOnRadio for limiting RTCM out GNSS UART2.
 void loraProcessRTCM(uint8_t *rtcmData, uint16_t dataLength)
 {
     if (loraState == LORA_TX)
