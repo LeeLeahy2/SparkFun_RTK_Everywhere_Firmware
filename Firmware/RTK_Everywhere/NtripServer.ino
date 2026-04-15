@@ -1120,8 +1120,17 @@ void ntripServerUpdate(int serverIndex)
     // Periodically display the state
     if (PERIODIC_DISPLAY(PD_NTRIP_SERVER_STATE) && !inMainMenu)
     {
-        systemPrintf("NTRIP Server %d state: %s%s\r\n", serverIndex,
-                     ntripServerStateName[ntripServer->state], line);
+        systemPrintf("NTRIP Server %d state: %s%s", serverIndex, ntripServerStateName[ntripServer->state], line);
+
+        if (ntripServer->state == NTRIP_SERVER_CONNECTING)
+        {
+            // Display the delay
+            uint32_t msRemaining = ntripServer->getConnectionAttemptTimeoutRemaining();
+            systemPrintf(" - Retry in %s", printMinuteSecondFromMilliseconds(msRemaining));
+        }
+
+        systemPrintln();
+
         if (serverIndex == (NTRIP_SERVER_MAX - 1))
             PERIODIC_CLEAR(PD_NTRIP_SERVER_STATE); // Clear the periodic display only on the last server
     }
