@@ -28,7 +28,7 @@ bool lg290pMessageEnabled(char *nmeaSentence, int sentenceLength)   {return fals
 
 void mosaicVerifyTables() {}
 void nmeaExtractStdDeviations(char *nmeaSentence, int arraySize) {}
-void processNonSBFData(SEMP_PARSE_STATE *parse) {}
+void processNonSBFData(const uint8_t * buffer, size_t length) {}
 void processUart1SBF(SEMP_PARSE_STATE *parse, uint16_t type) {}
 void processUart1SPARTN(SEMP_PARSE_STATE *parse, uint16_t type) {}
 void menuLogMosaic() {}
