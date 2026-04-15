@@ -122,7 +122,7 @@ NtripServer.ino
 
   =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
-#ifdef  COMPILE_NETWORK
+#ifdef COMPILE_NETWORK
 
 // NTRIP Server data
 const TickType_t serverSemaphore_shortWait_ms = 10 / portTICK_PERIOD_MS;
@@ -153,7 +153,6 @@ typedef struct
     // Better debug printing by ntripServerSendRTCM
     volatile uint32_t rtcmBytesSent;
     volatile uint32_t previousMilliseconds;
-
 
     // Protect all methods that manipulate timer with a mutex - to avoid race conditions
     // Also protect the write from connected checks
@@ -269,6 +268,28 @@ typedef struct
         return retVal;
     }
 
+    // Return the number of milliseconds until the next connection attempt should be made, or 0 if the timeout has
+    // already been exceeded
+    uint32_t getConnectionAttemptTimeoutRemaining()
+    {
+        uint32_t retVal = 0;
+        if (serverSemaphore == NULL)
+            serverSemaphore = xSemaphoreCreateMutex();
+        if (xSemaphoreTake(serverSemaphore, serverSemaphore_shortWait_ms) == pdPASS)
+        {
+            if ((millis() - timer) >= connectionAttemptTimeout)
+            {
+                retVal = 0;
+            }
+            else
+            {
+                retVal = connectionAttemptTimeout - (millis() - timer);
+            }
+            xSemaphoreGive(serverSemaphore);
+        }
+        return retVal;
+    }
+
     bool networkClientConnected(bool assumeConnected)
     {
         bool retVal = assumeConnected;
@@ -279,7 +300,7 @@ typedef struct
             retVal = (bool)networkClient->connected();
             xSemaphoreGive(serverSemaphore);
         }
-        return retVal;        
+        return retVal;
     }
 
     size_t networkClientWrite(const uint8_t *buf, size_t size)
@@ -292,7 +313,7 @@ typedef struct
             retVal = networkClient->write(buf, size);
             xSemaphoreGive(serverSemaphore);
         }
-        return retVal;        
+        return retVal;
     }
 
     void networkClientAbsorb()
@@ -327,7 +348,7 @@ typedef struct
     }
 } NTRIP_SERVER_DATA;
 
-#endif  // COMPILE_NETWORK
+#endif // COMPILE_NETWORK
 
 #ifdef COMPILE_NTRIP_SERVER
 
@@ -373,7 +394,7 @@ const RtkMode_t ntripServerMode = RTK_MODE_BASE_FIXED;
 // Macros
 //----------------------------------------
 
-#define NETWORK_CONSUMER(x)     (NETCONSUMER_NTRIP_SERVER + x)
+#define NETWORK_CONSUMER(x) (NETCONSUMER_NTRIP_SERVER + x)
 
 //----------------------------------------
 // Locals
@@ -382,8 +403,7 @@ const RtkMode_t ntripServerMode = RTK_MODE_BASE_FIXED;
 // NTRIP Servers
 static NTRIP_SERVER_DATA ntripServerArray[NTRIP_SERVER_MAX];
 
-bool ntripServerSettingsHaveChanged[NTRIP_SERVER_MAX] =
-{
+bool ntripServerSettingsHaveChanged[NTRIP_SERVER_MAX] = {
     false,
     false,
     false,
@@ -441,8 +461,7 @@ bool ntripServerConnectCaster(int serverIndex)
     //  * Password
     //  * Agent
     snprintf(serverBuffer, SERVER_BUFFER_SIZE, "SOURCE %s /%s\r\nSource-Agent: NTRIP %s/\r\n\r\n",
-             settings.ntripServer_MountPointPW[serverIndex], settings.ntripServer_MountPoint[serverIndex],
-             deviceName);
+             settings.ntripServer_MountPointPW[serverIndex], settings.ntripServer_MountPoint[serverIndex], deviceName);
     int length = strlen(serverBuffer);
     firmwareVersionGet(&serverBuffer[length], sizeof(serverBuffer) - length, false);
 
@@ -507,7 +526,7 @@ bool ntripServerConnectLimitReached(int serverIndex)
 //----------------------------------------
 // Determine if the NTRIP server may be enabled
 //----------------------------------------
-bool ntripServerEnabled(int serverIndex, const char ** line)
+bool ntripServerEnabled(int serverIndex, const char **line)
 {
     bool enabled;
 
@@ -524,10 +543,10 @@ bool ntripServerEnabled(int serverIndex, const char ** line)
         }
 
         // Verify that the parameters were specified
-        if ((settings.ntripServer_CasterEnabled[serverIndex] == false)
-            || (settings.ntripServer_CasterHost[serverIndex][0] == 0)
-            || (settings.ntripServer_CasterPort[serverIndex] == 0)
-            || (settings.ntripServer_MountPoint[serverIndex][0] == 0))
+        if ((settings.ntripServer_CasterEnabled[serverIndex] == false) ||
+            (settings.ntripServer_CasterHost[serverIndex][0] == 0) ||
+            (settings.ntripServer_CasterPort[serverIndex] == 0) ||
+            (settings.ntripServer_MountPoint[serverIndex][0] == 0))
         {
             if (line)
             {
@@ -657,17 +676,16 @@ void ntripServerSendRTCM(int serverIndex, uint8_t *rtcmData, uint16_t dataLength
         // If we have not gotten new RTCM bytes for a period of time, assume end of frame
         uint32_t totalBytesSent;
         if (ntripServer->checkBytesSentAndReset(100, &totalBytesSent) && (!inMainMenu) && settings.debugNtripServerRtcm)
-            systemPrintf("NTRIP Server %d transmitted %d RTCM bytes to Caster\r\n", serverIndex,
-                            totalBytesSent);
+            systemPrintf("NTRIP Server %d transmitted %d RTCM bytes to Caster\r\n", serverIndex, totalBytesSent);
 
         if (ntripServer->networkClient && ntripServer->networkClientConnected(true))
         {
             unsigned long entryTime = millis();
 
-            //pinDebugOn();
+            // pinDebugOn();
             if (ntripServer->networkClientWrite(rtcmData, dataLength) == dataLength) // Send this byte to socket
             {
-                //pinDebugOff();
+                // pinDebugOff();
                 ntripServer->updateTimerAndBytesSent(dataLength);
                 netOutgoingRTCM = true;
                 ntripServer->networkClientAbsorb(); // Absorb any unwanted incoming traffic
@@ -680,9 +698,10 @@ void ntripServerSendRTCM(int serverIndex, uint8_t *rtcmData, uint16_t dataLength
                     systemPrintf("NTRIP Server %d broken connection to %s\r\n", serverIndex,
                                  settings.ntripServer_CasterHost[serverIndex]);
             }
-            //pinDebugOff();
+            // pinDebugOff();
 
-            if (((millis() - entryTime) > settings.networkClientWriteTimeout_ms) && settings.debugNtripServerRtcm && (!inMainMenu))
+            if (((millis() - entryTime) > settings.networkClientWriteTimeout_ms) && settings.debugNtripServerRtcm &&
+                (!inMainMenu))
             {
                 if (pin_debug != PIN_UNDEFINED)
                     systemPrint(debugMessagePrefix);
@@ -729,7 +748,7 @@ void ntripServerRestart(int serverIndex)
 //----------------------------------------
 void ntripServerSetState(int serverIndex, uint8_t newState)
 {
-    NTRIP_SERVER_DATA * ntripServer;
+    NTRIP_SERVER_DATA *ntripServer;
 
     ntripServer = &ntripServerArray[serverIndex];
     if (settings.debugNtripServerState)
@@ -844,14 +863,13 @@ void ntripServerUpdate(int serverIndex)
 {
     bool connected;
     bool enabled;
-    const char * line = "";
+    const char *line = "";
 
     // Get the NTRIP data structure
     NTRIP_SERVER_DATA *ntripServer = &ntripServerArray[serverIndex];
 
     // Shutdown the NTRIP server when the mode or setting changes
-    DMW_if
-        ntripServerSetState(serverIndex, ntripServer->state);
+    DMW_if ntripServerSetState(serverIndex, ntripServer->state);
     connected = networkConsumerIsConnected(NETWORK_CONSUMER(serverIndex));
     enabled = ntripServerEnabled(serverIndex, &line);
 
@@ -860,14 +878,12 @@ void ntripServerUpdate(int serverIndex)
         ntripServerShutdown(serverIndex);
 
     // Determine if the network has failed
-    else if ((ntripServer->state >= NTRIP_SERVER_NETWORK_CONNECTED)
-             && (!connected))
+    else if ((ntripServer->state >= NTRIP_SERVER_NETWORK_CONNECTED) && (!connected))
         ntripServerRestart(serverIndex);
 
     // Determine if the settings have changed while connected
-    else if ((ntripServer->state >= NTRIP_SERVER_NETWORK_CONNECTED)
-             && (connected)
-             && (ntripServerSettingsHaveChanged[serverIndex]))
+    else if ((ntripServer->state >= NTRIP_SERVER_NETWORK_CONNECTED) && (connected) &&
+             (ntripServerSettingsHaveChanged[serverIndex]))
         ntripServerRestart(serverIndex);
 
     // Clear the ntripServerSettingsHaveChanged flag. Oneshot
@@ -976,7 +992,7 @@ void ntripServerUpdate(int serverIndex)
     case NTRIP_SERVER_AUTHORIZATION:
         // Check if caster service responded
         if (ntripServer->networkClient->available() <
-                 strlen("ICY 200 OK")) // Wait until at least a few bytes have arrived
+            strlen("ICY 200 OK")) // Wait until at least a few bytes have arrived
         {
             // Check for response timeout
             if (ntripServer->millisSinceTimer() > 10000)
@@ -1160,4 +1176,4 @@ void ntripServerSettingsChanged(int serverIndex)
     ntripServerSettingsHaveChanged[serverIndex] = true;
 }
 
-#endif  // COMPILE_NTRIP_SERVER
+#endif // COMPILE_NTRIP_SERVER
