@@ -1,0 +1,8 @@
+2026/04/14   12:52:45
+IP    0.0.0.0
+Lat   40.0902947
+Lon   -105.1850576
+Sys   GPS
+Error None
+Fine  True    PPS On
+Bias  +0.234ns
