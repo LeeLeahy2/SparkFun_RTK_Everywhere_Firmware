@@ -2084,9 +2084,9 @@ void displayFullIPAddress(std::vector<iconPropertyBlinking> *iconList) // Bottom
     {
         char myAddress[16];
 
-        // Reduce calls to networkGetIpAddress
-        if (networkHasInternet())
+        if (networkHasInternet() || wifiSoftApRunning)
         {
+            // Reduce calls to networkGetIpAddress
             priority = networkGetPriority();
             if (priority != previousPriority)
             {
