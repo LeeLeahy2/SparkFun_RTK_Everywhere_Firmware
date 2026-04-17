@@ -167,6 +167,7 @@ void btReadTask(void *e)
                         if (btEscapeCharsReceived == btMaxEscapeCharacters)
                         {
                             printEndpoint = PRINT_ENDPOINT_ALL;
+                            readEndpoint = PRINT_ENDPOINT_BLUETOOTH;
                             systemPrintln("Echoing all serial to BT device");
                             btPrintEcho = true;
 
@@ -473,9 +474,7 @@ void gnssReadTask(void *e)
                     // On mosaic-X5, pass the byte to sbfParse. On all other platforms, pass it straight to rtkParse
                     if (!sbfParserNeeded)
                     {
-                        // pinDebugOn();
                         sempParseNextByte(rtkParse, incomingData[x]);
-                        // pinDebugOff();
                     }
 
                     // See notes above. On the mosaic-X5, check that the incoming SBF blocks have expected IDs and
@@ -1126,9 +1125,7 @@ void processUart1Message(SEMP_PARSE_STATE *parse, uint16_t type)
     if (inBaseMode() && type == RTK_RTCM_PARSER_INDEX)
     {
         // Pass data along to NTRIP Server, ESP-NOW radio, or LoRa
-        // pinDebugOn();
         processRTCM(parse->buffer, parse->length);
-        // pinDebugOff();
     }
 
     // Determine if we are using the PPL - UM980, LG290P, or mosaic-X5
@@ -1706,7 +1703,7 @@ void handleGnssDataTask(void *e)
             startMillis = millis();
 
             // Determine USB serial connection state
-            if (!forwardGnssDataToUsbSerial)
+            if (forwardGnssDataToUsbSerial == false)
                 // Discard the data
                 usbRingBufferTail = dataHead;
             else
@@ -1772,12 +1769,16 @@ void handleGnssDataTask(void *e)
 
             startMillis = millis();
 
-            // Update space available for use in UART task
-            bytesToSend = tcpServerSendData(dataHead);
-            if (usedSpace < bytesToSend)
+            // If a remote client is in config mode, suppress GNSS data flowing to the client
+            if (tcpServerInRemoteConfig() == false)
             {
-                usedSpace = bytesToSend;
-                slowConsumer = "TCP server";
+                // Update space available for use in UART task
+                bytesToSend = tcpServerSendData(dataHead);
+                if (usedSpace < bytesToSend)
+                {
+                    usedSpace = bytesToSend;
+                    slowConsumer = "TCP server";
+                }
             }
 
             // Remember the maximum transfer time
@@ -1988,8 +1989,6 @@ void handleGnssDataTask(void *e)
                                                  deltaMillis, logFileSize, bytesToSend, combinedSpaceRemaining);
                             }
                         } while (0);
-
-                        // pinDebugOff();
 
                         xSemaphoreGive(sdCardSemaphore);
                     } // End sdCardSemaphore
@@ -2349,8 +2348,18 @@ void buttonCheckTask(void *e)
         {
             if (buttonLastPressed() == dualButton_power)
             {
-                doubleTap = true;
-                singleTap = false;
+                // If we are displaying the menu, treat power button press as a double tap (select)
+                if (systemState == STATE_DISPLAY_SETUP)
+                {
+                    doubleTap = true;
+                    singleTap = false;
+                }
+                else
+                {
+                    // If we are not displaying the menu, treat power button press as a single tap (open the menu)
+                    doubleTap = false;
+                    singleTap = true;
+                }
                 previousButtonRelease = 0;
                 thisButtonRelease = 0;
 
@@ -2385,7 +2394,20 @@ void buttonCheckTask(void *e)
                 singleTap = false;
             }
         }
-        // Products with no display are a special case. Handle tilt stop and web config mode
+
+        // If we are in tilt mode, buttons do only one thing: exit on button press
+        else if (tiltIsCorrecting() == true)
+        {
+            if (singleTap || doubleTap)
+            {
+                tiltRequestStop(); // Don't force the hardware off here as it may be in use in another task
+
+                doubleTap = false; // Clean up
+                singleTap = false;
+            }
+        }
+
+        // Products with no display are a special case. Handle web config mode entry/exit.
         else if (present.display_type == DISPLAY_MAX_NONE)
         {
             if (productVariant == RTK_TORCH || productVariant == RTK_TORCH_X2)
@@ -2415,16 +2437,7 @@ void buttonCheckTask(void *e)
                 if (productVariant == RTK_TORCH)
                     powerButtonPressLimit = 2100; // For Torch, it is closer to ~2400
 
-                // In in tilt mode, exit on button press
-                if ((singleTap || doubleTap) && (tiltIsCorrecting() == true))
-                {
-                    tiltRequestStop(); // Don't force the hardware off here as it may be in use in another task
-
-                    doubleTap = false; // Clean up
-                    singleTap = false;
-                }
-
-                else if (doubleTap)
+                if (doubleTap)
                 {
                     // If we are in Rover/Base mode, enter WiFi Config Mode
                     if (inRoverMode() || inBaseMode())
@@ -2538,7 +2551,6 @@ void buttonCheckTask(void *e)
                     {
                         // Announce powering down
                         beepMultiple(3, 100, 50); // Number of beeps, length of beep ms, length of quiet ms
-
                     }
                 }
 
@@ -2557,6 +2569,7 @@ void buttonCheckTask(void *e)
                 doubleTap = false; // Clean up
                 singleTap = false;
             }
+
             // If the setup menu is being displayed and we detect a singleTap, move through menus
             else if ((systemState == STATE_DISPLAY_SETUP) && singleTap)
             {
@@ -2930,7 +2943,7 @@ void bluetoothCommandTask(void *pvParameters)
             if (bluetoothCommandAvailable() > 0)
             {
                 byte incoming = bluetoothCommandRead();
-                bleCommandTrafficSeen_millis = millis();
+                bleCommandTrafficSeen_ms = millis();
 
                 rxData[rxSpot++] = incoming;
                 rxSpot %= sizeof(rxData); // Wrap

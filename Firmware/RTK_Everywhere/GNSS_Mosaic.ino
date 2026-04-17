@@ -249,7 +249,7 @@ void GNSS_MOSAIC::begin()
     //   It won't be a great user experience...
     // Adding support for G5 P3 is TODO
 
-    if (productVariant != RTK_FACET_FP) // productVariant == RTK_FACET_MOSAIC
+    if (productVariant == RTK_FACET_MOSAIC)
     {
         if (serial2GNSS == nullptr)
         {
@@ -300,7 +300,7 @@ void GNSS_MOSAIC::begin()
         else
             systemPrintln("GNSS mosaic-X5 offline!");
     }
-    else // productVariant == RTK_FACET_FP
+    else if (productVariant == RTK_FACET_FP)
     {
         if (serialGNSS == nullptr)
         {
@@ -312,7 +312,9 @@ void GNSS_MOSAIC::begin()
             return;
 
         // Set COM2 (Radio) protocol(s)
-        setCorrRadioExtPort(settings.enableExtCorrRadio, true); // Force the setting
+        // Both Ext Radio and LoRa need RTCM on UART2
+        // Note: this is probably redundant? I'm now not sure why I added it...
+        setCorrRadioExtPort((settings.enableExtCorrRadio || settings.enableLora), true); // Force the setting
 
         updateSD(); // Check card size and free space
 
@@ -340,6 +342,8 @@ void GNSS_MOSAIC::begin()
         else
             systemPrintln("GNSS mosaic-X5 offline!");
     }
+    else
+        systemPrintln("MOSAIC begin: Uncaught platform");
 }
 
 //----------------------------------------
@@ -482,20 +486,22 @@ bool GNSS_MOSAIC::setLogging()
 //   Returns true if successful and false upon failure
 bool GNSS_MOSAIC::comPortRefresh()
 {
-    if (productVariant != RTK_FACET_FP) // productVariant == RTK_FACET_MOSAIC
+    if (productVariant == RTK_FACET_MOSAIC)
     {
         if (serial2GNSS)
         {
             return sendWithResponse(serial2GNSS, "SSSSSSSSSSSSSSSSSSSS\n\r", "COM4>"); // Send escape sequence
         }
     }
-    else
+    else if (productVariant == RTK_FACET_FP)
     {
         if (serialGNSS)
         {
             return sendWithResponse(serialGNSS, "SSSSSSSSSSSSSSSSSSSS\n\r", "COM1>"); // Send escape sequence
         }
     }
+    else
+        systemPrintln("comPortRefresh: Uncaught platform");
     return true;
 }
 
@@ -1379,7 +1385,7 @@ bool GNSS_MOSAIC::isDgpsFixed()
 
 //----------------------------------------
 // Some functions merely need to know if we have an RTK Float.
-// This function checks to see if the given platform has reached sufficient 
+// This function checks to see if the given platform has reached sufficient
 // fix type to be considered valid.
 //----------------------------------------
 bool GNSS_MOSAIC::isFixed()
@@ -1431,7 +1437,7 @@ bool GNSS_MOSAIC::isPppConverging()
 
 //----------------------------------------
 // Some functions merely need to know if we have an RTK Float.
-// This function checks to see if the given platform has reached sufficient 
+// This function checks to see if the given platform has reached sufficient
 // fix type to be considered valid.
 //----------------------------------------
 bool GNSS_MOSAIC::isRTKFix()
@@ -1442,7 +1448,7 @@ bool GNSS_MOSAIC::isRTKFix()
 
 //----------------------------------------
 // Some functions merely need to know if we have an RTK Float.
-// This function checks to see if the given platform has reached sufficient 
+// This function checks to see if the given platform has reached sufficient
 // fix type to be considered valid.
 //----------------------------------------
 bool GNSS_MOSAIC::isRTKFloat()
@@ -2324,7 +2330,7 @@ bool GNSS_MOSAIC::setMessagesNMEA()
                                 String(mosaicMsgRates[settings.mosaicStreamIntervalsNMEA[stream]].name) + "\n\r");
         response &= sendWithResponse(setting, "NMEAOutput");
 
-        if (settings.enableNmeaOnRadio && somethingEnabled[stream]) // Ignore GGA, ZDA, GST if they were added for COM1
+        if (settings.enableNmeaOnRadio && (settings.enableLora == false) && somethingEnabled[stream]) // Ignore GGA, ZDA, GST if they were added for COM1
             setting = String("sno,Stream" + String(stream + MOSAIC_NUM_NMEA_STREAMS + 1) + ",COM2," + streams[stream] +
                              "," + String(mosaicMsgRates[settings.mosaicStreamIntervalsNMEA[stream]].name) + "\n\r");
         else
@@ -3028,19 +3034,23 @@ bool GNSS_MOSAIC::isPresent()
     systemPrintln("Starting communication with mosaic-X5");
     paintMosaicBooting();
 
-    if (productVariant != RTK_FACET_FP) // productVariant == RTK_FACET_MOSAIC
+    if (productVariant == RTK_FACET_MOSAIC)
     {
         // Set COM4 to: CMD input (only), SBF output (only)
         // Mosaic could still be starting up, so allow many retries
         return isPresentOnSerial(serial2GNSS, "sdio,COM4,CMD,SBF\n\r", "DataInOut", "COM4>", 10);
     }
-    else // productVariant == RTK_FACET_FP
+    else if (productVariant == RTK_FACET_FP)
     {
         // Set COM1 to: auto input, RTCMv3+SBF+NMEA+Encapsulate output
         // Mosaic could still be starting up, so allow many retries
         return isPresentOnSerial(serialGNSS, "sdio,COM1,auto,RTCMv3+SBF+NMEA+Encapsulate\n\r", "DataInOut", "COM1>",
                                  10);
     }
+    else
+        systemPrintln("MOSAIC isPresent: Uncaught platform");
+
+    return false;
 }
 
 // Return true if the receiver is detected
@@ -3734,12 +3744,12 @@ bool mosaicIsPresentOnFacetFP()
     // With 3 retries:
     //   With X5 firmware 4.14.4:    isPresentOnSerial detects the GNSS - just
     //   With X5 firmware 4.14.10.1: isPresentOnSerial fails to detect the GNSS
-    // With 4 retries:
+    // With 5 retries:
     //   With X5 firmware 4.14.10.1: isPresentOnSerial detects the GNSS
 
-    // Only try 4 times. LG290P detection will have been done first. X5 should have booted. Baud rate could be wrong.
+    // Only try 5 times. LG290P detection will have been done first. X5 should have booted. Baud rate could be wrong.
     if (mosaic.isPresentOnSerial(&serialTestGNSS, "sdio,COM1,auto,RTCMv3+SBF+NMEA+Encapsulate\n\r", "DataInOut",
-                                 "COM1>", 4) == true)
+                                 "COM1>", 5) == true)
     {
         if (settings.debugGnss)
             systemPrintln("mosaic-X5 detected at 115200 baud");
@@ -3758,9 +3768,9 @@ bool mosaicIsPresentOnFacetFP()
     serialTestGNSS.end();
     serialTestGNSS.begin(460800, SERIAL_8N1, pin_GnssUart_RX, pin_GnssUart_TX);
 
-    // Only try 4 times, so we fail and pass on to the next Facet GNSS detection
+    // Only try 5 times, so we fail and pass on to the next Facet GNSS detection
     if (mosaic.isPresentOnSerial(&serialTestGNSS, "sdio,COM1,auto,RTCMv3+SBF+NMEA+Encapsulate\n\r", "DataInOut",
-                                 "COM1>", 4) == true)
+                                 "COM1>", 5) == true)
     {
         // serialGNSS and serial2GNSS have not yet been begun. We need to saveConfiguration manually
         unsigned long start = millis();
@@ -3796,7 +3806,8 @@ void mosaicNewClass()
 //----------------------------------------
 // Called by gnssNewSettingValue to save a mosaic specific setting
 //----------------------------------------
-bool mosaicNewSettingValue(RTK_Settings_Types type,
+bool mosaicNewSettingValue(struct Settings * tempSettings,
+                           RTK_Settings_Types type,
                            const char * suffix,
                            int qualifier,
                            double d)
@@ -3809,7 +3820,7 @@ bool mosaicNewSettingValue(RTK_Settings_Types type,
                 if ((suffix[0] == mosaicSignalConstellations[x].configName[0]) &&
                     (strcmp(suffix, mosaicSignalConstellations[x].configName) == 0))
                 {
-                    settings.mosaicConstellations[x] = d;
+                    tempSettings->mosaicConstellations[x] = d;
                     return true;
                 }
             }
@@ -3823,7 +3834,7 @@ bool mosaicNewSettingValue(RTK_Settings_Types type,
                 if ((suffix[0] == mosaicMessagesNMEA[x].msgTextName[0]) &&
                     (strcmp(suffix, mosaicMessagesNMEA[x].msgTextName) == 0))
                 {
-                    settings.mosaicMessageStreamNMEA[x] = d;
+                    tempSettings->mosaicMessageStreamNMEA[x] = d;
                     return true;
                 }
             }
@@ -3833,7 +3844,7 @@ bool mosaicNewSettingValue(RTK_Settings_Types type,
             int stream;
             if (sscanf(suffix, "%d", &stream) == 1)
             {
-                settings.mosaicStreamIntervalsNMEA[stream] = d;
+                tempSettings->mosaicStreamIntervalsNMEA[stream] = d;
                 return true;
             }
         }
@@ -3844,7 +3855,7 @@ bool mosaicNewSettingValue(RTK_Settings_Types type,
                 if ((suffix[0] == mosaicRTCMv3MsgIntervalGroups[x].name[0]) &&
                     (strcmp(suffix, mosaicRTCMv3MsgIntervalGroups[x].name) == 0))
                 {
-                    settings.mosaicMessageIntervalsRTCMv3Rover[x] = d;
+                    tempSettings->mosaicMessageIntervalsRTCMv3Rover[x] = d;
                     return true;
                 }
             }
@@ -3856,7 +3867,7 @@ bool mosaicNewSettingValue(RTK_Settings_Types type,
                 if ((suffix[0] == mosaicRTCMv3MsgIntervalGroups[x].name[0]) &&
                     (strcmp(suffix, mosaicRTCMv3MsgIntervalGroups[x].name) == 0))
                 {
-                    settings.mosaicMessageIntervalsRTCMv3Base[x] = d;
+                    tempSettings->mosaicMessageIntervalsRTCMv3Base[x] = d;
                     return true;
                 }
             }
@@ -3868,7 +3879,7 @@ bool mosaicNewSettingValue(RTK_Settings_Types type,
                 if ((suffix[0] == mosaicMessagesRTCMv3[x].name[0]) &&
                     (strcmp(suffix, mosaicMessagesRTCMv3[x].name) == 0))
                 {
-                    settings.mosaicMessageEnabledRTCMv3Rover[x] = d;
+                    tempSettings->mosaicMessageEnabledRTCMv3Rover[x] = d;
                     return true;
                 }
             }
@@ -3880,7 +3891,7 @@ bool mosaicNewSettingValue(RTK_Settings_Types type,
                 if ((suffix[0] == mosaicMessagesRTCMv3[x].name[0]) &&
                     (strcmp(suffix, mosaicMessagesRTCMv3[x].name) == 0))
                 {
-                    settings.mosaicMessageEnabledRTCMv3Base[x] = d;
+                    tempSettings->mosaicMessageEnabledRTCMv3Base[x] = d;
                     return true;
                 }
             }

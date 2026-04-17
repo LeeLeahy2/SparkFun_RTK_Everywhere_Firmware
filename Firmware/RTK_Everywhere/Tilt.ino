@@ -32,7 +32,7 @@ Tilt.ino
     ZED-X20P with Tilt:
       The IM19 UART2 is fed by the X20P UART1 - which also feeds ESP32 UART1
       The message rates and baud rate need to be configured according to what the IM19 needs
-    
+
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
 #ifdef COMPILE_IM19_IMU
@@ -71,29 +71,31 @@ void tiltUpdate()
             tiltState = TILT_OFFLINE;
         break;
 
-    case TILT_OFFLINE:
+    case TILT_OFFLINE: {
         // Try multiple times to configure IM19
-        for (int x = 0; x < 3; x++)
+        uint8_t maxTries = 3;
+        for (int x = 0; x < maxTries; x++)
         {
             beginTilt(); // Start IMU
             if (tiltState == TILT_STARTED)
                 break;
-            log_d("Tilt sensor failed to configure. Trying again.");
         }
 
         if (tiltState != TILT_STARTED) // If we failed to begin, disable future attempts
         {
+            systemPrintln("Tilt sensor failed to configure after multiple attempts.");
             tiltFailedBegin = true;
             tiltState = TILT_DISABLED;
         }
-        break;
+    }
+    break;
 
     case TILT_STARTED:
         // RTK Fix required for isInitialized so don't check tilt until we have RTK Fix.
-        if(gnss->isRTKFix() == false)
+        if (gnss->isRTKFix() == false)
             break;
 
-        // Waiting for user to rock unit back and forth 
+        // Waiting for user to rock unit back and forth
         tiltSensor->update(); // Check for the most recent incoming binary data
 
         // Check IMU state at 1Hz
@@ -207,7 +209,7 @@ void printTiltDebug()
 {
     if (inMainMenu)
         return;
-        
+
     uint32_t naviStatus = tiltSensor->getNaviStatus();
     // systemPrintf("NAVI timestamp: %0.0f lat: %0.4f lon: %0.4f alt: %0.2f\r\n", tiltSensor->getNaviTimestamp(),
     //              tiltSensor->getNaviLatitude(), tiltSensor->getNaviLongitude(), tiltSensor->getNaviAltitude());
@@ -308,7 +310,6 @@ void beginTilt()
 
     if (tiltSensor->begin(*SerialForTilt) == false) // Give the serial port over to the library
     {
-        log_d("Tilt sensor failed to respond.");
         tiltStop(); // Free memory
         return;
     }
@@ -1228,8 +1229,11 @@ void tiltDetect()
     if (settings.enableImuDebug == true)
         tiltSensor->enableDebugging(); // Print all debug to Serial
 
-    // Try multiple times to configure the IM19
-    for (int x = 0; x < 3; x++)
+    // The IM19 requires ~2.5s from power up before it responds
+    // The library will try twice with a 250ms
+    // If communication fails, retry after a 3s timeout
+    uint8_t maxTries = 2;
+    for (int x = 0; x < maxTries; x++)
     {
         if (tiltSensor->begin(SerialTiltTest) == true)
         {
@@ -1238,6 +1242,9 @@ void tiltDetect()
             gnssConfigure(GNSS_CONFIG_TILT); // Request receiver to use new settings
             break;
         }
+
+        if (x < (maxTries - 1))
+            delay(3000);
     }
 
     SerialTiltTest.end(); // Release UART2 for reuse
@@ -1249,7 +1256,7 @@ void tiltDetect()
         systemPrintln("Tilt sensor not detected");
         displayTiltNotDetected(2000);
     }
-    
+
     settings.testedTilt = true; // Record this test so we don't do it again
     recordSystemSettings();
     return;

@@ -316,8 +316,13 @@ void displayUpdate()
                 setRadioIcons(&iconPropertyList);
                 break;
             case (STATE_ROVER_FIX):
-                displayHorizontalAccuracy(&iconPropertyList, &CrossHairProperties,
-                                          0b11111111); // Single crosshair, no blink
+
+                //LG290P will be in Rover Fix while PPP is converging
+                if(gnss->isPppConverging() == true)
+                    displayRTKAccuracy(&iconPropertyList, &CrossHairPppConvergedProperties, false); // Crosshair with P, blink
+                else
+                    displayHorizontalAccuracy(&iconPropertyList, &CrossHairProperties, 0b11111111); // Single crosshair, no blink
+                    
                 paintLogging(&iconPropertyList);
                 displaySivVsOpenShort(&iconPropertyList);
                 displayBatteryVsEthernet(&iconPropertyList);
@@ -327,8 +332,16 @@ void displayUpdate()
             case (STATE_ROVER_RTK_FLOAT):
                 // displayHorizontalAccuracy(&iconPropertyList, &CrossHairDualProperties,
                 //                           0b01010101); // Dual crosshair, blink
-                displayRTKAccuracy(&iconPropertyList, &CrossHairDualProperties, false); // Dual crosshair, blink
-                paintLogging(&iconPropertyList);
+                
+                //LG290P will be in RTK 'Float' once PPP is converged
+                if(gnss->isPppConverged() == true)
+                    displayRTKAccuracy(&iconPropertyList, &CrossHairPppConvergedProperties, true); // Crosshair with P, no blink
+                else if(gnss->isPppConverging() == true)
+                    displayRTKAccuracy(&iconPropertyList, &CrossHairPppConvergedProperties, false); // Crosshair with P, blink
+                else
+                    displayRTKAccuracy(&iconPropertyList, &CrossHairDualProperties, false); // Dual crosshair, blink
+
+                    paintLogging(&iconPropertyList);
                 displaySivVsOpenShort(&iconPropertyList);
                 displayBatteryVsEthernet(&iconPropertyList);
                 displayFullIPAddress(&iconPropertyList); // Bottom left - 128x64 only
@@ -491,13 +504,15 @@ void displayUpdate()
 
 void displaySplash()
 {
+    // Assemble device name etc. using the best available information
+    assembleDeviceName();
+
     if (settings.detectedGnssReceiver == GNSS_RECEIVER_UNKNOWN)
     {
         displaySplashCommon(false); // Full product name not known
     }
     else
     {
-        assembleDeviceName();
         displaySplashCommon(true); // Full product name known
     }
 }
@@ -676,11 +691,9 @@ void paintBatteryLevel(std::vector<iconPropertyBlinking> *iconList)
                111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999AAAAAAAAAABBBBBBBBBBCCCCCCCC
      01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567
     .--------------------------------------------------------------------------------------------------------------------------------
-     |-----4 digit MAC-----|  |--BT-|  |---WiFi----|  |--Cellular-|  |--ESP-|  |-Down-| |--Up--| |-Dynamic/Base|
-  |--Battery / ETH--|
+     |-----4 digit MAC-----|  |--BT-|  |---WiFi----|  |--Cellular-|  |--ESP-|  |-Down-| |--Up--| |-Dynamic/Base| |--Battery / ETH--|
 
-     |------------------------------------------ IP ------------------------------------------|      |-Corr Source-|
-  |Logging|
+     |------------------------------------------ IP ------------------------------------------|      |-Corr Source-|       |Logging|
 
 */
 
@@ -2071,9 +2084,9 @@ void displayFullIPAddress(std::vector<iconPropertyBlinking> *iconList) // Bottom
     {
         char myAddress[16];
 
-        // Reduce calls to networkGetIpAddress
-        if (networkHasInternet())
+        if (networkHasInternet() || wifiSoftApRunning)
         {
+            // Reduce calls to networkGetIpAddress
             priority = networkGetPriority();
             if (priority != previousPriority)
             {
@@ -3141,13 +3154,21 @@ void displayWebConfig(std::vector<iconPropertyBlinking> &iconPropertyList)
 // Show GNSS update - button exit
 void paintGnssUpdate()
 {
-    paintGenericUpdate("GNSS");
+    paintGenericUpdate("GNSS", "Update");
 }
 void paintLoRaUpdate()
 {
-    paintGenericUpdate("LoRa");
+    paintGenericUpdate("LoRa", "Update");
 }
-void paintGenericUpdate(const char *device)
+void paintLoRaDirectRx()
+{
+    paintGenericUpdate("LoRa", "RX Direct");
+}
+void paintLoRaDirectTx()
+{
+    paintGenericUpdate("LoRa", "TX Test");
+}
+void paintGenericUpdate(const char *device, const char *update)
 {
     if (online.display)
     {
@@ -3156,7 +3177,7 @@ void paintGenericUpdate(const char *device)
         uint8_t fontHeight = 8;
         printTextCenter(device, yPos, QW_FONT_5X7, 1, false); // text, y, font type, kerning, inverted
         yPos = yPos + fontHeight + 1;
-        printTextCenter("Update", yPos, QW_FONT_5X7, 1, false);
+        printTextCenter(update, yPos, QW_FONT_5X7, 1, false);
         yPos = yPos + fontHeight + 3;
         printTextCenter("Button", yPos, QW_FONT_5X7, 1, true); // text, y, font type, kerning, inverted
         yPos = yPos + fontHeight + 1;

@@ -177,6 +177,12 @@ void GNSS_LG290P::begin()
     snprintf(gnssUniqueId, sizeof(gnssUniqueId), "%s", getId());
 
     gnssFirmwareVersionInt = lg290pFirmwareVersionInt; // Tell Web Config what version to use
+
+    // On Facet FP: set UART2 (Radio) protocol(s)
+    // Both Ext Radio and LoRa need RTCM on UART2
+    // Note: this is probably redundant? I only added it because I added it on mosaic...
+    if (productVariant == RTK_FACET_FP)
+        setCorrRadioExtPort((settings.enableExtCorrRadio || settings.enableLora), true); // Force the setting
 }
 
 //----------------------------------------
@@ -341,8 +347,8 @@ void GNSS_LG290P::createMessageList(String &returnText)
         returnText += "messageRateRTCMRover_" + String(lgMessagesRTCM[messageNumber].msgTextName) + "," +
                       String(settings.lg290pMessageRatesRTCMRover[messageNumber]) + ",";
     }
-    
-    //Pass any extra messages
+
+    // Pass any extra messages
     for (int messageNumber = 0; messageNumber < MAX_LG290P_PQTM_MSG; messageNumber++)
     {
         returnText += "messageRatePQTM_" + String(lgMessagesPQTM[messageNumber].msgTextName) + "," +
@@ -745,7 +751,7 @@ bool GNSS_LG290P::setBaudRateData(uint32_t baud)
                 return (setBaudRate(3, baud));
             }
             else
-                systemPrintln("setDataBaudRate: Uncaught platform");
+                systemPrintln("setBaudRateData: Uncaught platform");
         }
     }
     return (false);
@@ -774,7 +780,7 @@ uint32_t GNSS_LG290P::getRadioBaudRate()
         radioUart = 1;
     }
     else
-        systemPrintln("getDataBaudRate: Uncaught platform");
+        systemPrintln("getRadioBaudRate: Uncaught platform");
 
     return (getBaudRate(radioUart));
 }
@@ -1174,7 +1180,11 @@ bool GNSS_LG290P::isConfirmedTime()
 // Returns true if data is arriving on the Radio Ext port
 bool GNSS_LG290P::isCorrRadioExtPortActive()
 {
-    return settings.enableExtCorrRadio;
+    // On LG290P, we don't have access to the UART RX byte counts
+    // We have to assume data is arriving if ext radio is enabled...
+    // And on Facet FP, we also have to fake the arrival of LoRa traffic
+    // to maintain the Radio Ext protocols...
+    return (settings.enableExtCorrRadio || ((productVariant == RTK_FACET_FP) && settings.enableLora));
 }
 
 //----------------------------------------
@@ -1199,7 +1209,7 @@ bool GNSS_LG290P::isDgpsFixed()
 
 //----------------------------------------
 // Some functions merely need to know if we have an RTK Float.
-// This function checks to see if the given platform has reached sufficient 
+// This function checks to see if the given platform has reached sufficient
 // fix type to be considered valid.
 //----------------------------------------
 bool GNSS_LG290P::isFixed()
@@ -1294,7 +1304,7 @@ bool GNSS_LG290P::isRTKFix()
 
 //----------------------------------------
 // Some functions merely need to know if we have an RTK Float.
-// This function checks to see if the given platform has reached sufficient 
+// This function checks to see if the given platform has reached sufficient
 // fix type to be considered valid.
 //----------------------------------------
 bool GNSS_LG290P::isRTKFloat()
@@ -1890,6 +1900,11 @@ bool GNSS_LG290P::setBaudRateComm(uint32_t baud)
                 // UART1 of the LG290P is connected to the ESP32 for the main config/comm
                 commUart = 1;
             }
+            else if (productVariant == RTK_TORCH_X2)
+            {
+                // UART2 of the LG290P is connected to the ESP (UART2) for the main configuration
+                commUart = 2;
+            }
             else
                 systemPrintln("setBaudRateComm: Uncaught platform");
 
@@ -1914,6 +1929,11 @@ uint32_t GNSS_LG290P::getCommBaudRate()
     {
         // On the Facet FP, the ESP32 UART1 is connected to LG290P UART1
         commUart = 1;
+    }
+    else if (productVariant == RTK_TORCH_X2)
+    {
+        // UART2 of the LG290P is connected to the ESP (UART2) for the main configuration
+        commUart = 2;
     }
     else
         systemPrintln("getCommBaudRate: Uncaught platform");
@@ -1954,10 +1974,28 @@ bool GNSS_LG290P::setCorrRadioExtPort(bool enable, bool force)
 
         if (force || (enable != _corrRadioExtPortEnabled))
         {
-            // On Postcard: set UART3 InputProt: RTCM3 (4) vs NMEA (1)
-            // On Facet FP: set UART2 InputProt: RTCM3 (4) vs NMEA (1)
-            int port = (productVariant == RTK_POSTCARD) ? 3 : 2;
-            if (_lg290p->setPortInputProtocols(port, enable ? 4 : 1))
+            uint8_t radioUart = 0;
+            if (productVariant == RTK_POSTCARD)
+            {
+                // UART3 of the LG290P is connected to the locking JST connector labled RADIO
+                radioUart = 3;
+            }
+            else if (productVariant == RTK_FACET_FP)
+            {
+                // UART2 of the LG290P is connected to SW4, which is connected to LoRa UART0
+                radioUart = 2;
+            }
+            else if (productVariant == RTK_TORCH_X2)
+            {
+                // UART1 of the LG290P is connected to SW, which is connected to ESP32 UART0
+                // Not really used at this time but available for configuration
+                radioUart = 1;
+            }
+            else
+                systemPrintln("setCorrRadioExtPort: Uncaught platform");
+
+            // Set port InputProt: RTCM3 (4) vs NMEA (1)
+            if (_lg290p->setPortInputProtocols(radioUart, enable ? 4 : 1))
             {
                 if ((settings.debugCorrections == true) && !inMainMenu)
                 {
@@ -2116,12 +2154,27 @@ bool GNSS_LG290P::setMessagesNMEA()
                 int msgRate = settings.lg290pMessageRatesNMEA[messageNumber];
 
                 // On Postcard: disable NMEA output on UART3 RADIO
-                // On TX2: disable NMEA output on UART3 CH342 Channel A
+                // On TX2: we are using UART1 as a pseudo radio port, so disable NMEA output there
                 // On Facet FP LG290P with Tilt: UART3 feeds the IMU. GGA/GST/RMC will be enabled below.
                 //                               It is OK to disable it here.
-                // TODO: on Facet FP we may want to disable NMEA on portNumber 2 also...?
-                if ((portNumber == 3) && (settings.enableNmeaOnRadio == false))
-                    msgRate = 0;
+                // On Facet FP: disable NMEA on portNumber 2 if enableNmeaOnRadio is false or enableLora is true
+                if (productVariant == RTK_POSTCARD)
+                {
+                    if ((portNumber == 3) && (settings.enableNmeaOnRadio == false))
+                        msgRate = 0;
+                }
+                else if (productVariant == RTK_FACET_FP)
+                {
+                    if ((portNumber == 2) && ((settings.enableNmeaOnRadio == false) || (settings.enableLora == true)))
+                        msgRate = 0;
+                }
+                else if (productVariant == RTK_TORCH_X2)
+                {
+                    if ((portNumber == 1) && (settings.enableNmeaOnRadio == false))
+                        msgRate = 0;
+                }
+                else
+                    systemPrintln("setMessagesNMEA: Uncaught platform");
 
                 bool response = true;
 
@@ -2558,6 +2611,8 @@ bool GNSS_LG290P::setRate(double secondsBetweenSolutions)
 
     if (response == false)
         systemPrintln("Failed to set measurement rate");
+    else
+        systemPrintln("Successfully set measurement rate");
 
     return (response);
 }
@@ -2781,7 +2836,7 @@ bool lg290pMessageEnabled(char *nmeaSentence, int sentenceLength)
                     return (true);
                 }
                 if (!inMainMenu && settings.debugGnssConfig)
-                    systemPrintf("Blocking PQTM sentenceHeader: %s\r\n", sentenceHeader);
+                    systemPrintf("Blocking PQTM sentenceHeader from entering circular buffer: %s\r\n", sentenceHeader);
                 return (false);
             }
         }
@@ -3151,7 +3206,7 @@ void lg290pNewClass()
 //----------------------------------------
 // Called by gnssNewSettingValue to save a LG290P specific setting
 //----------------------------------------
-bool lg290pNewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifier, double d)
+bool lg290pNewSettingValue(struct Settings * tempSettings, RTK_Settings_Types type, const char *suffix, int qualifier, double d)
 {
     switch (type)
     {
@@ -3160,7 +3215,7 @@ bool lg290pNewSettingValue(RTK_Settings_Types type, const char *suffix, int qual
         {
             if ((suffix[0] == lg290pConstellationNames[x][0]) && (strcmp(suffix, lg290pConstellationNames[x]) == 0))
             {
-                settings.lg290pConstellations[x] = d;
+                tempSettings->lg290pConstellations[x] = d;
                 return true;
             }
         }
@@ -3170,7 +3225,7 @@ bool lg290pNewSettingValue(RTK_Settings_Types type, const char *suffix, int qual
         {
             if ((suffix[0] == lgMessagesNMEA[x].msgTextName[0]) && (strcmp(suffix, lgMessagesNMEA[x].msgTextName) == 0))
             {
-                settings.lg290pMessageRatesNMEA[x] = d;
+                tempSettings->lg290pMessageRatesNMEA[x] = d;
                 return true;
             }
         }
@@ -3180,7 +3235,7 @@ bool lg290pNewSettingValue(RTK_Settings_Types type, const char *suffix, int qual
         {
             if ((suffix[0] == lgMessagesRTCM[x].msgTextName[0]) && (strcmp(suffix, lgMessagesRTCM[x].msgTextName) == 0))
             {
-                settings.lg290pMessageRatesRTCMBase[x] = d;
+                tempSettings->lg290pMessageRatesRTCMBase[x] = d;
                 return true;
             }
         }
@@ -3190,7 +3245,7 @@ bool lg290pNewSettingValue(RTK_Settings_Types type, const char *suffix, int qual
         {
             if ((suffix[0] == lgMessagesRTCM[x].msgTextName[0]) && (strcmp(suffix, lgMessagesRTCM[x].msgTextName) == 0))
             {
-                settings.lg290pMessageRatesRTCMRover[x] = d;
+                tempSettings->lg290pMessageRatesRTCMRover[x] = d;
                 return true;
             }
         }
@@ -3209,7 +3264,7 @@ bool lg290pNewSettingValue(RTK_Settings_Types type, const char *suffix, int qual
         {
             if ((suffix[0] == lgMessagesPQTM[x].msgTextName[0]) && (strcmp(suffix, lgMessagesPQTM[x].msgTextName) == 0))
             {
-                settings.lg290pMessageRatesPQTM[x] = d;
+                tempSettings->lg290pMessageRatesPQTM[x] = d;
                 return true;
             }
         }

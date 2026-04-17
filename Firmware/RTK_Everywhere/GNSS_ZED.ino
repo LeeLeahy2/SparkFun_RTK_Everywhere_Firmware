@@ -186,7 +186,7 @@ void GNSS_ZED::begin()
         }
 
         // Determine if we have a ZED-F9P or an ZED-X20P
-        if (strstr(_zed->getModuleName(), "ZED-F9P") == nullptr) //If it's not a ZED-F9P
+        if (strstr(_zed->getModuleName(), "ZED-F9P") == nullptr) // If it's not a ZED-F9P
             systemPrintf("ZED module: %s\r\n", _zed->getModuleName());
 
         if (strcmp(_zed->getFirmwareType(), "HPG") == 0)
@@ -222,6 +222,12 @@ void GNSS_ZED::begin()
             online.gnss = true;
 
             present.dynamicModel = true; // EVK and FPX ZED modules support dynamic model configuration
+
+            // On Facet FP: set UART2 (Radio) protocol(s)
+            // Both Ext Radio and LoRa need RTCM on UART2
+            // Note: this is probably redundant? I only added it because I added it on mosaic...
+            if (productVariant == RTK_FACET_FP)
+                setCorrRadioExtPort((settings.enableExtCorrRadio || settings.enableLora), true); // Force the setting
 
             return;
         }
@@ -474,7 +480,14 @@ bool GNSS_ZED::configure()
     gnssConfigure(GNSS_CONFIG_EXT_CORRECTIONS); // Request receiver to use new settings
 
     if (response)
-        systemPrintln("ZED-F9P configured");
+    {
+        if (present.gnss_zedf9p)
+            systemPrintln("ZED-F9P configured");
+        else if (present.gnss_zedx20p)
+            systemPrintln("ZED-X20P configured");
+        else
+            systemPrintln("Unknown ZED configured"); // This should never happen...
+    }
 
     return (response);
 }
@@ -1566,7 +1579,7 @@ void GNSS_ZED::menuMessages()
         systemPrintf("Active messages: %d\r\n", getActiveMessageCount());
 
         systemPrintln("1) Set NMEA Messages");
-        systemPrintln("2) Set RTCM Messages");
+        systemPrintln("2) Set RTCM Messages for Rover Mode");
         systemPrintln("3) Set RXM Messages");
         systemPrintln("4) Set NAV Messages");
         systemPrintln("5) Set NAV2 Messages");
@@ -1671,10 +1684,24 @@ void GNSS_ZED::menuMessages()
 // Controls the messages that get broadcast over Bluetooth and logged (if enabled)
 void GNSS_ZED::menuMessagesSubtype(uint8_t *localMessageRate, const char *messageType)
 {
+    // MessageType comes in as 'RTCM_' or 'NMEA_' etc, we want to trim the trailing underscore for ease of display
+    char trimmedMessageType[32];
+    strncpy(trimmedMessageType, messageType, sizeof(trimmedMessageType) - 1);
+    trimmedMessageType[sizeof(trimmedMessageType) - 1] = '\0';
+    char *underscore = strchr(trimmedMessageType, '_');
+    if (underscore)
+        *underscore = '\0';
+
+    // Clearly show RTCM is for Rover
+    if (strcmp(trimmedMessageType, "RTCM") == 0)
+    {
+        strncpy(trimmedMessageType, "RTCM-Rover", sizeof(trimmedMessageType) - 1);
+    }
+
     while (1)
     {
         systemPrintln();
-        systemPrintf("Menu: Message %s\r\n", messageType);
+        systemPrintf("Menu: Message %s\r\n", trimmedMessageType);
 
         int startOfBlock = 0;
         int endOfBlock = 0;
@@ -1757,28 +1784,46 @@ int GNSS_ZED::pushRawData(uint8_t *dataToSend, int dataLength)
     return (0);
 }
 
-// These are settings used inside the library, not setting on the GNSS receiver so they are not saved to the receiver's
-// NVM We have to re-enable them each time
+// These are settings used inside the library, not setting on the GNSS receiver
+// so they are not saved to the receiver's NVM We have to re-enable them each time
+// Except that the I2C message rates will be saved - to VAL_LAYER_ALL
 bool GNSS_ZED::registerCallbacks()
 {
     bool response = true;
 
+    // Set up callbacks for PVT / HPPOSLLH / TIM_TP / MON_HW / MON_COMMS
+    // setAuto...callbackPtr will enable the message on I2C at a rate / inverval of 1
+    // To be kind, we decrease the message rate / interval afterwards
+
+    uint8_t messageRate = 1;
+    if (settings.measurementRateMs < 1000)
+        messageRate = 1000 / settings.measurementRateMs;
+
     // Enable automatic NAV PVT messages with callback to storePVTdata
     response &= _zed->setAutoPVTcallbackPtr(&storePVTdata, VAL_LAYER_ALL);
+    response &= _zed->setVal8(UBLOX_CFG_MSGOUT_UBX_NAV_PVT_I2C, messageRate, VAL_LAYER_ALL);
 
     // Enable automatic NAV HPPOSLLH messages with callback to storeHPdata
     response &= _zed->setAutoHPPOSLLHcallbackPtr(&storeHPdata, VAL_LAYER_ALL);
+    response &= _zed->setVal8(UBLOX_CFG_MSGOUT_UBX_NAV_HPPOSLLH_I2C, messageRate, VAL_LAYER_ALL);
 
     // Enable automatic TIM TP messages with callback to storeTIMTPdata
     if (present.timePulseInterrupt)
+    {
         response &= _zed->setAutoTIMTPcallbackPtr(&storeTIMTPdata, VAL_LAYER_ALL);
+        response &= _zed->setVal8(UBLOX_CFG_MSGOUT_UBX_TIM_TP_I2C, messageRate, VAL_LAYER_ALL);
+    }
 
     // Enable automatic MON HW messages with callback to storeMONHWdata
     if (present.antennaShortOpen)
+    {
         response &= _zed->setAutoMONHWcallbackPtr(&storeMONHWdata, VAL_LAYER_ALL);
+        response &= _zed->setVal8(UBLOX_CFG_MSGOUT_UBX_MON_HW_I2C, messageRate, VAL_LAYER_ALL);
+    }
 
     // Add a callback for UBX-MON-COMMS
     response &= _zed->setAutoMONCOMMScallbackPtr(&storeMONCOMMSdata, VAL_LAYER_ALL);
+    response &= _zed->setVal8(UBLOX_CFG_MSGOUT_UBX_MON_COMMS_I2C, messageRate, VAL_LAYER_ALL);
 
     return (response);
 }
@@ -1907,7 +1952,7 @@ bool GNSS_ZED::setConstellations()
             bool response = _zed->newCfgValset(VAL_LAYER_ALL);
             response &= _zed->addCfgValset(ubxConstellations[gnssIndex].configKey, enableMe);
 
-            //Add any constellation specific signals
+            // Add any constellation specific signals
             for (int c = 0; c < MAX_UBX_CONSTELLATION_SIGNALS; c++)
             {
                 if (ubxConstellations[gnssIndex].CONSTELLATION_SIGNAL[c] > 0)
@@ -1916,7 +1961,7 @@ bool GNSS_ZED::setConstellations()
 
             // Send it
             response &= _zed->sendCfgValset();
-            
+
             if (response == false)
             {
                 if (settings.debugGnssConfig == true && !inMainMenu)
@@ -2141,7 +2186,7 @@ bool GNSS_ZED::setMessagesNMEA()
         }
     }
 
-    // If this is Facet FP, we may need to enable NMEA for Tilt IMU
+    // If this is Facet FP, we may need to enable NMEA for Tilt IMU at the full rate
     if (variantHousingProperties->tiltPossible == true)
     {
         if (present.imu_im19 == true && settings.enableTiltCompensation == true)
@@ -2180,23 +2225,16 @@ bool GNSS_ZED::setMessagesNMEA()
         // Enable GGA for NTRIP - at reduced rate if necessary
         if (settings.enableNtripClient == true && settings.ntripClient_TransmitGGA == true)
         {
-            float measurementFrequency = (1000.0 / settings.measurementRateMs);
-            if (measurementFrequency < 0.2)
-                measurementFrequency = 0.2; // 0.2Hz * 5 = 1 measurement every 5 seconds
+            uint8_t messageRate = 1;
+            if (settings.measurementRateMs < 5000)
+                messageRate = 5000 / settings.measurementRateMs;
             if (settings.debugGnssConfig)
-                systemPrintf("Adjusting GGA setting to %f\r\n", measurementFrequency);
-            gpggaEnabled =
-                _zed->setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GGA_UART1, measurementFrequency,
-                              VAL_LAYER_ALL); // Enable GGA over UART1. Tell the module to output GGA every second
+                systemPrintf("Adjusting GGA setting to %f\r\n", messageRate);
+            gpggaEnabled = _zed->setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GGA_UART1, messageRate,
+                                         VAL_LAYER_ALL); // Enable GGA over UART1
             response &= gpggaEnabled;
         }
     }
-
-    // Configure the callback for GGA as needed
-    if (settings.enableNtripClient == true && settings.ntripClient_TransmitGGA == true)
-        response &= _zed->setNMEAGPGGAcallbackPtr(&zedPushGPGGA);
-    else
-        response &= _zed->setNMEAGPGGAcallbackPtr(nullptr);
 
     return (response);
 }
@@ -2597,12 +2635,22 @@ void GNSS_ZED::storeMONCOMMSdataRadio(UBX_MON_COMMS_data_t *ubxDataStruct)
 
     for (uint8_t port = 0; port < ubxDataStruct->header.nPorts; port++) // For each port
     {
-        if (ubxDataStruct->port[port].portId == COM_PORT_ID_UART2) // If this is the port we are looking for
+        // In the GNSS v3 library: COM_PORT_ID_UART2 is 0x0201
+        // I added a note: "UBX-18010802 - R15 also documents 0x0101 and 0x0200 - both are "Reserved""
+        // On earlier ZED-F9P devices, the UART2 portId was 0x0201
+        // But on ZED-X20P (2.02) it is 0x0200
+        // Check for the appropriate ID based on variant
+
+        uint16_t portId = COM_PORT_ID_UART2; // For the EVK
+        if (present.gnss_zedx20p)
+            portId = 0x200; // For the Facet FP
+
+        if (ubxDataStruct->port[port].portId == portId) // If this is the port we are looking for
         {
             uint32_t rxBytes = ubxDataStruct->port[port].rxBytes;
 
-            // if (settings.debugCorrections && !inMainMenu)
-            //     systemPrintf("Radio Ext (UART2) rxBytes is %d\r\n", rxBytes);
+            if (settings.debugCorrections && !inMainMenu)
+                systemPrintf("Radio Ext (UART2) rxBytes is %d\r\n", rxBytes);
 
             if (firstTime) // Avoid a false positive from historic rxBytes
             {
@@ -2994,13 +3042,6 @@ void inputMessageRate(uint8_t &localMessageRate, uint8_t messageNumber)
     localMessageRate = rate;
 }
 
-// Push GGA sentence over NTRIP Client, to Caster, if enabled
-// ZED uses callback, other platforms call this from processUart1Message()
-void zedPushGPGGA(NMEA_GGA_data_t *nmeaData)
-{
-    pushGPGGA((char *)nmeaData->nmea);
-}
-
 //----------------------------------------
 // List available settings, their type in CSV, and value
 //----------------------------------------
@@ -3137,7 +3178,6 @@ bool zedCreateString(RTK_Settings_Types type, int settingsIndex, char *newSettin
             snprintf(tempString, sizeof(tempString), "%s%s,%d,", rtkSettingsEntries[settingsIndex].name,
                      ubxMessages[x].msgTextName, settings.ubxMessageRates[x]);
             stringRecord(newSettings, tempString);
-            Serial.printf("Adding to settings string: %s", tempString);
         }
     }
     break;
@@ -3212,7 +3252,8 @@ bool zedGetSettingValue(RTK_Settings_Types type, const char *suffix, int setting
 //----------------------------------------
 // Called by gnssNewSettingValue to save a ZED specific setting
 //----------------------------------------
-bool zedNewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifier, double d)
+bool zedNewSettingValue(struct Settings *tempSettings, RTK_Settings_Types type, const char *suffix, int qualifier,
+                        double d)
 {
     switch (type)
     {
@@ -3224,7 +3265,7 @@ bool zedNewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifi
                 if ((suffix[0] == ubxConstellations[x].textName[0]) &&
                     (strcmp(suffix, ubxConstellations[x].textName) == 0))
                 {
-                    settings.ubxConstellationsEnabled[x] = d;
+                    tempSettings->ubxConstellationsEnabled[x] = d;
                     return true;
                 }
             }
@@ -3238,7 +3279,7 @@ bool zedNewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifi
         {
             if ((suffix[0] == ubxMessages[x].msgTextName[0]) && (strcmp(suffix, ubxMessages[x].msgTextName) == 0))
             {
-                settings.ubxMessageRates[x] = (uint8_t)d;
+                tempSettings->ubxMessageRates[x] = (uint8_t)d;
                 return true;
             }
         }
@@ -3252,7 +3293,7 @@ bool zedNewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifi
             if ((suffix[0] == ubxMessages[firstRTCMRecord + x].msgTextName[0]) &&
                 (strcmp(suffix, ubxMessages[firstRTCMRecord + x].msgTextName) == 0))
             {
-                settings.ubxMessageRatesBase[x] = (uint8_t)d;
+                tempSettings->ubxMessageRatesBase[x] = (uint8_t)d;
                 return true;
             }
         }

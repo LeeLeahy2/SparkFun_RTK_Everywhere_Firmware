@@ -1048,7 +1048,7 @@ SettingValueResponse updateSettingWithValue(bool inCommands, const char *setting
         // Handle the GNSS specific types
         if (knownSetting == false)
         {
-            if (gnssNewSettingValue(type, suffix, qualifier, settingValue))
+            if (gnssNewSettingValue(&settings, type, suffix, qualifier, settingValue))
                 knownSetting = true;
         }
 
@@ -1322,7 +1322,7 @@ SettingValueResponse updateSettingWithValue(bool inCommands, const char *setting
     }
 
     // Convert antenna in meters (from Web Config) to mm (internal settings)
-    else if (strcmp(settingName, "antennaHeight_m") == 0)
+    else if (strcmp(settingName, "antennaHeightM") == 0)
     {
         settings.antennaHeight_mm = settingValue * 1000;
         knownSetting = true;
@@ -1792,7 +1792,7 @@ void createSettingsString(char *newSettings)
     if (present.microSd)
     {
         stringRecord(newSettings, "sdMounted", online.microSD);
-        
+
         if (online.microSD)
         {
             // Add SD Characteristics

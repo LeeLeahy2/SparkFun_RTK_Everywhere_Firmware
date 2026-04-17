@@ -510,6 +510,23 @@ void networkConsumerAdd(NETCONSUMER_t consumer, NetIndex_t network, const char *
             if (settings.debugNetworkLayer)
                 networkDisplayStatus();
         }
+
+        // When Web Config is started, all consumers are stopped marking the networkPriority as offline. 
+        // If the ethernet interface is running, mark the network priority so that consumers within Web Config will use it
+        if(networkPriority == NETWORK_OFFLINE && ethernetLinkUp() == true)
+        {
+            if(settings.debugNetworkLayer)
+                systemPrintf("Network: Ethernet interface running, setting Ethernet as highest network priority\r\n");
+            networkPriority = 0;
+        }
+
+        // If the WiFi station interface is running, mark the network priority so that consumers within Web Config will use it
+        else if(networkPriority == NETWORK_OFFLINE && wifiStationRunning == true)
+        {
+            if(settings.debugNetworkLayer)
+                systemPrintf("Network: WiFi station interface running, setting WiFi as highest network priority\r\n");
+            networkPriority = 1;
+        }        
     }
     else
     {
@@ -2139,6 +2156,14 @@ void networkSoftApConsumerAdd(NETCONSUMER_t consumer, const char *fileName, uint
             wifiSoftApOn(__FILE__, __LINE__);
             if (settings.debugNetworkLayer)
                 networkDisplayStatus();
+        }
+        
+        // If the WiFi station interface is running, mark the network priority so that consumers within Soft AP will use it
+        if(networkPriority == NETWORK_OFFLINE && wifiStationRunning == true)
+        {
+            if(settings.debugNetworkLayer)
+                systemPrintf("Network: WiFi station interface running, setting WiFi as highest network priority\r\n");
+            networkPriority = 1;
         }
     }
     else

@@ -813,7 +813,7 @@ class GNSS_MOSAIC : GNSS
     bool isDgpsFixed();
 
     // Some functions merely need to know if we have an RTK Float.
-    // This function checks to see if the given platform has reached sufficient 
+    // This function checks to see if the given platform has reached sufficient
     // fix type to be considered valid.
     bool isFixed();
 
@@ -833,12 +833,12 @@ class GNSS_MOSAIC : GNSS
     bool mosaicIsPresentOnFacetFP();
 
     // Some functions merely need to know if we have an RTK Float.
-    // This function checks to see if the given platform has reached sufficient 
+    // This function checks to see if the given platform has reached sufficient
     // fix type to be considered valid.
     bool isRTKFix();
 
     // Some functions merely need to know if we have an RTK Float.
-    // This function checks to see if the given platform has reached sufficient 
+    // This function checks to see if the given platform has reached sufficient
     // fix type to be considered valid.
     bool isRTKFloat();
 
@@ -1101,7 +1101,8 @@ bool mosaicpGetSettingValue(RTK_Settings_Types type,
                             char * settingValueStr);
 bool mosaicIsPresentOnFacetFP();
 void mosaicNewClass();
-bool mosaicNewSettingValue(RTK_Settings_Types type,
+bool mosaicNewSettingValue(struct Settings * tempSettings,
+                           RTK_Settings_Types type,
                            const char * suffix,
                            int qualifier,
                            double d);

@@ -108,7 +108,7 @@ void menuBase()
 
         systemPrintln("7) Commonly Used Base Coordinates");
 
-        systemPrintln("8) Set RTCM Message Rates");
+        systemPrintln("8) Set RTCM Message Rates for Base Mode");
 
         systemPrint("9) Toggle NTRIP Server: ");
         if (settings.enableNtripServer == true)

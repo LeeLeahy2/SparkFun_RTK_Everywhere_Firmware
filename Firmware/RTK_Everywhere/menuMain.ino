@@ -109,8 +109,8 @@ void menuMain()
 
         systemPrintln("u) Configure User Profiles");
 
-        if (btPrintEcho)
-            systemPrintln("b) Exit Bluetooth Echo mode");
+        if (btPrintEcho || tcpServerInRemoteConfig())
+            systemPrintln("b) Exit Remote Echo mode");
 
         systemPrintln("+) Enter Command line mode");
 
@@ -150,11 +150,13 @@ void menuMain()
             menuSystem();
         else if ((incoming == 't') && present.imu_im19)
             menuInstrument();
-        else if (incoming == 'b' && btPrintEcho == true)
+        else if ((incoming == 'b') && (btPrintEcho == true || tcpServerInRemoteConfig() == true))
         {
             printEndpoint = PRINT_ENDPOINT_SERIAL;
-            systemPrintln("BT device has exited echo mode");
+            readEndpoint = PRINT_ENDPOINT_SERIAL;
+            systemPrintln("Remote device has exited echo mode");
             btPrintEcho = false;
+            tcpServerDisableEndpoint();
             break; // Exit config menu
         }
         else if (incoming == '+')
@@ -364,23 +366,9 @@ void menuUserProfiles()
                     }
                 }
 
-                gnssConfigureDefaults(); // Set all bits in the request bitfield to cause the GNSS receiver to go
-                                         // through a full (re)configuration
-
-                recordProfileNumber(0); // Move to Profile1
-
-                setSettingsFileName(); // Update file name with new profileNumber. Also updates station coordinates file
-                                       // names
-
-                // We need to load these settings from file so that we can record a profile name change correctly
-                bool responseLFS = loadSystemSettingsFromFileLFS(settingsFileName);
-                bool responseSD = loadSystemSettingsFromFileSD(settingsFileName);
-
-                // If this is an empty/new profile slot, overwrite our current settings with defaults
-                if (responseLFS == false && responseSD == false)
-                {
-                    settingsToDefaults();
-                }
+                // We need to load these settings from file so that we can
+                // record a profile name change correctly
+                changeProfileNumber(0, false);
 
                 // Get bitmask of active profiles
                 activeProfiles = loadProfileNames();
@@ -513,9 +501,11 @@ void menuRadio()
                     systemPrintf("10) LoRa Radio: Enabled - Firmware v%s\r\n", loraFirmwareVersion);
 
                 systemPrintf("11) LoRa Coordination Frequency: %0.3f\r\n", settings.loraCoordinationFrequency);
-                systemPrintf("12) LoRa Transmit Power: %ddBm\r\n", settings.loraTransmitPower_dBm);
+                systemPrintf("12) LoRa Transmit Gain: %ddB\r\n", settings.loraTransmitGain_dB);
+                systemPrintf("13) LoRa Save Settings to Flash: %s\r\n",
+                              settings.loraSaveSettingsToFlash ? "Enabled" : "Disabled");
                 if (present.loraDedicatedUart == false)
-                    systemPrintf("13) Seconds without user serial that must elapse before LoRa radio goes "
+                    systemPrintf("14) Seconds without user serial that must elapse before LoRa radio goes "
                                  "into dedicated listening mode: %d\r\n",
                                  settings.loraSerialInteractionTimeout_s);
             }
@@ -667,6 +657,8 @@ void menuRadio()
         else if (present.radio_lora == true && incoming == 10)
         {
             settings.enableLora ^= 1;
+            gnssConfigure(GNSS_CONFIG_MESSAGE_RATE_NMEA); // We may need to enable / disable NMEA
+            gnssConfigure(GNSS_CONFIG_EXT_CORRECTIONS); // We may need to enable RTCM input
         }
         else if (present.radio_lora == true && settings.enableLora == true && incoming == 11)
         {
@@ -675,11 +667,13 @@ void menuRadio()
         }
         else if (present.radio_lora == true && settings.enableLora == true && incoming == 12)
         {
-            getNewSetting("Enter the transmit power in dBm",
-                          0, 13, &settings.loraTransmitPower_dBm);
+            getNewSetting("Enter the transmit gain in dB",
+                          0, 13, &settings.loraTransmitGain_dB);
         }
+        else if (present.radio_lora == true && settings.enableLora == true && incoming == 13)
+            settings.loraSaveSettingsToFlash ^= 1;
         else if (present.radio_lora == true && settings.enableLora == true 
-                 && present.loraDedicatedUart == false && incoming == 13)
+                 && present.loraDedicatedUart == false && incoming == 14)
         {
             getNewSetting("Enter the number of seconds without user serial that must elapse before LoRa radio goes "
                           "into dedicated listening mode",

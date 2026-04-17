@@ -2434,7 +2434,7 @@ bool um980GetSettingValue(RTK_Settings_Types type, const char *suffix, int setti
 //----------------------------------------
 // Called by gnssNewSettingValue to save a UM980 specific setting
 //----------------------------------------
-bool um980NewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifier, double d)
+bool um980NewSettingValue(struct Settings * tempSettings, RTK_Settings_Types type, const char *suffix, int qualifier, double d)
 {
     switch (type)
     {
@@ -2444,7 +2444,7 @@ bool um980NewSettingValue(RTK_Settings_Types type, const char *suffix, int quali
             if ((suffix[0] == um980ConstellationCommands[x].textName[0]) &&
                 (strcmp(suffix, um980ConstellationCommands[x].textName) == 0))
             {
-                settings.um980Constellations[x] = d;
+                tempSettings->um980Constellations[x] = d;
                 return true;
             }
         }
@@ -2454,7 +2454,7 @@ bool um980NewSettingValue(RTK_Settings_Types type, const char *suffix, int quali
         {
             if ((suffix[0] == umMessagesNMEA[x].msgTextName[0]) && (strcmp(suffix, umMessagesNMEA[x].msgTextName) == 0))
             {
-                settings.um980MessageRatesNMEA[x] = d;
+                tempSettings->um980MessageRatesNMEA[x] = d;
                 return true;
             }
         }
@@ -2464,7 +2464,7 @@ bool um980NewSettingValue(RTK_Settings_Types type, const char *suffix, int quali
         {
             if ((suffix[0] == umMessagesRTCM[x].msgTextName[0]) && (strcmp(suffix, umMessagesRTCM[x].msgTextName) == 0))
             {
-                settings.um980MessageRatesRTCMBase[x] = d;
+                tempSettings->um980MessageRatesRTCMBase[x] = d;
                 return true;
             }
         }
@@ -2474,7 +2474,7 @@ bool um980NewSettingValue(RTK_Settings_Types type, const char *suffix, int quali
         {
             if ((suffix[0] == umMessagesRTCM[x].msgTextName[0]) && (strcmp(suffix, umMessagesRTCM[x].msgTextName) == 0))
             {
-                settings.um980MessageRatesRTCMRover[x] = d;
+                tempSettings->um980MessageRatesRTCMRover[x] = d;
                 return true;
             }
         }
@@ -2574,7 +2574,7 @@ void um980FirmwareBeginUpdate()
     //  and display have all been initialized. But, importantly, the UARTs have not yet been started.
     //  This makes our job much easier...
 
-    // Flag that we are in direct connect mode. Button task will um980FirmwareRemoveUpdate and exit
+    // Flag that we are in direct connect mode
     inDirectConnectMode = true;
 
     // Paint GNSS Update
@@ -2644,7 +2644,7 @@ void um980FirmwareBeginUpdate()
                     gnssBoot(); // Exit Reset
 
                     // No delay here!
-                    
+
                     inBootMode = true;
                 }
 

@@ -3,11 +3,12 @@ menuSupport.ino
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
 // Change the active profile number, without unit reset
-void changeProfileNumber(byte newProfileNumber)
+void changeProfileNumber(byte newProfileNumber, bool recordSettings)
 {
     gnssConfigureDefaults(); // Set all bits in the request bitfield to cause the GNSS receiver to go through a full
                              // (re)configuration
-    recordSystemSettings();  // Before switching, we need to record the current settings to LittleFS and SD
+    if (recordSettings)
+        recordSystemSettings();  // Before switching, we need to record the current settings to LittleFS and SD
 
     recordProfileNumber(newProfileNumber);
     setSettingsFileName(); // Load the settings file name into memory (enabled profile name delete)
@@ -41,6 +42,8 @@ void checkGNSSArrayDefaults()
         if (settings.enableExtCorrRadio == 254)
         {
             defaultsApplied = true;
+            // On F9P/X20P and mosaic, we do have access to the UART2 byte counts so we
+            // can safely default to enabled
             settings.enableExtCorrRadio = true;
         }
 
@@ -159,6 +162,8 @@ void checkGNSSArrayDefaults()
         if (settings.enableExtCorrRadio == 254)
         {
             defaultsApplied = true;
+            // On X20P and mosaic, we do have access to the UART2 byte counts so we
+            // can safely default to enabled
             settings.enableExtCorrRadio = true;
         }
 
@@ -220,7 +225,25 @@ void checkGNSSArrayDefaults()
         if (settings.enableExtCorrRadio == 254)
         {
             defaultsApplied = true;
-            settings.enableExtCorrRadio = false;
+            if (productVariant == RTK_POSTCARD)
+                // User has to enable UART3 (JST) manually for the same reason as LG290P on FP
+                settings.enableExtCorrRadio = false;
+            else if (productVariant == RTK_FACET_FP)
+            {
+                // With LG290P on Facet FP:
+                // We do not know if ext radio / LoRa corrections are arriving
+                // because we don't have access to the UART2 byte counts. We have to assume
+                // that corrections are arriving. See GNSS_LG290P::isCorrRadioExtPortActive()
+                // We must set settings.enableExtCorrRadio to false to prevent this.
+                settings.enableExtCorrRadio = false;
+            }
+            else if (productVariant == RTK_TORCH_X2)
+                settings.enableExtCorrRadio = false; // GNSS UART1 isn't really accessible
+            else
+            {
+                settings.enableExtCorrRadio = false;
+                systemPrintln("checkGNSSArrayDefaults: Uncaught platform");
+            }
         }
 
         if (settings.lg290pConstellations[0] == 254)
@@ -982,7 +1005,7 @@ void terminalUpdate()
             else
             {
                 // When outputting GNSS data to USB serial, check for +++
-                if (!forwardGnssDataToUsbSerial)
+                if (forwardGnssDataToUsbSerial == false)
                     menuMain(); // Present user menu
                 else
                 {

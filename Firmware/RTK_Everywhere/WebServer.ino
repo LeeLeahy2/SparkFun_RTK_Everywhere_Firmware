@@ -12,15 +12,15 @@ WebServer.ino
 
 static const int webServerStackSize = 1024 * 20;
 
-const char * const image_png = "image/png";
-const char * const text_css = "text/css";
-const char * const text_html = "text/html";
-const char * const text_javascript = "text/javascript";
-const char * const text_plain = "text/plain";
+const char *const image_png = "image/png";
+const char *const text_css = "text/css";
+const char *const text_html = "text/html";
+const char *const text_javascript = "text/javascript";
+const char *const text_plain = "text/plain";
 
-#define UPLOAD_FIRMWARE     "/uploadFirmware"
-#define UPLOAD_PATH         "/uploadFile"
-const char * fileNameParameter = "filename=\"";
+#define UPLOAD_FIRMWARE "/uploadFirmware"
+#define UPLOAD_PATH "/uploadFile"
+const char *fileNameParameter = "filename=\"";
 
 // State machine to allow web server access to network layer
 enum WebServerState
@@ -45,16 +45,9 @@ static const int webServerStateEntries = sizeof(webServerStateNames) / sizeof(we
 // These are the various files or endpoints that browsers will attempt to
 // access to see if internet access is available.  If one is requested,
 // redirect user to captive portal (main page "/").
-const char * webServerCaptiveUrls[] =
-{
-    "canonical.html",
-    "check_network_status.txt",
-    "chrome-variations/seed",
-    "connecttest.txt",
-    "generate_204",
-    "hotspot-detect.html",
-    "library/test/success.html",
-    "ncsi.txt",
+const char *webServerCaptiveUrls[] = {
+    "canonical.html", "check_network_status.txt", "chrome-variations/seed",    "connecttest.txt",
+    "generate_204",   "hotspot-detect.html",      "library/test/success.html", "ncsi.txt",
     "success.txt",
 };
 const uint8_t webServerCaptiveUrlCount = sizeof(webServerCaptiveUrls) / sizeof(webServerCaptiveUrls[0]);
@@ -65,23 +58,23 @@ const uint8_t webServerCaptiveUrlCount = sizeof(webServerCaptiveUrls) / sizeof(w
 
 typedef struct _FILE_EXTENSION_TO_CONTENT_TYPE
 {
-    const char * _fileExtension;
-    const char * _contentType;
+    const char *_fileExtension;
+    const char *_contentType;
 } FILE_EXTENSION_TO_CONTENT_TYPE;
 
 typedef struct _GET_PAGE_HANDLER
 {
     httpd_uri_t _page;
-    const char * const * _type;
-    void * _data;
+    const char *const *_type;
+    void *_data;
     size_t _length;
 } GET_PAGE_HANDLER;
 
 typedef struct _WEB_SOCKETS_CLIENT
 {
-    struct _WEB_SOCKETS_CLIENT * _flink;
-    struct _WEB_SOCKETS_CLIENT * _blink;
-    httpd_req_t * _request;
+    struct _WEB_SOCKETS_CLIENT *_flink;
+    struct _WEB_SOCKETS_CLIENT *_blink;
+    httpd_req_t *_request;
     int _socketFD;
 } WEB_SOCKETS_CLIENT;
 
@@ -89,38 +82,38 @@ typedef struct _WEB_SOCKETS_CLIENT
 // Macros
 //----------------------------------------
 
-#define PAGE_HANDLER(index, page, httpMethod, type, routine)    \
-    {                                               \
-        {                                           \
-            .uri = page,                            \
-            .method = httpMethod,                   \
-            .handler = routine,                     \
-            .user_ctx = (void *)index,              \
-        },                                          \
-        &type,                                      \
-        nullptr,                                    \
-        0,                                          \
+#define PAGE_HANDLER(index, page, httpMethod, type, routine)                                                           \
+    {                                                                                                                  \
+        {                                                                                                              \
+            .uri = page,                                                                                               \
+            .method = httpMethod,                                                                                      \
+            .handler = routine,                                                                                        \
+            .user_ctx = (void *)index,                                                                                 \
+        },                                                                                                             \
+        &type,                                                                                                         \
+        nullptr,                                                                                                       \
+        0,                                                                                                             \
     }
 
-#define WEB_PAGE(index, page, type, data)           \
-    {                                               \
-        {                                           \
-            .uri = page,                            \
-            .method = HTTP_GET,                     \
-            .handler = webServerHandlerGetPage,     \
-            .user_ctx = (void *)index,              \
-        },                                          \
-        &type,                                      \
-        (void *)data,                               \
-        sizeof(data),                               \
+#define WEB_PAGE(index, page, type, data)                                                                              \
+    {                                                                                                                  \
+        {                                                                                                              \
+            .uri = page,                                                                                               \
+            .method = HTTP_GET,                                                                                        \
+            .handler = webServerHandlerGetPage,                                                                        \
+            .user_ctx = (void *)index,                                                                                 \
+        },                                                                                                             \
+        &type,                                                                                                         \
+        (void *)data,                                                                                                  \
+        sizeof(data),                                                                                                  \
     }
 
 //----------------------------------------
 // Locals
 //----------------------------------------
 
-static WEB_SOCKETS_CLIENT * webServerClientListHead;
-static WEB_SOCKETS_CLIENT * webServerClientListTail;
+static WEB_SOCKETS_CLIENT *webServerClientListHead;
+static WEB_SOCKETS_CLIENT *webServerClientListTail;
 static httpd_handle_t webServerHandle;
 static SemaphoreHandle_t webServerMutex;
 static uint8_t webServerState;
@@ -140,24 +133,23 @@ esp_err_t webServerHandlerListMessages(httpd_req_t *req);
 // Web page descriptions
 //----------------------------------------
 
-const GET_PAGE_HANDLER webServerPages[] =
-{
-    WEB_PAGE( 0, "/src/sparkpnt_device_setup.png", image_png, sparkpnt_device_setup_png),
-    WEB_PAGE( 1, "/src/sparkfun_device_setup.png", image_png, sparkfun_device_setup_png),
+const GET_PAGE_HANDLER webServerPages[] = {
+    WEB_PAGE(0, "/src/sparkpnt_device_setup.png", image_png, sparkpnt_device_setup_png),
+    WEB_PAGE(1, "/src/sparkfun_device_setup.png", image_png, sparkfun_device_setup_png),
 
     // Page icon
-    WEB_PAGE( 2, "/favicon.ico", text_plain, favicon_ico),
+    WEB_PAGE(2, "/favicon.ico", text_plain, favicon_ico),
 
     // Fonts
-    WEB_PAGE( 3, "/src/fonts/icomoon.eot", text_plain, icomoon_eot),
-    WEB_PAGE( 4, "/src/fonts/icomoon.svg", text_plain, icomoon_svg),
-    WEB_PAGE( 5, "/src/fonts/icomoon.ttf", text_plain, icomoon_ttf),
-    WEB_PAGE( 6, "/src/fonts/icomoon.woof", text_plain, icomoon_woof),
+    WEB_PAGE(3, "/src/fonts/icomoon.eot", text_plain, icomoon_eot),
+    WEB_PAGE(4, "/src/fonts/icomoon.svg", text_plain, icomoon_svg),
+    WEB_PAGE(5, "/src/fonts/icomoon.ttf", text_plain, icomoon_ttf),
+    WEB_PAGE(6, "/src/fonts/icomoon.woof", text_plain, icomoon_woof),
 
     // Battery icons
-    WEB_PAGE( 7, "/src/BatteryBlank.png", image_png, batteryBlank_png),
-    WEB_PAGE( 8, "/src/Battery0.png", image_png, battery0_png),
-    WEB_PAGE( 9, "/src/Battery1.png", image_png, battery1_png),
+    WEB_PAGE(7, "/src/BatteryBlank.png", image_png, batteryBlank_png),
+    WEB_PAGE(8, "/src/Battery0.png", image_png, battery0_png),
+    WEB_PAGE(9, "/src/Battery1.png", image_png, battery1_png),
     WEB_PAGE(10, "/src/Battery2.png", image_png, battery2_png),
     WEB_PAGE(11, "/src/Battery3.png", image_png, battery3_png),
     WEB_PAGE(12, "/src/Battery0_Charging.png", image_png, battery0_Charging_png),
@@ -207,7 +199,7 @@ static const httpd_uri_t webServerPage = {.uri = "/ws",
 bool webServerAssignResources(int httpPort = 80)
 {
     int i;
-    const GET_PAGE_HANDLER * setupPage;
+    const GET_PAGE_HANDLER *setupPage;
     esp_err_t status;
 
     if (settings.debugWebServer)
@@ -288,8 +280,7 @@ bool webServerAssignResources(int httpPort = 80)
             systemPrintln("WebServer registering page handlers");
 
         // Register the page not found (404) error handler
-        if (!webServerRegisterErrorHandler(HTTPD_404_NOT_FOUND,
-                                           webServerHandlerPageNotFound))
+        if (!webServerRegisterErrorHandler(HTTPD_404_NOT_FOUND, webServerHandlerPageNotFound))
             break;
 
         // Register the web socket handler
@@ -323,11 +314,11 @@ bool webServerAssignResources(int httpPort = 80)
 //----------------------------------------
 // Check if given URI is a captive portal endpoint
 //----------------------------------------
-bool webServerCheckForKnownCaptiveUrl(const char * uri)
+bool webServerCheckForKnownCaptiveUrl(const char *uri)
 {
-    const char * uriPos;
-    const char * uriStart;
-    const char * uriEnd;
+    const char *uriPos;
+    const char *uriStart;
+    const char *uriEnd;
     size_t uriLength;
     size_t urlLength;
 
@@ -351,8 +342,7 @@ bool webServerCheckForKnownCaptiveUrl(const char * uri)
     {
         // Check for a match
         urlLength = strlen(webServerCaptiveUrls[i]);
-        if ((uriLength == uriLength)
-            && (strncmp(uriStart, webServerCaptiveUrls[i], urlLength) == 0))
+        if ((uriLength == uriLength) && (strncmp(uriStart, webServerCaptiveUrls[i], urlLength) == 0))
             return true;
     }
     return false;
@@ -439,7 +429,8 @@ void webServerCreateFirmwareVersionString(char *firmwareString)
     firmwareVersionGet(currentVersion, sizeof(currentVersion), enableRCFirmware);
 
     // Compare the unit's version against the reported version from OTA
-    if (firmwareVersionIsReportedNewer(otaReportedVersion, currentVersion) == true)
+    // Allow updates if locally compiled developer version is detected
+    if ((firmwareVersionIsReportedNewer(otaReportedVersion, &currentVersion[1]) == true) || ((currentVersion[1] == '9') && (currentVersion[2] == '9')))
     {
         if (settings.debugWebServer == true)
             systemPrintln("WebServer: New firmware version detected");
@@ -448,7 +439,7 @@ void webServerCreateFirmwareVersionString(char *firmwareString)
     else
     {
         if (settings.debugWebServer == true)
-            systemPrintln("No new firmware available");
+            systemPrintln("WebServer: No new firmware available");
         snprintf(newVersionCSV, sizeof(newVersionCSV), "CURRENT,");
     }
 
@@ -499,9 +490,7 @@ void webServerDisplayRequest(httpd_req_t *req)
 //----------------------------------------
 // Display the request
 //----------------------------------------
-void webServerDisplayRequestAndData(httpd_req_t *req,
-                                    const void * data,
-                                    size_t bytes)
+void webServerDisplayRequestAndData(httpd_req_t *req, const void *data, size_t bytes)
 {
     // Display the request and response
     if (settings.debugWebServer == true)
@@ -509,21 +498,20 @@ void webServerDisplayRequestAndData(httpd_req_t *req,
         char ipAddress[80];
 
         webServerGetClientIpAddressAndPort(req, ipAddress, sizeof(ipAddress));
-        systemPrintf("WebServer Client: %s%s (%p, %d bytes)\r\n",
-                     ipAddress, req->uri, data, bytes);
+        systemPrintf("WebServer Client: %s%s (%p, %d bytes)\r\n", ipAddress, req->uri, data, bytes);
     }
 }
 
 //----------------------------------------
 // Delete the specified file
 //----------------------------------------
-void webServerFileDelete(httpd_req_t * req, const char * fileName)
+void webServerFileDelete(httpd_req_t *req, const char *fileName)
 {
     int httpResponseCode;
-    String * response;
+    String *response;
     String responseFailed;
     String responseSuccessful;
-    const char * statusMessage;
+    const char *statusMessage;
 
     // Build the responses
     responseFailed = "File ";
@@ -577,28 +565,28 @@ void webServerFileDelete(httpd_req_t * req, const char * fileName)
 //----------------------------------------
 // Download the specified file
 //----------------------------------------
-void webServerFileDownload(httpd_req_t * req, const char * fileName)
+void webServerFileDownload(httpd_req_t *req, const char *fileName)
 {
-    uint8_t * buffer;
+    uint8_t *buffer;
     const size_t bufferBytes = 32768;
     int bytes;
     uint64_t bytesSent;
-    char * client;
+    char *client;
     const size_t clientBytes = 80;
-    char * disposition;
+    char *disposition;
     size_t dispositionBytes;
-    const char * dispositionFormat = "attachment; filename=\"%s\"";
+    const char *dispositionFormat = "attachment; filename=\"%s\"";
     SdFile file;
     bool haveSemaphore;
     int httpResponseCode;
     size_t length;
-    char * lengthString;
+    char *lengthString;
     const size_t lengthStringBytes = 32;
-    String * response;
+    String *response;
     String responseFailed;
     String responseSuccessful;
     esp_err_t status;
-    const char * statusMessage;
+    const char *statusMessage;
 
     do
     {
@@ -621,11 +609,7 @@ void webServerFileDownload(httpd_req_t * req, const char * fileName)
         dispositionBytes = snprintf(nullptr, 0, dispositionFormat, &fileName[1]);
 
         // Allocate the buffer
-        length += bufferBytes
-               + clientBytes
-               + lengthStringBytes
-               + dispositionBytes
-               + 1;                 // Disposition zero termination
+        length += bufferBytes + clientBytes + lengthStringBytes + dispositionBytes + 1; // Disposition zero termination
         buffer = (uint8_t *)rtkMalloc(length, "WebServer file download buffer");
         if (buffer == nullptr)
         {
@@ -715,8 +699,7 @@ void webServerFileDownload(httpd_req_t * req, const char * fileName)
             }
             if (settings.debugWebServer == true)
             {
-                systemPrintf("WebServer: Sending %d bytes at offset %lld to %s\r\n",
-                             bytes, bytesSent, client);
+                systemPrintf("WebServer: Sending %d bytes at offset %lld to %s\r\n", bytes, bytesSent, client);
                 bytesSent += bytes;
             }
 
@@ -733,6 +716,11 @@ void webServerFileDownload(httpd_req_t * req, const char * fileName)
             // Check for end of file
             if (bytes == 0)
             {
+                response = &responseSuccessful;
+
+                // Tell browser to initiate next file download, if applicable
+                webServerSendString("fmNext,1,");
+
                 response = nullptr;
                 break;
             }
@@ -770,15 +758,10 @@ void webServerFileDownload(httpd_req_t * req, const char * fileName)
 //----------------------------------------
 // Get the client IP address
 //----------------------------------------
-void webServerGetClientIpAddressAndPort(httpd_req_t *req,
-                                        char * ipAddress,
-                                        size_t ipAddressBytes)
+void webServerGetClientIpAddressAndPort(httpd_req_t *req, char *ipAddress, size_t ipAddressBytes)
 {
     socklen_t addrBytes;
-    const uint8_t ip4Address[12] =
-    {
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff
-    };
+    const uint8_t ip4Address[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
     struct sockaddr_in6 ip6Address;
     bool isIp6Address;
     size_t requiredStringLength;
@@ -821,11 +804,11 @@ void webServerGetClientIpAddressAndPort(httpd_req_t *req,
 
     // Verify the length of the output buffer
     requiredStringLength = (isIp6Address ? 1 : 0)   // Left bracket (IP6 only)
-                         + strlen(temp)             // IP address
-                         + (isIp6Address ? 1 : 0)   // Right bracket (IP6 only)
-                         + 1    // Colon
-                         + 5    // Port number
-                         + 1;   // Zero termination
+                           + strlen(temp)           // IP address
+                           + (isIp6Address ? 1 : 0) // Right bracket (IP6 only)
+                           + 1                      // Colon
+                           + 5                      // Port number
+                           + 1;                     // Zero termination
     if (ipAddressBytes < requiredStringLength)
     {
         if (settings.debugWebServer == true)
@@ -914,15 +897,10 @@ void webServerGetFileList(String &returnText)
 //----------------------------------------
 // Get the local IP address and port number
 //----------------------------------------
-void webServerGetLocalIpAddressAndPort(httpd_req_t *req,
-                                       char * ipAddress,
-                                       size_t ipAddressBytes)
+void webServerGetLocalIpAddressAndPort(httpd_req_t *req, char *ipAddress, size_t ipAddressBytes)
 {
     socklen_t addrBytes;
-    const uint8_t ip4Address[12] =
-    {
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff
-    };
+    const uint8_t ip4Address[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
     struct sockaddr_in6 ip6Address;
     bool isIp6Address;
     size_t requiredStringLength;
@@ -965,11 +943,11 @@ void webServerGetLocalIpAddressAndPort(httpd_req_t *req,
 
     // Verify the length of the output buffer
     requiredStringLength = (isIp6Address ? 1 : 0)   // Left bracket (IP6 only)
-                         + strlen(temp)             // IP address
-                         + (isIp6Address ? 1 : 0)   // Right bracket (IP6 only)
-                         + 1    // Colon
-                         + 5    // Port number
-                         + 1;   // Zero termination
+                           + strlen(temp)           // IP address
+                           + (isIp6Address ? 1 : 0) // Right bracket (IP6 only)
+                           + 1                      // Colon
+                           + 5                      // Port number
+                           + 1;                     // Zero termination
     if (ipAddressBytes < requiredStringLength)
     {
         if (settings.debugWebServer == true)
@@ -1001,7 +979,7 @@ const char *webServerGetStateName(uint8_t state, char *string)
 esp_err_t webServerHandlerFileList(httpd_req_t *req)
 {
     size_t bytes;
-    const char * data;
+    const char *data;
     String fileList;
     char ipAddress[80];
 
@@ -1023,15 +1001,15 @@ esp_err_t webServerHandlerFileList(httpd_req_t *req)
 //----------------------------------------
 esp_err_t webServerHandlerFileManager(httpd_req_t *req)
 {
-    char * action;
-    const char * actionParameter = "action=";
+    char *action;
+    const char *actionParameter = "action=";
     size_t bytes;
-    const char * errorMessage;
-    char * fileName;
-    const char * fileNameParameter = "name=";
-    char * parameter;
-    char * parameters;
-    char * parameterBuffer;
+    const char *errorMessage;
+    char *fileName;
+    const char *fileNameParameter = "name=";
+    char *parameter;
+    char *parameters;
+    char *parameterBuffer;
     size_t parameterBufferLength;
     esp_err_t status;
     do
@@ -1043,8 +1021,7 @@ esp_err_t webServerHandlerFileManager(httpd_req_t *req)
 
         // Allocate a buffer for the name and action
         parameterBufferLength = strlen(req->uri);
-        parameterBuffer = (char *)rtkMalloc(parameterBufferLength + 1,
-                                            "WebServer file manager parameters buffer");
+        parameterBuffer = (char *)rtkMalloc(parameterBufferLength + 1, "WebServer file manager parameters buffer");
         if (parameterBuffer == nullptr)
         {
             errorMessage = "ERROR: WebServer failed to allocate file manager parameters buffer!";
@@ -1082,12 +1059,14 @@ esp_err_t webServerHandlerFileManager(httpd_req_t *req)
 
         // Zero terminate the file name
         parameter = fileName;
-        while ((*parameter != 0) && (*parameter != '&')) parameter++;
+        while ((*parameter != 0) && (*parameter != '&'))
+            parameter++;
         *parameter = 0;
 
         // Zero terminate the action
         parameter = action;
-        while ((*parameter != 0) && (*parameter != '&')) parameter++;
+        while ((*parameter != 0) && (*parameter != '&'))
+            parameter++;
         *parameter = 0;
 
         // Add a slash to the beginning of the file name
@@ -1111,8 +1090,7 @@ esp_err_t webServerHandlerFileManager(httpd_req_t *req)
 
     // Done with the buffers
     if (parameterBuffer)
-        rtkFree(parameterBuffer,
-                "WebServer file manager parameters buffer");
+        rtkFree(parameterBuffer, "WebServer file manager parameters buffer");
 
     // Output the error
     if (errorMessage)
@@ -1129,24 +1107,24 @@ esp_err_t webServerHandlerFileManager(httpd_req_t *req)
 //----------------------------------------
 esp_err_t webServerHandlerFileUpload(httpd_req_t *req)
 {
-    uint8_t * buffer;
+    uint8_t *buffer;
     const size_t bufferLength = 32768;
     size_t bytes;
     size_t bytesRead;
     size_t bytesWritten;
-    uint8_t * data;
+    uint8_t *data;
     size_t dataBytes;
-    const char * errorMessage;
+    const char *errorMessage;
     SdFile file;
     size_t fileLength;
-    char * fileName;
-    char * header;
+    char *fileName;
+    char *header;
     size_t remainingLength;
     bool semaphoreAcquired;
-    char * separator;
+    char *separator;
     size_t separatorLength;
     esp_err_t status;
-    char * temp;
+    char *temp;
 
     do
     {
@@ -1169,7 +1147,7 @@ esp_err_t webServerHandlerFileUpload(httpd_req_t *req)
         // Display the separator
         if (settings.debugWebServer == true)
         {
-            systemPrintln("Seperator");
+            systemPrintln("Separator");
             dumpBuffer((uint8_t *)separator, strlen(separator) + 2);
         }
 
@@ -1186,15 +1164,12 @@ esp_err_t webServerHandlerFileUpload(httpd_req_t *req)
         }
 
         // Determine the file length
-        fileLength = req->content_len
-                   - separatorLength
-                   - 2                      // CR/LF
-                   - strlen(header);
+        fileLength = req->content_len - separatorLength - 2 // CR/LF
+                     - strlen(header);
 
         // Estimate the remaining content data
-        remainingLength = 2                 // CR/LF
-                        + separatorLength
-                        + 2;                // Dash dash
+        remainingLength = 2                      // CR/LF
+                          + separatorLength + 2; // Dash dash
         if (fileLength >= (remainingLength + 2))
             remainingLength += 2;
         if (fileLength < remainingLength)
@@ -1371,22 +1346,22 @@ esp_err_t webServerHandlerFileUpload(httpd_req_t *req)
 //----------------------------------------
 esp_err_t webServerHandlerFirmwareUpload(httpd_req_t *req)
 {
-    uint8_t * buffer;
+    uint8_t *buffer;
     const size_t bufferLength = 32768;
     size_t bytes;
     size_t bytesRead;
     size_t bytesWritten;
-    uint8_t * data;
+    uint8_t *data;
     size_t dataBytes;
-    const char * errorMessage;
+    const char *errorMessage;
     size_t fileLength;
-    char * fileName;
-    char * header;
+    char *fileName;
+    char *header;
     size_t remainingLength;
-    char * separator;
+    char *separator;
     size_t separatorLength;
     esp_err_t status;
-    char * temp;
+    char *temp;
     bool updateRunning;
 
     do
@@ -1427,15 +1402,12 @@ esp_err_t webServerHandlerFirmwareUpload(httpd_req_t *req)
         }
 
         // Determine the file length
-        fileLength = req->content_len
-                   - separatorLength
-                   - 2                      // CR/LF
-                   - strlen(header);
+        fileLength = req->content_len - separatorLength - 2 // CR/LF
+                     - strlen(header);
 
         // Estimate the remaining content data
-        remainingLength = 2                 // CR/LF
-                        + separatorLength
-                        + 2;                // Dash dash
+        remainingLength = 2                      // CR/LF
+                          + separatorLength + 2; // Dash dash
         if (fileLength >= (remainingLength + 2))
             remainingLength += 2;
         if (fileLength < remainingLength)
@@ -1479,8 +1451,8 @@ esp_err_t webServerHandlerFirmwareUpload(httpd_req_t *req)
             systemPrintf("fileName: %s\r\n", fileName);
 
         // Verify the firmware file name
-        if ((strstr(fileName, "RTK_Everywhere") != fileName)
-            || (strstr(fileName, ".bin") != (fileName + strlen(fileName) - 4)))
+        if ((strstr(fileName, "RTK_Everywhere") != fileName) ||
+            (strstr(fileName, ".bin") != (fileName + strlen(fileName) - 4)))
         {
             errorMessage = "ERROR: WebServer detected unknown file type!";
             break;
@@ -1608,7 +1580,7 @@ esp_err_t webServerHandlerFirmwareUpload(httpd_req_t *req)
 esp_err_t webServerHandlerGetPage(httpd_req_t *req)
 {
     uint32_t index;
-    const GET_PAGE_HANDLER * webpage;
+    const GET_PAGE_HANDLER *webpage;
 
     // Locate the page description
     index = (intptr_t)req->user_ctx;
@@ -1629,7 +1601,7 @@ esp_err_t webServerHandlerGetPage(httpd_req_t *req)
 esp_err_t webServerHandlerListBaseMessages(httpd_req_t *req)
 {
     size_t bytes;
-    const char * data;
+    const char *data;
     char ipAddress[80];
     String messageList;
 
@@ -1652,7 +1624,7 @@ esp_err_t webServerHandlerListBaseMessages(httpd_req_t *req)
 esp_err_t webServerHandlerListMessages(httpd_req_t *req)
 {
     size_t bytes;
-    const char * data;
+    const char *data;
     char ipAddress[80];
     String messageList;
 
@@ -1676,13 +1648,12 @@ esp_err_t webServerHandlerPageNotFound(httpd_req_t *req, httpd_err_code_t err)
 {
     char ipAddress[80];
     String logMessage;
-    char * pos;
+    char *pos;
     String redirectLocation;
 
     // Handle the captive portal pages
     // https://github.com/espressif/arduino-esp32/blob/master/libraries/DNSServer/examples/CaptivePortal/CaptivePortal.ino
-    if (settings.enableCaptivePortal
-        && webServerCheckForKnownCaptiveUrl(req->uri))
+    if (settings.enableCaptivePortal && webServerCheckForKnownCaptiveUrl(req->uri))
     {
         if (settings.debugWebServer == true)
         {
@@ -1718,7 +1689,7 @@ esp_err_t webServerHandlerPageNotFound(httpd_req_t *req, httpd_err_code_t err)
     systemPrintln(logMessage);
 
     // Set the 404 status code
-    const char * statusText = "Error 404, page not found";
+    const char *statusText = "Error 404, page not found";
     httpd_resp_set_status(req, statusText);
 
     // Set the content type
@@ -1741,8 +1712,8 @@ esp_err_t webServerHandlerPageNotFound(httpd_req_t *req, httpd_err_code_t err)
 //----------------------------------------
 static esp_err_t webServerHandlerWebSockets(httpd_req_t *req)
 {
-    WEB_SOCKETS_CLIENT * client;
-    WEB_SOCKETS_CLIENT * entry;
+    WEB_SOCKETS_CLIENT *client;
+    WEB_SOCKETS_CLIENT *entry;
 
     // Display the request
     webServerDisplayRequest(req);
@@ -1785,13 +1756,13 @@ static esp_err_t webServerHandlerWebSockets(httpd_req_t *req)
         xSemaphoreGive(webServerMutex);
 
         if (settings.debugWebServer == true)
-            systemPrintf("WebServer: Added client, _request: %p, _socketFD: %d\r\n",
-                         client->_request, client->_socketFD);
+            systemPrintf("WebServer: Added client, _request: %p, _socketFD: %d\r\n", client->_request,
+                         client->_socketFD);
 
         lastDynamicDataUpdate = millis();
 
         // Send new settings to browser.
-        char * settingsCsvList = (char *)rtkMalloc(AP_CONFIG_SETTING_SIZE, "Command CSV settings list");
+        char *settingsCsvList = (char *)rtkMalloc(AP_CONFIG_SETTING_SIZE, "Command CSV settings list");
         if (settingsCsvList)
         {
             createSettingsString(settingsCsvList);
@@ -1992,6 +1963,7 @@ bool webServerParseIncomingSettings()
 
     bool stationGeodeticSeen = false;
     bool stationECEFSeen = false;
+    bool wifiSettingsSeen = false;
 
     char *commaPtr = incomingSettings;
     char *headPtr = incomingSettings;
@@ -2038,6 +2010,12 @@ bool webServerParseIncomingSettings()
                 systemPrintln("Station ECEF coordinate file removed");
         }
 
+        // Check if we received new WiFi settings
+        if ((strstr(settingName, "wifiNetwork_0SSID") != nullptr) && (!wifiSettingsSeen))
+        {
+            wifiSettingsSeen = true;
+        }
+
         updateSettingWithValue(false, settingName, valueStr);
 
         // Avoid infinite loop if response is malformed
@@ -2049,6 +2027,14 @@ bool webServerParseIncomingSettings()
         }
     }
 
+    // Update WiFi settings if new WiFi settings were seen in the incoming settings
+    if (wifiSettingsSeen)
+    {
+        if (settings.debugWebServer == true || settings.debugNetworkLayer == true)
+            systemPrintln("Updating WiFi settings due to new parse data");
+        wifiUpdateSettings();
+    }
+
     systemPrintln("Parsing complete");
 
     return (true);
@@ -2057,14 +2043,14 @@ bool webServerParseIncomingSettings()
 //----------------------------------------
 // Read the header into a buffer
 //----------------------------------------
-char * webServerReadHeader(httpd_req_t *req)
+char *webServerReadHeader(httpd_req_t *req)
 {
-    char * buffer;
+    char *buffer;
     size_t bufferLength;
     size_t bytes;
     char data;
-    const char * errorMessage;
-    char * previousBuffer;
+    const char *errorMessage;
+    char *previousBuffer;
     size_t previousLength;
     esp_err_t status;
     int terminatorCount;
@@ -2187,12 +2173,12 @@ char * webServerReadHeader(httpd_req_t *req)
 //----------------------------------------
 // Read the contents of the request into a buffer
 //----------------------------------------
-uint8_t * webServerReadRequestContent(httpd_req_t *req)
+uint8_t *webServerReadRequestContent(httpd_req_t *req)
 {
-    uint8_t * buffer;
+    uint8_t *buffer;
     size_t bufferLength;
     size_t bytes;
-    const char * errorMessage;
+    const char *errorMessage;
 
     // Locate the header
     do
@@ -2234,14 +2220,14 @@ uint8_t * webServerReadRequestContent(httpd_req_t *req)
 //----------------------------------------
 // Read the separator into a buffer
 //----------------------------------------
-char * webServerReadSeparator(httpd_req_t *req)
+char *webServerReadSeparator(httpd_req_t *req)
 {
-    char * buffer;
+    char *buffer;
     size_t bufferLength;
     size_t bytes;
     char data;
-    const char * errorMessage;
-    char * previousBuffer;
+    const char *errorMessage;
+    char *previousBuffer;
     size_t previousLength;
     esp_err_t status;
     int terminatorCount;
@@ -2342,8 +2328,7 @@ char * webServerReadSeparator(httpd_req_t *req)
 //----------------------------------------
 // Register an error handler
 //----------------------------------------
-bool webServerRegisterErrorHandler(httpd_err_code_t error,
-                                    httpd_err_handler_func_t handler)
+bool webServerRegisterErrorHandler(httpd_err_code_t error, httpd_err_handler_func_t handler)
 {
     esp_err_t status;
 
@@ -2362,7 +2347,7 @@ bool webServerRegisterErrorHandler(httpd_err_code_t error,
 //----------------------------------------
 // Register a webpage handler
 //----------------------------------------
-bool webServerRegisterPageHandler(const httpd_uri_t * page)
+bool webServerRegisterPageHandler(const httpd_uri_t *page)
 {
     esp_err_t status;
 
@@ -2382,7 +2367,7 @@ bool webServerRegisterPageHandler(const httpd_uri_t * page)
 //----------------------------------------
 void webServerReleaseResources()
 {
-    WEB_SOCKETS_CLIENT * client;
+    WEB_SOCKETS_CLIENT *client;
     esp_err_t status;
 
     if (settings.debugWebServer)
@@ -2443,7 +2428,7 @@ void webServerReleaseResources()
 //----------------------------------------
 void webServerSendFirmwareVersion(void)
 {
-    char * firmwareVersion;
+    char *firmwareVersion;
 
     firmwareVersion = (char *)rtkMalloc(AP_FIRMWARE_VERSION_SIZE, "WebServer firmware description");
     if (firmwareVersion == nullptr)
@@ -2453,8 +2438,7 @@ void webServerSendFirmwareVersion(void)
         webServerCreateFirmwareVersionString(firmwareVersion);
 
         if (settings.debugWebServer)
-            systemPrintf("WebServer: Firmware version requested. Sending: %s\r\n",
-                         firmwareVersion);
+            systemPrintf("WebServer: Firmware version requested. Sending: %s\r\n", firmwareVersion);
 
         webServerSendString(firmwareVersion);
         rtkFree(firmwareVersion, "WebServer firmware description");
@@ -2466,7 +2450,7 @@ void webServerSendFirmwareVersion(void)
 //----------------------------------------
 void webServerSendSettings(void)
 {
-    char * settingsCsvList;
+    char *settingsCsvList;
 
     settingsCsvList = (char *)rtkMalloc(AP_CONFIG_SETTING_SIZE, "WebServer CSV settings list");
     if (settingsCsvList == nullptr)
@@ -2484,7 +2468,7 @@ void webServerSendSettings(void)
 //----------------------------------------
 void webServerSendString(const char *stringToSend)
 {
-    WEB_SOCKETS_CLIENT * client;
+    WEB_SOCKETS_CLIENT *client;
 
     if (!webServerIsConnected())
     {
@@ -2507,21 +2491,19 @@ void webServerSendString(const char *stringToSend)
     while (client)
     {
         // Get the next client
-        WEB_SOCKETS_CLIENT * nextClient = client->_flink;
+        WEB_SOCKETS_CLIENT *nextClient = client->_flink;
 
         // Send the string to to the client browser
-        esp_err_t ret = httpd_ws_send_frame_async(webServerHandle,
-                                                  client->_socketFD,
-                                                  &ws_pkt);
+        esp_err_t ret = httpd_ws_send_frame_async(webServerHandle, client->_socketFD, &ws_pkt);
 
         // Check for message send failure
         if (ret != ESP_OK)
         {
-            systemPrintf("WebServer: httpd_ws_send_frame failed with %d for client request: %x\r\n",
-                         ret, client->_request);
+            systemPrintf("WebServer: httpd_ws_send_frame failed with %d for client request: %x\r\n", ret,
+                         client->_request);
 
             // Remove this client
-            WEB_SOCKETS_CLIENT * previousClient = client->_blink;
+            WEB_SOCKETS_CLIENT *previousClient = client->_blink;
             if (previousClient)
                 previousClient->_flink = nextClient;
             else
@@ -2557,11 +2539,10 @@ void webServerSendString(const char *stringToSend)
 //----------------------------------------
 esp_err_t webServerSetContentType(httpd_req_t *req, const char *fileName)
 {
-    const char * defaultType = "text/plain";
-    const char * extension;
+    const char *defaultType = "text/plain";
+    const char *extension;
     size_t extensionLength;
-    const FILE_EXTENSION_TO_CONTENT_TYPE extensionTable[] =
-    {
+    const FILE_EXTENSION_TO_CONTENT_TYPE extensionTable[] = {
         {".bin", "application/octet-stream"},
         {".bmp", "image/bmp"},
         {".css", "text/css"},
@@ -2596,8 +2577,7 @@ esp_err_t webServerSetContentType(httpd_req_t *req, const char *fileName)
         {
             // Set the content type
             if (settings.debugWebServer == true)
-                systemPrintf("WebServer: Found content type %s\r\n",
-                             extensionTable[index]._contentType);
+                systemPrintf("WebServer: Found content type %s\r\n", extensionTable[index]._contentType);
             return httpd_resp_set_type(req, extensionTable[index]._contentType);
         }
     }
@@ -2671,15 +2651,18 @@ void webServerStart()
         if (settings.debugWebServer)
             systemPrintln("Web Server: Starting");
 
-        do {
+        do
+        {
             // Start the network
             if (networkInterfaceHasInternet(NETWORK_ETHERNET))
             {
                 networkConsumerAdd(NETCONSUMER_WEB_CONFIG, NETWORK_ANY, __FILE__, __LINE__);
                 break;
             }
+
             if ((settings.wifiConfigOverAP == false) || networkInterfaceHasInternet(NETWORK_WIFI_STATION))
                 networkConsumerAdd(NETCONSUMER_WEB_CONFIG, NETWORK_ANY, __FILE__, __LINE__);
+
             if (settings.wifiConfigOverAP)
                 networkSoftApConsumerAdd(NETCONSUMER_WEB_CONFIG, __FILE__, __LINE__);
         } while (0);
@@ -2791,10 +2774,10 @@ void webServerUpdate()
 //----------------------------------------
 void webServerVerifyTables()
 {
-    const GET_PAGE_HANDLER * endPage;
+    const GET_PAGE_HANDLER *endPage;
     uint32_t index;
-    const GET_PAGE_HANDLER * startPage;
-    const GET_PAGE_HANDLER * webpage;
+    const GET_PAGE_HANDLER *startPage;
+    const GET_PAGE_HANDLER *webpage;
 
     if (webServerStateEntries != WEBSERVER_STATE_MAX)
         reportFatalError("Fix webServerStateNames to match WebServerState");
@@ -2808,10 +2791,8 @@ void webServerVerifyTables()
         index = webpage - startPage;
         if ((uintptr_t)webpage->_page.user_ctx != index)
         {
-            Serial.printf("Change GET_PAGE for %s from %d to %d\r\n",
-                          webpage->_page.uri,
-                          (uintptr_t)webpage->_page.user_ctx,
-                          index);
+            Serial.printf("Change GET_PAGE for %s from %d to %d\r\n", webpage->_page.uri,
+                          (uintptr_t)webpage->_page.user_ctx, index);
             reportFatalError("WebServer: Fix GET_PAGE entry");
         }
         webpage++;

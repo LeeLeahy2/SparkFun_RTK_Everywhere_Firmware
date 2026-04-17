@@ -249,9 +249,8 @@ void gnssUpdate()
     // Only update the GNSS receiver once the CLI, serial menu, and Web Config interfaces are disconnected
     // This is to avoid multiple reconfigure delays when multiple commands are received, ie enable GPS, disable Galileo,
     // should only trigger one GNSS reconfigure
-    const unsigned long bleCommandIdleTimeout = 2000; // TODO: check if this is long enough?
     if ((inMainMenu == false) && (inWebConfigMode() == false) &&
-        ((millis() - bleCommandTrafficSeen_millis) > bleCommandIdleTimeout))
+        (bluetoothCommandIsConnected() == false))
     {
         gnssConfigureInProgress = true; // Set the 'semaphore'
         bool result = true;
@@ -456,7 +455,11 @@ void gnssUpdate()
 
         if (gnssConfigureRequested(GNSS_CONFIG_EXT_CORRECTIONS))
         {
-            if (gnss->setCorrRadioExtPort(settings.enableExtCorrRadio, true) == true) // Force the setting
+            // If settings.enableExtCorrRadio is true, we need RTCM input
+            // On Facet FP, we also need RTCM if LoRa is enabled
+            bool enableExtCorrRadio = settings.enableExtCorrRadio
+                 || ((productVariant == RTK_FACET_FP) && settings.enableLora);
+            if (gnss->setCorrRadioExtPort(enableExtCorrRadio, true) == true) // Force the setting
             {
                 gnssConfigureClear(GNSS_CONFIG_EXT_CORRECTIONS);
                 gnssConfigure(GNSS_CONFIG_SAVE); // Request receiver commit this change to NVM
@@ -683,7 +686,7 @@ void gnssDetectReceiverType()
             // If two entries have the same _presentPriority, they will prioritised by order
             std::vector<int> gnssPresentByPriority;
             gnssPresentByPriority.clear(); // Redundant?
-            
+
             for (int8_t priority = 0; priority < GNSS_SUPPORT_ROUTINES_ENTRIES; priority++)
             {
                 for (index = 0; index < GNSS_SUPPORT_ROUTINES_ENTRIES; index++)
@@ -693,7 +696,7 @@ void gnssDetectReceiverType()
                         gnssPresentByPriority.push_back(index);
                 }
             }
-            
+
             for (index = 0; index < GNSS_SUPPORT_ROUTINES_ENTRIES; index++)
             {
                 if ((gnssSupportRoutines[index]._present)
@@ -826,7 +829,7 @@ void gnssFirmwareBeginUpdate()
 {
     // Note: UM980 needs its own dedicated update function, due to the T@ and bootloader trigger
 
-    // Flag that we are in direct connect mode. Button task will gnssFirmwareRemoveUpdate and exit
+    // Flag that we are in direct connect mode
     inDirectConnectMode = true;
 
     // Note: we can't call gnssFirmwareRemoveUpdate() here as closing Tera Term will reset the ESP32,
@@ -1071,7 +1074,7 @@ bool gnssGetSettingValue(RTK_Settings_Types type, const char *suffix, int settin
 //----------------------------------------
 // Called by parseLine to parse GNSS specific settings
 //----------------------------------------
-bool gnssNewSettingValue(RTK_Settings_Types type, const char *suffix, int qualifier, double d)
+bool gnssNewSettingValue(struct Settings * tempSettings, RTK_Settings_Types type, const char *suffix, int qualifier, double d)
 {
     // We must parse all GNSS. tCmnCnst etc. are present in all GNSS
     bool retval = false;
@@ -1079,7 +1082,7 @@ bool gnssNewSettingValue(RTK_Settings_Types type, const char *suffix, int qualif
     {
         if (gnssSupportRoutines[index]._newSettingValue)
         {
-            retval |= gnssSupportRoutines[index]._newSettingValue(type, suffix, qualifier, d);
+            retval |= gnssSupportRoutines[index]._newSettingValue(tempSettings, type, suffix, qualifier, d);
         }
     }
     return retval;

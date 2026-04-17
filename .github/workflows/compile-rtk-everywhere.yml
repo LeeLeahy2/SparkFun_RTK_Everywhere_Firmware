@@ -6,7 +6,7 @@ on:
 env:
   FILENAME_PREFIX: RTK_Everywhere_Firmware
   FIRMWARE_VERSION_MAJOR: 3
-  FIRMWARE_VERSION_MINOR: 2
+  FIRMWARE_VERSION_MINOR: 3
   CORE_VERSION: 3.0.7
 
 jobs:
@@ -90,7 +90,7 @@ jobs:
           mv RTK_Everywhere.ino.bin ${{ env.FILENAME_PREFIX }}${{ env.FILE_ENDING_UNDERSCORE }}.bin
 
       - name: Upload binary to action
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.FILENAME_PREFIX }}${{ env.FILE_ENDING_UNDERSCORE }}
           path: ./Firmware/build/${{ env.FILENAME_PREFIX }}${{ env.FILE_ENDING_UNDERSCORE }}.bin

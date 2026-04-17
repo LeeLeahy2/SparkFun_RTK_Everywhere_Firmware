@@ -31,17 +31,33 @@ menuCorrectionsPriorities.ino
                                                   |               |
    LBAND ---------------------------------------->|               |
                                                   |               |
-   LORA ----------------------------------------->|               |
+   LORA on Torch -------------------------------->|               |
                                                   |               |
    USB ------------------------------------------>|               |
                                                                   |
-   Serial (Radio Ext) --------------------------------------------'
+   Serial (Radio Ext) ------------------------------------------->|
+                                                                  |
+   LoRa on Facet FP (via SW4) ------------------------------------'
 
-  The corrections interface is using:
+    The corrections interface is using:
 
        * available
        * read
        * write
+
+    On Torch, the LoRa RTCM traffic is routed through the ESP32 so it is easy
+    to monitor is data is being received
+
+    On Facet FP, LoRa and Radio Ext are almost the same thing:
+    GNSS UART2 is connected to SW4
+    SW4 switches between LoRa (UART1) and the 4-pin JST Radio connector
+    LoRa baud is 115200
+    Radio settings.radioPortBaud defaults to 57600
+    On GNSS that support it, we can monitor RTCM data via the UART2 byte counts (MON_COMMS etc.)
+    To support CORR_RADIO_LORA and CORR_RADIO_EXT properly and separately is difficult
+    For now, it is easier to treat LoRa as if it is Radio Ext
+    loraSetupTransmit() and loraSetupReceive() override the GNSS UART2 baud rate and flip SW4
+    TODO: improve this...
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
@@ -599,6 +615,8 @@ void correctionUpdateSource()
     // The code is the same:
     //   On ZED / mosaic, we can detect if the port is active.
     //   On LG290P, we fake the arrival of data if needed.
+    //   On Facet FPL, we fake the arrival of radio data if LoRa is active
+    //     again to prevent a timeout and maintain the port protocol
     static uint32_t lastRadioExtCheck = millis();
     uint32_t radioCheckIntervalMsec = settings.correctionsSourcesLifetime_s * 500; // Check twice per lifetime
     bool setCorrRadioPort = false;

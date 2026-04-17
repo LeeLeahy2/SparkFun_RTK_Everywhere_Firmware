@@ -345,10 +345,7 @@ bool ntripClientConnectLimitReached()
         // Display the delay before starting the NTRIP client
         if (settings.debugNtripClientState && ntripClientConnectionAttemptTimeout)
         {
-            seconds = ntripClientConnectionAttemptTimeout / MILLISECONDS_IN_A_SECOND;
-            minutes = seconds / SECONDS_IN_A_MINUTE;
-            seconds -= minutes * SECONDS_IN_A_MINUTE;
-            systemPrintf("NTRIP Client trying again in %d:%02d seconds.\r\n", minutes, seconds);
+            systemPrintf("NTRIP Client trying again in %s.\r\n", printMinuteSecondFromMilliseconds(ntripClientConnectionAttemptTimeout));
         }
     }
     else
@@ -1008,7 +1005,16 @@ void ntripClientUpdate()
     // Periodically display the NTRIP client state
     if (PERIODIC_DISPLAY(PD_NTRIP_CLIENT_STATE) && !inMainMenu)
     {
-        systemPrintf("NTRIP Client state: %s%s\r\n", ntripClientStateName[ntripClientState], line);
+        systemPrintf("NTRIP Client state: %s%s", ntripClientStateName[ntripClientState], line);
+
+        if (ntripClientState == NTRIP_CLIENT_NETWORK_CONNECTED)
+        {
+            // Display the delay
+            systemPrintf(" - Retry in %s", printMinuteSecondFromMilliseconds(ntripClientTimer - (millis() - ntripClientConnectionAttemptTimeout)));
+        }
+
+        systemPrintln();
+
         PERIODIC_CLEAR(PD_NTRIP_CLIENT_STATE);
     }
 }

@@ -6,21 +6,24 @@ menuPorts.ino
 
 void menuPorts()
 {
-    if (present.portDataMux == true)
+    if (productVariant == RTK_FACET_MOSAIC)
     {
-        // RTK Facet mosaic-X5
+        // RTK Facet mosaic-X5 (present.portDataMux == true)
         menuPortsMultiplexed();
     }
-    else if (productVariant == RTK_TORCH || productVariant == RTK_TORCH_X2)
+    else if ((productVariant == RTK_TORCH) || (productVariant == RTK_TORCH_X2))
     {
         // RTK Torch, RTK Torch X2
         menuPortsUsb();
     }
-    else
+    else if ((productVariant == RTK_EVK) || (productVariant == RTK_POSTCARD)
+             || (productVariant == RTK_FACET_FP))
     {
-        // RTK EVK, Postcard
+        // RTK EVK, Postcard, Facet FP
         menuPortsNoMux();
     }
+    else
+        systemPrintln("Menu Ports: Uncaught platform");
 }
 
 // Configure a single port interface (USB only)
@@ -74,21 +77,36 @@ void menuPortsNoMux()
                      settings.enableGnssToUsbSerial ? "Enabled" : "Disabled");
 
         // EVK has no mux. Postcard has no mux. Facet FP has no mux.
+        // Facet mosaic does have a mux. See menuPortsMultiplexed
 
-        if ((productVariant == RTK_EVK) || (productVariant == RTK_FACET_FP))
+        if (productVariant == RTK_FACET_FP)
         {
-            systemPrintf("4) Allow incoming corrections on UART2: %s\r\n",
+            systemPrintf("4) Allow incoming corrections on Ext Radio: %s\r\n",
                          settings.enableExtCorrRadio ? "Enabled" : "Disabled");
+
+            // X20P / F9P UART2 is limited to RTCM. No need to change settings.enableNmeaOnRadio
+            if (present.gnss_lg290p || present.gnss_mosaicX5)
+            {
+                systemPrintf("5) Limit Ext Radio and LoRa output to RTCM: %s\r\n",
+                            settings.enableNmeaOnRadio ? "Disabled"
+                                                        : "Enabled"); // Reverse disabled/enabled to align with prompt
+            }
         }
         else if (productVariant == RTK_POSTCARD)
         {
             systemPrintf("4) Allow incoming corrections on RADIO port: %s\r\n",
                          settings.enableExtCorrRadio ? "Enabled" : "Disabled");
 
-            // TODO: Add the same on other Facet FP platforms. Could be useful
             systemPrintf("5) Limit RADIO port output to RTCM: %s\r\n",
                          settings.enableNmeaOnRadio ? "Disabled"
                                                     : "Enabled"); // Reverse disabled/enabled to align with prompt
+        }
+        else // if (productVariant == RTK_EVK)
+        {
+            systemPrintf("4) Allow incoming corrections on GNSS UART2: %s\r\n",
+                         settings.enableExtCorrRadio ? "Enabled" : "Disabled");
+
+            // F9P UART2 is limited to RTCM. No need to change settings.enableNmeaOnRadio
         }
 
         systemPrintln("x) Exit");
@@ -135,16 +153,21 @@ void menuPortsNoMux()
             if (settings.enableGnssToUsbSerial)
                 systemPrintln("GNSS to USB is enabled. To exit this mode, press +++ to open the configuration menu.");
         }
-        else if ((incoming == 4) && (present.gnss_zedf9p || present.gnss_zedx20p || present.gnss_lg290p))
+        else if (incoming == 4)
         {
             // Toggle the enable for the external corrections radio
             settings.enableExtCorrRadio ^= 1;
+            gnssConfigure(GNSS_CONFIG_MESSAGE_RATE_NMEA); // We may need to enable / disable NMEA
             gnssConfigure(GNSS_CONFIG_EXT_CORRECTIONS); // Request receiver to use new settings
         }
 
-        else if ((incoming == 5) && (present.gnss_lg290p))
+        // Configure settings.enableNmeaOnRadio on:
+        //  FACET_FP LG290P and mosaic-X5
+        //  POSTCARD (LG290P)
+        else if ((incoming == 5) && (present.gnss_lg290p || present.gnss_mosaicX5))
         {
             settings.enableNmeaOnRadio ^= 1;
+            gnssConfigure(GNSS_CONFIG_MESSAGE_RATE_NMEA); // We may need to enable / disable NMEA
         }
         else if (incoming == 'x')
             break;
@@ -192,14 +215,8 @@ void menuPortsMultiplexed()
             systemPrintln("3) Configure External Triggers");
         }
 
-        // TODO: On FP, external corrections are piped to X20P UART2?
         // Facet mosaic has a mux. Radio Ext is COM2. Data port (COM3) is mux'd.
-        if (present.gnss_zedf9p || present.gnss_zedx20p)
-        {
-            systemPrintf("4) Allow Incoming Corrections on UART2: %s\r\n",
-                         settings.enableExtCorrRadio ? "Enabled" : "Disabled");
-        }
-        else if (productVariant == RTK_FACET_MOSAIC)
+        if (productVariant == RTK_FACET_MOSAIC)
         {
             systemPrintf("4) Allow Incoming Corrections on COM2: %s\r\n",
                          settings.enableExtCorrRadio ? "Enabled" : "Disabled");
@@ -274,19 +291,21 @@ void menuPortsMultiplexed()
         {
             menuPortHardwareTriggers();
         }
-        else if (incoming == 4)
+        else if ((incoming == 4) && (productVariant == RTK_FACET_MOSAIC))
         {
             // Toggle the enable for the external corrections radio
             settings.enableExtCorrRadio ^= 1;
+            gnssConfigure(GNSS_CONFIG_MESSAGE_RATE_NMEA); // We may need to enable / disable NMEA
             gnssConfigure(GNSS_CONFIG_EXT_CORRECTIONS); // Request receiver to use new settings
         }
-        else if ((incoming == 5) && (present.gnss_mosaicX5))
+        else if ((incoming == 5) && (productVariant == RTK_FACET_MOSAIC))
         {
             settings.enableGnssToUsbSerial ^= 1;
         }
-        else if ((incoming == 6) && (present.gnss_mosaicX5))
+        else if ((incoming == 6) && (productVariant == RTK_FACET_MOSAIC))
         {
             settings.enableNmeaOnRadio ^= 1;
+            gnssConfigure(GNSS_CONFIG_MESSAGE_RATE_NMEA); // We may need to enable / disable NMEA
         }
         else if (incoming == 'x')
             break;

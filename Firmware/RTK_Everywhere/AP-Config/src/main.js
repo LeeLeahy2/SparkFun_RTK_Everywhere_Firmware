@@ -197,7 +197,7 @@ function parseIncoming(msg) {
             }
 
             else if (platformPrefix == "Facet X5") {
-                console.log("runng mosaic");
+                //console.log("runng mosaic");
                 show("baseConfig");
                 show("ppConfig");
                 hide("ethernetConfig");
@@ -511,7 +511,7 @@ function parseIncoming(msg) {
                 hide("mosaicNMEAStreamDropdowns");
                 show("surveyInSettings");
                 show("useEnableExtCorrRadio");
-                show("enableNmeaOnRadio");
+                hide("enableNmeaOnRadio"); // ZED UART2 is limited to RTCM
 
                 select = ge("pointPerfectService");
                 let newOption = new Option('Disabled', '0');
@@ -1385,8 +1385,8 @@ function validateFields() {
     //Radio Config
     if (ge("enableLora").checked == true) {
         checkElementValue("loraCoordinationFrequency", 903, 927, "Must be 903 to 927", "collapseRadioConfig");
-        
-        if(platformPrefix == "Torch")
+
+        if (platformPrefix == "Torch")
             checkElementValue("loraSerialInteractionTimeout", 10, 600, "Must be 10 to 600", "collapseRadioConfig");
     }
 
@@ -2936,12 +2936,20 @@ function newFirmwareVersion(firmwareVersion) {
         return;
     }
 
-    showMsg('firmwareCheckNewMsg', "New firmware available!");
-    ge("btnGetNewFirmware").innerHTML = "Update to v" + firmwareVersion;
-    ge("btnGetNewFirmware").disabled = false;
-    ge("firmwareUpdateProgressBar").value = 0;
-    clearMsg('firmwareUpdateProgressMsg');
-    show("divGetNewFirmware");
+    // User presses 'Check for new firmware' button. If available 'Update to vX.X.X' button appears.
+    // After pressing 'Update' button, the firmware version is re-checked which causes the get firmware button to briefly reenables, then disables again. 
+    // If the btnGetNewFirmware button is visible and disabled, don't enable it again.
+    if (ge("firmwareUpdateProgressMsg").textContent == "Getting new firmware") {
+        // Do nothing - we are already in the process of getting new firmware, so do not enable the button again
+    }
+    else {
+        showMsg('firmwareCheckNewMsg', "New firmware available!");
+        ge("btnGetNewFirmware").innerHTML = "Update to v" + firmwareVersion;
+        ge("btnGetNewFirmware").disabled = false; // Enable the button
+        ge("firmwareUpdateProgressBar").value = 0;
+        clearMsg('firmwareUpdateProgressMsg');
+        show("divGetNewFirmware");
+    }
 }
 
 function getNewFirmware() {
@@ -2953,7 +2961,7 @@ function getNewFirmware() {
         return;
     }
 
-    ge("btnGetNewFirmware").disabled = true;
+    ge("btnGetNewFirmware").disabled = true; // Disable the button
     clearMsg('firmwareCheckNewMsg');
     showMsg('firmwareUpdateProgressMsg', "Getting new firmware");
 
