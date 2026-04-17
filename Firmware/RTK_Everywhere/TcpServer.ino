@@ -233,18 +233,8 @@ bool tcpServerEnabled(const char **line)
             break;
         }
 
-        // Determine if the TCP server should be running
-        if (settings.enableTcpServer)
-        {
-            // TCP server running in Rover mode
-            name = tcpServerModeNames[TCP_SERVER_MODE_SERVER];
-            casterMode = false;
-            port = settings.tcpServerPort;
-            softAP = !settings.tcpOverWiFiStation; // Use soft AP if not using WiFi station
-        }
-
         // Determine if the base caster should be running
-        else if (EQ_RTK_MODE(baseCasterMode) && (settings.enableNtripCaster || settings.baseCasterOverride))
+        if (EQ_RTK_MODE(baseCasterMode) && (settings.enableNtripCaster || settings.baseCasterOverride))
         {
             // TCP server running in caster mode
             casterMode = true;
@@ -264,6 +254,16 @@ bool tcpServerEnabled(const char **line)
                 port = settings.tcpServerPort;
                 softAP = false;
             }
+        }
+
+        // Else, determine if the vanilla TCP server should be running
+        else if (settings.enableTcpServer)
+        {
+            // TCP server running in Rover mode
+            name = tcpServerModeNames[TCP_SERVER_MODE_SERVER];
+            casterMode = false;
+            port = settings.tcpServerPort;
+            softAP = !settings.tcpOverWiFiStation; // Use soft AP if not using WiFi station
         }
 
         // Wrong mode for TCP server or base caster operation
