@@ -21,7 +21,7 @@ Compatibility Icons
 
 The Septentrio mosaic-X5 is the GNSS receiver inside the RTK Facet mosaic. The following describes how to update the firmware on the mosaic-X5.
 
-1. Download the latest mosaic-X5 firmware [from Septentrio product page](https://www.septentrio.com/en/products/gnss-receivers/gnss-receiver-modules/mosaic-x5#resources). As of the time of writing, the latest mosaic-X5 firmware is v4.14.10.1.
+1. Download the latest mosaic-X5 firmware [from Septentrio product page](https://www.septentrio.com/en/products/gnss-receivers/gnss-receiver-modules/mosaic-x5#resources). As of the time of writing, the latest mosaic-X5 firmware is v4.14.10.1. Note: Septentrio has made updates in v4.15 and onwards that require the user to change the default username/password; [this may affect how the ESP-32 interacts with it](https://community.sparkfun.com/t/new-septentrio-mosaic-x5-v4-15-1-firmware-has-password-security-added-any-implications-for-the-esp-32/68574/4?u=alexander-puckhaber).
 
 2. Connect a USB-C cable between your computer and the RTK Facet mosaic.
 
