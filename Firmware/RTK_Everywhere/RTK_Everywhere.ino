@@ -767,6 +767,9 @@ bool ethernetRestartRequested = false; // Perform ETH.end() to disconnect TCP re
 #endif                                 // COMPILE_ETHERNET
 
 unsigned long lastEthernetCheck; // Prevents cable checking from continually happening
+
+static NetPriority_t networkPriorityForDisplay = NETWORK_NONE; // Reduce calls to networkGetIpAddress
+
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 // IM19 Tilt Compensation
