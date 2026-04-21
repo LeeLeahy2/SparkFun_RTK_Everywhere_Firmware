@@ -2256,8 +2256,6 @@ void RTK_WIFI::stationEventHandler(arduino_event_id_t event, arduino_event_info_
         }
         break;
 
-        break;
-
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
     case ARDUINO_EVENT_WIFI_STA_GOT_IP6:
         _staIpAddress = WiFi.STA.localIP();
@@ -2267,6 +2265,7 @@ void RTK_WIFI::stationEventHandler(arduino_event_id_t event, arduino_event_info_
         if (settings.debugWifiState)
             systemPrintf("WiFi: Got IPv%c address %s\r\n", type, _staIpAddress.toString().c_str());
         networkInterfaceEventInternetAvailable(NETWORK_WIFI_STATION);
+        networkPriorityForDisplay = NETWORK_NONE; // Make displayFullIPAddress update the address
         break;
     } // End of switch
 }

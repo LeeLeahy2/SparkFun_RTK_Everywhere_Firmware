@@ -2077,7 +2077,6 @@ void displayFullIPAddress(std::vector<iconPropertyBlinking> *iconList) // Bottom
 {
     static IPAddress ipAddress;
     NetPriority_t priority;
-    static NetPriority_t previousPriority = NETWORK_NONE;
 
     // Max width: 15*6 = 90 pixels (6 pixels per character, nnn.nnn.nnn.nnn)
     if (present.display_type == DISPLAY_128x64)
@@ -2088,9 +2087,9 @@ void displayFullIPAddress(std::vector<iconPropertyBlinking> *iconList) // Bottom
         {
             // Reduce calls to networkGetIpAddress
             priority = networkGetPriority();
-            if (priority != previousPriority)
+            if (priority != networkPriorityForDisplay)
             {
-                previousPriority = priority;
+                networkPriorityForDisplay = priority;
                 ipAddress = networkGetIpAddress();
             }
 
@@ -2101,7 +2100,7 @@ void displayFullIPAddress(std::vector<iconPropertyBlinking> *iconList) // Bottom
 
                 oled->setFont(QW_FONT_5X7); // Set font to smallest
                 oled->setCursor(0, 55);
-                oled->print(ipAddress);
+                oled->print(myAddress);
             }
         }
     }

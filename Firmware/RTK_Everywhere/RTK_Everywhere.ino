@@ -89,7 +89,7 @@ RTK_Everywhere.ino
 #define COMPILE_LORA     // COmment out to remove LoRa functionality
 
 #ifdef COMPILE_BT
-#define COMPILE_AUTHENTICATION // Uncomment to enable MFi authentication (uses Private libraries)
+//#define COMPILE_AUTHENTICATION // Uncomment to enable MFi authentication (uses Private libraries)
 #endif
 
 #ifdef COMPILE_ETHERNET
@@ -767,6 +767,9 @@ bool ethernetRestartRequested = false; // Perform ETH.end() to disconnect TCP re
 #endif                                 // COMPILE_ETHERNET
 
 unsigned long lastEthernetCheck; // Prevents cable checking from continually happening
+
+static NetPriority_t networkPriorityForDisplay = NETWORK_NONE; // Reduce calls to networkGetIpAddress
+
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 // IM19 Tilt Compensation
