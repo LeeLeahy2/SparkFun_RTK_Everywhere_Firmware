@@ -100,7 +100,7 @@ Default Access Level Per Interface with firmware 4.15.1
 </figcaption>
 </figure>
 
-If you have upgraded to 4.15.1 and want to downgrade to 4.14.10.1, you need to:
+If you have upgraded to 4.15.1 and want to downgrade to 4.14.10.1, you *may* need to:
 
 - Perform a **FactoryReset** as described in [Cybersecurity guidelines: How can I recover connection to my receiver if I’ve lost my credentials?](https://customersupport.septentrio.com/s/article/How-can-I-recover-connection-to-my-receiver-if-I-ve-lost-my-credentials)
 	- This is easiest if you connect to the X5 over USB and use a Terminal Emulator / Serial Console to issue the command on one of the USB virtual COM ports (USB1 or USB2)
