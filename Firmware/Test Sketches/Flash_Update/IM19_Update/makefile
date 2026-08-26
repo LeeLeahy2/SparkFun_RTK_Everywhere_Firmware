@@ -223,6 +223,15 @@ terminal_torch:
 terminal_tx2:	terminal_torch
 
 ########
+# Handle crashes
+##########
+
+.PHONY: crash
+
+crash:
+	~/SparkFun/rc/RTK/Firmware/Tools/Read_Map_File   build/e*/*.ino.map
+
+########
 # Clean the build directory
 ##########
 
