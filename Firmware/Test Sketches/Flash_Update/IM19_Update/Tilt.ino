@@ -432,6 +432,31 @@ static bool im19StreamMissingRanges(const char * url)
             totalMissingFrames++;
     }
 
+    // Count and display the missing frames
+    if (totalMissingFrames && settings.debugFirmwareUpdate)
+    {
+        int32_t previousFrame = -1;
+        for (int32_t i = 0; i < im19TotalFrames; i++)
+        {
+            if ((im19FrameMap[i / 8] & (0x01 << (i % 8))) == 0)
+            {
+                if (previousFrame < 0)
+                    previousFrame = i;
+            }
+            else
+            {
+                if (previousFrame >= 0)
+                {
+                    if ((previousFrame + 1) == i)
+                        systemPrintf("Frame #: %d\r\n", previousFrame);
+                    else
+                        systemPrintf("Frame # %d - %d\r\n", previousFrame, i - 1);
+                }
+                previousFrame = -1;
+            }
+        }
+    }
+
     uint32_t missingRateTenthsPct = 0;
     if (im19TotalFrames > 0)
         missingRateTenthsPct = (totalMissingFrames * 1000 + (im19TotalFrames / 2)) / im19TotalFrames;
