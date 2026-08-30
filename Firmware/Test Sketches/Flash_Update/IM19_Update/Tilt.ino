@@ -189,12 +189,8 @@ static bool im19FindStr(const uint8_t *buf, int buf_len, const char *str)
 }
 
 // Sends an AT command and waits (with retries) for the expected response substring.
-static bool im19SendATCommand(const char *cmd, const char *response, int retries, uint8_t *responseBuf, size_t responseBufSize,
-                              int *responseLenOut)
+static bool im19SendATCommand(const char *cmd, const char *response, int retries)
 {
-    if (responseLenOut != nullptr)
-        *responseLenOut = 0;
-
     uint8_t buf[256];
     while (retries--)
     {
@@ -202,23 +198,8 @@ static bool im19SendATCommand(const char *cmd, const char *response, int retries
         delay(50);
         SerialForTilt->setTimeout(50);
         int buf_len = SerialForTilt->readBytes(buf, sizeof(buf));
-        if (buf_len > 0)
-        {
-            if (responseBuf != nullptr && responseBufSize > 0)
-            {
-                size_t copyLen = (size_t)buf_len;
-                if (copyLen >= responseBufSize)
-                    copyLen = responseBufSize - 1;
-
-                memcpy(responseBuf, buf, copyLen);
-                responseBuf[copyLen] = '\0';
-                if (responseLenOut != nullptr)
-                    *responseLenOut = (int)copyLen;
-            }
-
-            if (im19FindStr(buf, buf_len, response))
-                return true;
-        }
+        if ((buf_len > 0) && im19FindStr(buf, buf_len, response))
+            return true;
     }
     return false;
 }
@@ -245,7 +226,7 @@ bool im19UpdateFirmwareBegin(size_t fileBytes)
         delay(1000);
         while (SerialForTilt->available()) // Ensure the RX buffer is clear
             SerialForTilt->read();
-        if (im19SendATCommand("AT+UPDATE_APP\r\n", "OK", 5, nullptr, 0, nullptr))
+        if (im19SendATCommand("AT+UPDATE_APP\r\n", "OK", 5))
             return true;
     }
     return false;
@@ -279,7 +260,7 @@ static bool im19VerifyFirmwareRunning()
     delay(5000); // Give the IM19 time to flash and boot the new image
     for (int retry = 0; retry < 3; retry++)
     {
-        if (im19SendATCommand("AT+VERSION\r\n", "Version:", 1, nullptr, 0, nullptr))
+        if (im19SendATCommand("AT+VERSION\r\n", "Version:", 1))
             return true;
         delay(100);
     }
