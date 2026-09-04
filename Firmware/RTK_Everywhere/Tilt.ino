@@ -37,6 +37,7 @@ Tilt.ino
 
 #ifdef COMPILE_IM19_IMU
 
+IM19 * tiltSensor;
 
 uint32_t tiltCrc;
 float previousGGAUndulation = -9999.9999;
