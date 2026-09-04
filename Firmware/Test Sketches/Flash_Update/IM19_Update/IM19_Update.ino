@@ -19,15 +19,47 @@
     When done, call xxxUpdateFirmwareEnd() to free buffers and exit the bootloader mode or reset the target
 */
 
+//----------------------------------------
+// Common declarations
+//----------------------------------------
+
 bool RTK_CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC = false; // Needed because of local BT TLS patch
 
-#include "settings.h"
-
+#include <arpa/inet.h>
+#include <HTTPClient.h>
+#include <netdb.h>
+#include <Network.h>
+#include <NetworkClientSecure.h>
+#include <sys/socket.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-#include <HTTPClient.h>
+
+#ifndef ENABLE_DEVELOPER
+#define ENABLE_DEVELOPER            true
+#endif   // ENABLE_DEVELOPER
+#define DMW_if if (0)
+
+const uint8_t logoSparkFun[] = {0};
+#define logoSparkFun_Height         1
+#define logoSparkFun_Width          1
+
+const uint8_t logoSparkPNT[] = {0};
+#define logoSparkPNT_Height         1
+#define logoSparkPNT_Width          1
+
 #include "secrets.h"
-#include <SparkFun_IM19_IMU_Arduino_Library.h> //http://librarymanager/All#SparkFun_IM19_IMU
+#include "settings.h"
+
+#define rtkMalloc(bytes, description)       malloc(bytes)
+#define rtkFree(buffer, description)        free(buffer)
+
+// Timer for firmware update duration
+unsigned long firmwareUpdateStartTime = 0;
+unsigned long firmwareUpdateElapsed = 0;
+
+//----------------------------------------
+// Test specific declarations
+//----------------------------------------
 
 // v11.4.1
 const char * url_11_4_1 = "https://raw.githubusercontent.com/sparkfun/SparkFun_RTK_Everywhere_Firmware_Binaries/main/imu/im19/20260522185649_VH2_B2.2_A11.4.1_131b44ecee0bdad5670c7.enc";
@@ -47,46 +79,12 @@ void firmwareUpdateProgressCallback(uint16_t bytesProcessed);
 SFE_PCA95XX io(PCA95XX_PCA9534); // Create a PCA9534
 SFE_PCA95XX *gpioExpanderSwitches = nullptr;
 
-int pin_SDA = 15;
-int pin_SCL = 4;
-
-const int gpioExpanderSwitch_S1 = 0; // Controls U16 switch 1: connect ESP UART0 to CH342 or SW2
-const int gpioExpanderSwitch_S2 = 1; // Controls U17 switch 2: connect SW1 to RS232 Output or GNSS UART4
-const int gpioExpanderSwitch_S3 = 2; // Controls U18 switch 3: connect ESP UART2 to GNSS UART3 or LoRa UART2
-const int gpioExpanderSwitch_S4 = 3; // Controls U19 switch 4: connect GNSS UART2 to 4-pin JST TTL Serial or LoRa UART0
-const int gpioExpanderSwitch_LoraEnable = 4; // LoRa_EN
-const int gpioExpanderSwitch_GNSS_Reset = 5; // RST_GNSS
-const int gpioExpanderSwitch_LoraBoot = 6;   // LoRa_BOOT0 - Used for bootloading the STM32 radio IC
-const int gpioExpanderSwitch_S5 = 7;         // Controls U61 switch 5: connect GNSS UART1 to Port A of CH342
-const int gpioExpanderNumSwitches = 8;
-
-HardwareSerial *uart2Serial; // Shared serial port between LoRa and Tilt
-
-#define SerialForLoRa uart2Serial
-#define SerialForTilt uart2Serial
-
-int pin_muxA = -1;
-int pin_muxB = -1;
-int pin_GNSS_DR_Reset = 22; // Torch only. Push low to reset GNSS/DR
-int pin_IMU_RX = 14;        // Pins used both on Torch and FP.
-int pin_IMU_TX = 17;
-
-// Timer for firmware update duration
-unsigned long firmwareUpdateStartTime = 0;
-unsigned long firmwareUpdateElapsed = 0;
-
 // Global variables used by firmwareUpdateProgressCallback, called by all firmware update procedures
 uint32_t firmwareUpdateBytesToProcess = 0;
 uint32_t firmwareUpdateBytesProcessed = 0;
 uint8_t firmwareUpdateLastPercent = 0;
 
 char imuVersion[96];
-
-bool otaDebugVerbose;
-
-const char * otaEqualSigns = "==================================================";
-
-#define OTA_DATA_TIMEOUT        (15 * 1000)
 
 void setup()
 {
@@ -95,7 +93,16 @@ void setup()
 
     systemPrintln("IM19 bootloader test over WiFi");
 
-    Wire.begin(pin_SDA, pin_SCL);
+    pin_I2C0_SDA = 15;
+    pin_I2C0_SCL = 4;
+
+    pin_muxA = -1;
+    pin_muxB = -1;
+    pin_GNSS_DR_Reset = 22; // Torch only. Push low to reset GNSS/DR
+    pin_IMU_RX = 14;        // Pins used both on Torch and FP.
+    pin_IMU_TX = 17;
+
+    Wire.begin(pin_I2C0_SDA, pin_I2C0_SCL);
 
     // Basic test to tell platform
     if (i2cIsDevicePresent(0x21))

@@ -1,3 +1,9 @@
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Tilt.ino
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+
+IM19 * tiltSensor;
+
 // Reset the GNSS/IMU module ahead of entering the bootloader.
 // On Flex modules, the IMU reset is tied to the GNSS reset
 void imuReset()
@@ -63,9 +69,8 @@ static const uint32_t IM19_FRAME_PACING_MS = 100; // Works - 0.1% frame failure.
 static const uint32_t IM19_CPL_RESPONSE_TIMEOUT_MS = 500;
 static const int IM19_CPL_RESPONSE_RETRIES = 10; // up to IM19_CPL_RESPONSE_RETRIES * IM19_CPL_RESPONSE_TIMEOUT_MS total
 
-static uint8_t *im19FrameMap = nullptr; // bit set = IM19 has confirmed receipt of that frame
-static uint32_t im19TotalFrames = 0;
-static uint32_t im19FileBytes = 0;
+static uint8_t *im19FrameMap; // bit set = IM19 has confirmed receipt of that frame
+static uint32_t im19TotalFrames;
 static uint32_t im19NextFrameID; // frame ID that the next assembled byte belongs to
 
 static uint8_t rxBuffer[IM19_FRAME_PAYLOAD_SIZE];
@@ -249,7 +254,7 @@ bool im19UpdateFirmwareBegin(size_t fileBytes)
 
     memset(im19FrameMap, 0, IM19_FRAME_MAP_SIZE);
     im19TotalFrames = totalFrames;
-    im19FileBytes = fileBytes;
+    otaFileBytes = fileBytes;
     im19NextFrameID = 0;
 
     for (int retry = 0; retry < 3; retry++)
@@ -480,7 +485,7 @@ static bool im19StreamMissingRanges(const char * url)
             frame++;
 
         uint32_t startByte = runStart * IM19_FRAME_PAYLOAD_SIZE;
-        uint32_t endByte = min(frame * IM19_FRAME_PAYLOAD_SIZE, im19FileBytes) - 1;
+        uint32_t endByte = min(frame * IM19_FRAME_PAYLOAD_SIZE, otaFileBytes) - 1;
 
         systemPrintf("Requesting missing frames %lu-%lu (%lu bytes) from source (failure rate: %lu.%lu%%).\r\n",
                      (unsigned long)runStart, (unsigned long)(frame - 1), (unsigned long)(endByte - startByte + 1),
