@@ -72,18 +72,6 @@ const char * url_6_1 = "https://raw.githubusercontent.com/sparkfun/SparkFun_RTK_
 
 #define OTA_FIRMWARE_GITHUB_RAW "raw.githubusercontent.com"
 
-// Reports firmware update progress to the shared system callback.
-void firmwareUpdateProgressCallback(uint16_t bytesProcessed);
-
-#include <SparkFun_I2C_Expander_Arduino_Library.h> // Click here to get the library: http://librarymanager/All#SparkFun_I2C_Expander_Arduino_Library
-SFE_PCA95XX io(PCA95XX_PCA9534); // Create a PCA9534
-SFE_PCA95XX *gpioExpanderSwitches = nullptr;
-
-// Global variables used by firmwareUpdateProgressCallback, called by all firmware update procedures
-uint32_t firmwareUpdateBytesToProcess = 0;
-uint32_t firmwareUpdateBytesProcessed = 0;
-uint8_t firmwareUpdateLastPercent = 0;
-
 char imuVersion[96];
 
 void setup()
@@ -103,9 +91,10 @@ void setup()
     pin_IMU_TX = 17;
 
     Wire.begin(pin_I2C0_SDA, pin_I2C0_SCL);
+    i2c_0 = &Wire;
 
     // Basic test to tell platform
-    if (i2cIsDevicePresent(0x21))
+    if (i2cIsDevicePresent(i2c_0, 0x21))
     {
         systemPrintln("FP detected");
         productVariant = RTK_FACET_FP;
@@ -128,6 +117,7 @@ void setup()
     }
     else if (productVariant == RTK_FACET_FP)
     {
+        present.gpioExpanderSwitches = true;
         beginGpioExpanderSwitches();
 
         gpioExpanderSelectImu(); // On FP, confirm SW3 is in the correct position

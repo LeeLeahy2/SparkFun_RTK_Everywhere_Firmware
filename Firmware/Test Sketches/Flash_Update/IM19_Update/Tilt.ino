@@ -417,8 +417,11 @@ static bool im19StreamFirmware(WiFiClient * stream,
 // Re-downloads only [startByte, endByte] (inclusive) and streams it to the IM19.
 static bool im19StreamRange(const char * url, uint32_t startByte, uint32_t endByte)
 {
-    WiFiClientSecure client;
-    if (!otaSecurelyConnectGitHub(client))
+    const char * cert;
+    NetworkClientSecure client;
+
+    cert = getCertFromUrl(url);
+    if (!securelyConnectToServer(url, client, cert))
     {
         systemPrintln("Failed to securely connect to GitHub.");
         return false;
@@ -508,6 +511,7 @@ static bool im19StreamMissingRanges(const char * url)
 //      attempts - rather than re-streaming the whole binary.
 bool im19FirmwareUpdate(const char * url)
 {
+    const char * cert;
     const char * errorMsg;
     HTTPClient http;
     char msgBuffer[40];
@@ -522,8 +526,9 @@ bool im19FirmwareUpdate(const char * url)
             break;
         }
 
-        WiFiClientSecure client;
-        if (!otaSecurelyConnectGitHub(client))
+        NetworkClientSecure client;
+        cert = getCertFromUrl(url);
+        if (!securelyConnectToServer(url, client, cert))
         {
             errorMsg = "IM19 firmware update failed to securely connect to GitHub.";
             break;
