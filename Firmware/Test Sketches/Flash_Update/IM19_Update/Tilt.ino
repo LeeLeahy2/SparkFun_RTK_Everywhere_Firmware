@@ -493,6 +493,10 @@ static bool im19StreamMissingRanges(const char * url,
 {
     bool success = true;
 
+    if (im19TotalFrames == 0)
+        return success;
+
+    // Count the number of missing frames
     uint32_t totalMissingFrames = 0;
     for (uint32_t i = 0; i < im19TotalFrames; i++)
     {
@@ -525,40 +529,50 @@ static bool im19StreamMissingRanges(const char * url,
         }
     }
 
-    uint32_t missingRateTenthsPct = 0;
-    if (im19TotalFrames > 0)
-        missingRateTenthsPct = (totalMissingFrames * 1000 + (im19TotalFrames / 2)) / im19TotalFrames;
-
-    uint32_t frame = 0;
-    while (frame < im19TotalFrames)
+    // Determine if any frames are misssing
+    if (totalMissingFrames)
     {
-        uint8_t bit = 0x01 << (frame % 8);
-        if (im19FrameMap[frame / 8] & bit)
+        uint32_t missingRateTenthsPct = 0;
+        missingRateTenthsPct = (totalMissingFrames * 10 * 100 + (im19TotalFrames / 2)) / im19TotalFrames;
+
+        systemPrintf("IM19 firmware update missed %d frames (%d.%d%%)\r\n",
+                     totalMissingFrames,
+                     missingRateTenthsPct / 10, missingRateTenthsPct % 10);
+
+        uint32_t frame = 0;
+        while (frame < im19TotalFrames)
         {
-            frame++;
-            continue;
+            // Walk the bitmap of received frames to find the next missed frame
+            uint8_t bit = 0x01 << (frame % 8);
+            if (im19FrameMap[frame / 8] & bit)
+            {
+                frame++;
+                continue;
+            }
+
+            // Walk the bitmap of received frames to find the next received frame
+            uint32_t runStart = frame;
+            while (frame < im19TotalFrames && !(im19FrameMap[frame / 8] & (0x01 << (frame % 8))))
+                frame++;
+
+            size_t fileBytes = (frame - runStart) * IM19_FRAME_PAYLOAD_SIZE;
+            systemPrintf("Requesting frames %lu-%lu (%lu bytes) from source\r\n",
+                         runStart, (frame - 1), fileBytes);
+
+            // Send the firmware data to the IM19
+            im19NextFrameID = runStart;
+            uint32_t startByte = runStart * IM19_FRAME_PAYLOAD_SIZE;
+            uint32_t endByte = min(frame * IM19_FRAME_PAYLOAD_SIZE, otaFileBytes);
+            success = im19StreamRange(url,
+                                      startByte,
+                                      endByte - startByte,
+                                      buffer,
+                                      packetBytes);
+
+            // Stop upon error
+            if (success == false)
+                break;
         }
-
-        uint32_t runStart = frame;
-        while (frame < im19TotalFrames && !(im19FrameMap[frame / 8] & (0x01 << (frame % 8))))
-            frame++;
-
-        uint32_t startByte = runStart * IM19_FRAME_PAYLOAD_SIZE;
-        uint32_t endByte = min(frame * IM19_FRAME_PAYLOAD_SIZE, otaFileBytes) - 1;
-
-        systemPrintf("Requesting missing frames %lu-%lu (%lu bytes) from source (failure rate: %lu.%lu%%).\r\n",
-                     runStart, (frame - 1), (unsigned long)(endByte - startByte),
-                     (unsigned long)(missingRateTenthsPct / 10), (unsigned long)(missingRateTenthsPct % 10));
-
-        success = im19StreamRange(url,
-                                  startByte,
-                                  endByte - startByte,
-                                  buffer,
-                                  packetBytes);
-
-        // Stop upon error
-        if (success == false)
-            break;
     }
     return success;
 }
