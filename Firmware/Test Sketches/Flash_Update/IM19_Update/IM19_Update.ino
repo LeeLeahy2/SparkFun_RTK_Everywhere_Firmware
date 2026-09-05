@@ -94,6 +94,15 @@ Firmware_Data_Stream dataArray(im19_firmware, sizeof(im19_firmware));
 
 static uint8_t rxBuffer[256];
 
+uint32_t badBlocks1[] = {5, 15, 16, 17, 18, 19, 20, 36, 40, 89};
+uint32_t badBlocks2[] = {5, 36, 40};
+uint32_t * badBlocks;
+uint32_t * badBlocksEnd;
+uint32_t * nextBadBlocks;
+uint32_t * nextBadBlocksEnd;
+uint32_t * previousBadBlocks;
+uint32_t * previousBadBlocksEnd;
+
 //----------------------------------------
 // Connects to the configured SSID and blocks until connected or the attempt times out.
 //----------------------------------------
@@ -268,6 +277,12 @@ void flashUpdate(const char * url)
 {
     // Start timer before erase
     uint32_t flashUpdateStartTime = millis();
+
+    // Test the retry mechanism
+    badBlocks = &badBlocks1[0];
+    badBlocksEnd = &badBlocks[sizeof(badBlocks1) / sizeof(badBlocks1[0])];
+    nextBadBlocks = &badBlocks2[0];
+    nextBadBlocksEnd = &badBlocks[sizeof(badBlocks2) / sizeof(badBlocks2[0])];
 
     // Attempt to update the firmware
     dataArray.init(0);

@@ -237,6 +237,25 @@ bool im19UpdateFirmware(const uint8_t * data, uint32_t numBytes)
 {
     uint8_t frame[IM19_FRAME_TOTAL_SIZE] = {0};
 
+    // Test the retry mechanism
+    if (settings.debugFirmwareUpdate && otaDebugVerbose)
+        systemPrintf("Frame #: %d, %d bytes\r\n", im19NextFrameID, numBytes);
+    if ((previousBadBlocks < previousBadBlocksEnd)
+        && (*previousBadBlocks == im19NextFrameID))
+    {
+        if (settings.debugFirmwareUpdate && !otaDebugVerbose)
+            systemPrintf("Frame #: %d, %d bytes\r\n", im19NextFrameID, numBytes);
+        previousBadBlocks += 1;
+    }
+    if ((badBlocks < badBlocksEnd) && (*badBlocks == im19NextFrameID))
+    {
+        if (settings.debugFirmwareUpdate)
+            systemPrintf("Dropping frame # %d, %d bytes\r\n", im19NextFrameID, numBytes);
+        badBlocks += 1;
+        im19NextFrameID++;
+        return true;
+    }
+
     // Add the payload to the frame
     memcpy(&frame[12], data, numBytes);
     if (numBytes < IM19_FRAME_PAYLOAD_SIZE)
@@ -259,6 +278,14 @@ bool im19UpdateFirmware(const uint8_t * data, uint32_t numBytes)
 // or FAILED if the IM19 never responds.
 Im19UpdateResult im19UpdateFirmwareEnd()
 {
+    // Select the next set of bad blocks
+    previousBadBlocks = badBlocks;
+    previousBadBlocksEnd = badBlocks;
+    badBlocks = nextBadBlocks;
+    badBlocksEnd = nextBadBlocksEnd;
+    nextBadBlocks = nullptr;
+    nextBadBlocksEnd = nullptr;
+
     im19SendCmdFrame(IM19_FRAME_TYPE_CPL, im19TotalFrames);
 
     int retry = IM19_CPL_RESPONSE_RETRIES;
