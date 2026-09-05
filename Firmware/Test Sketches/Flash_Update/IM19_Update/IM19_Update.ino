@@ -17,6 +17,17 @@
     Put the target into bootload mode and malloc any necessary buffers xxxUpdateFirmwareBegin()
     Grab chunks of bytes over WiFi and throw at xxxUpdateFirmware(*data, length)
     When done, call xxxUpdateFirmwareEnd() to free buffers and exit the bootloader mode or reset the target
+
+    Test procedure commands:
+    1) o    ?.? --> 6.1
+    2) a    6.1 --> 11.1
+    3) e    11.1 --> 6.1    Connect to somewhere other than
+                            raw.githubusercontent.com using http://
+    4) e    6.1 --> 11.1    Connect to somewhere other than
+                            raw.githubusercontent.com using https://
+    5) o    11.1 --> 6.1
+    6) p    6.1 --> 11.1
+    7) u    11.1 --> 11.4.1
 */
 
 //----------------------------------------
@@ -47,8 +58,11 @@ const uint8_t logoSparkPNT[] = {0};
 #define logoSparkPNT_Height         1
 #define logoSparkPNT_Width          1
 
+#include "Firmware_Data_Stream.h"
 #include "secrets.h"
 #include "settings.h"
+#define COMPILE_ALL_FIRMWARE
+#include "TheData.h"
 
 #define rtkMalloc(bytes, description)       malloc(bytes)
 #define rtkFree(buffer, description)        free(buffer)
@@ -69,6 +83,8 @@ const char * url_6_1 = "https://raw.githubusercontent.com/sparkfun/SparkFun_RTK_
 #define OTA_FIRMWARE_GITHUB_RAW "raw.githubusercontent.com"
 
 char imuVersion[96];
+
+Firmware_Data_Stream dataArray(im19_firmware, sizeof(im19_firmware));
 
 static uint8_t rxBuffer[256];
 
@@ -159,6 +175,7 @@ void displayMenu()
     systemPrintln("Menu:");
 
     // Test specific menu items
+    systemPrintf("a) Update IM19 to 11.1 from array\r\n");
     systemPrintln("o) Update IM19 to 6.1");
     systemPrintln("p) Update IM19 to 11.1");
     systemPrintln("u) Update IM19 to 11.4.1");
@@ -196,6 +213,8 @@ void loop()
             otaDebugVerbose ^= 1;
 
         // Test specific menu items
+        else if (incoming == 'a')
+            flashUpdate(nullptr);
         else if (incoming == 'e')
         {
             // Get the URL
@@ -224,7 +243,12 @@ void flashUpdate(const char * url)
     uint32_t flashUpdateStartTime = millis();
 
     // Attempt to update the firmware
-    if ((url != nullptr) && (im19FirmwareUpdate(url, rxBuffer, sizeof(rxBuffer)) == true))
+    dataArray.init(0);
+    if (((url != nullptr) && (im19FirmwareUpdate(url, rxBuffer, sizeof(rxBuffer)) == true))
+        || ((url == nullptr) && im19ArrayFlashUpdate((NetworkClient *)&dataArray,
+                                                      dataArray.available(),
+                                                      rxBuffer,
+                                                      sizeof(rxBuffer))))
     {
         // Stop timer and print elapsed time
         uint32_t flashUpdateElapsed = millis() - flashUpdateStartTime;

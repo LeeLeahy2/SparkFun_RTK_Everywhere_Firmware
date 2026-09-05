@@ -470,6 +470,12 @@ static bool im19StreamRange(const char * url,
             stream = http.getStreamPtr();
             success = true;
         }
+        else
+        {
+            stream = (NetworkClient *)&dataArray;
+            dataArray.init(startByte);
+            success = true;
+        }
 
         // Stream the data
         if (success)
@@ -839,6 +845,79 @@ bool im19GetVersionString()
     } while (0);
     if (tiltSensor)
         delete tiltSensor;
+    return success;
+}
+
+// Perform the flash update using an array
+bool im19ArrayFlashUpdate(NetworkClient * stream,
+                          size_t fileBytes,
+                          uint8_t * buffer,
+                          size_t packetBytes)
+{
+    const char * errorMsg;
+    char msgBuffer[88];
+
+    do
+    {
+        // Initialize the UART communicating with the IM19
+        im19InitUart();
+
+        if (!im19UpdateFirmwareBegin(fileBytes))
+        {
+            errorMsg = "IM19 did not respond to the bootloader entry command.";
+            break;
+        }
+
+        // Now that the IM19 is in its bootloader and waiting, stream the already-open
+        // response body straight to it.
+        bool streamed = im19StreamFirmware(stream,
+                                           fileBytes,
+                                           buffer,
+                                           packetBytes);
+        if (!streamed)
+        {
+            errorMsg = "IM19 firmware update failed during initial WiFi download.";
+            break;
+        }
+
+        const int maxAttempts = 5;
+        errorMsg = "IM19 firmware update failed: too many retries.";
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            Im19UpdateResult result = im19UpdateFirmwareEnd();
+            if (result == IM19_UPDATE_SUCCESS)
+            {
+                errorMsg = nullptr;
+                break;
+            }
+
+            if (result == IM19_UPDATE_FAILED)
+            {
+                errorMsg = "IM19 firmware update failed: no response from IM19.";
+                break;
+            }
+
+            // IM19_UPDATE_RETRY - the IM19 told us exactly which frames it's missing.
+            systemPrintf("Attempt %d: IM19 reports missing frames.\r\n", attempt);
+            if (!im19StreamMissingRanges(nullptr, buffer, packetBytes))
+            {
+                errorMsg = "IM19 firmware update failed while re-requesting missing frames.";
+                break;
+            }
+        }
+    } while (0);
+
+    // Display the firmware update status
+    bool success = (errorMsg == nullptr);
+    systemPrintln(otaEqualSigns);
+    if (success)
+        systemPrintln("IM19 firmware update completed successfully");
+    else
+        systemPrintf("%s\r\n", errorMsg);
+
+    // Attempt to display the IM19 firmware version
+    im19GetVersionString();
+    systemPrintln(otaEqualSigns);
     return success;
 }
 
