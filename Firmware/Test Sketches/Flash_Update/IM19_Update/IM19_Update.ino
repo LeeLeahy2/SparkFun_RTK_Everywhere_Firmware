@@ -74,6 +74,8 @@ const char * url_6_1 = "https://raw.githubusercontent.com/sparkfun/SparkFun_RTK_
 
 char imuVersion[96];
 
+static uint8_t rxBuffer[256];
+
 //----------------------------------------
 // Test entry point
 //----------------------------------------
@@ -172,7 +174,7 @@ void firmwareUpdate(const char * url)
         firmwareUpdateStartTime = millis();
 
         // Attempt to update the firmware
-        if (im19FirmwareUpdate(url) == true)
+        if (im19FirmwareUpdate(url, rxBuffer, sizeof(rxBuffer)) == true)
         {
             // Stop timer and print elapsed time
             firmwareUpdateElapsed = millis() - firmwareUpdateStartTime;

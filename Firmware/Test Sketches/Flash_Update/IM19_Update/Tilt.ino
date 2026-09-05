@@ -73,7 +73,7 @@ static uint8_t im19FrameMap[IM19_FRAME_MAP_SIZE]; // bit set = IM19 has confirme
 static uint32_t im19TotalFrames;
 static uint32_t im19NextFrameID; // frame ID that the next assembled byte belongs to
 
-static uint8_t rxBuffer[IM19_FRAME_PAYLOAD_SIZE];
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 static uint16_t im19BufToUint16(const uint8_t *buffer)
 {
@@ -291,7 +291,7 @@ Im19UpdateResult im19UpdateFirmwareEnd()
 
 // Reads 'byteCount' bytes starting at 'startOffset' from an already-open HTTP stream
 // and feeds them to the IM19, reporting progress as it goes.
-static bool im19StreamFirmware(WiFiClient * stream,
+static bool im19StreamFirmware(NetworkClient * stream,
                                size_t fileBytes,
                                uint8_t * buffer,
                                size_t packetBytes)
@@ -361,7 +361,11 @@ static bool im19StreamFirmware(WiFiClient * stream,
 }
 
 // Re-downloads only [startByte, endByte] (inclusive) and streams it to the IM19.
-static bool im19StreamRange(const char * url, uint32_t startByte, uint32_t endByte)
+static bool im19StreamRange(const char * url,
+                            size_t startByte,
+                            size_t endByte,
+                            uint8_t * buffer,
+                            size_t packetBytes)
 {
     const char * cert;
     NetworkClientSecure client;
@@ -398,16 +402,20 @@ static bool im19StreamRange(const char * url, uint32_t startByte, uint32_t endBy
     im19NextFrameID = startByte / IM19_FRAME_PAYLOAD_SIZE;
     bool success = im19StreamFirmware(http.getStreamPtr(),
                                       endByte - startByte + 1,
-                                      rxBuffer,
-                                      sizeof(rxBuffer));
+                                      buffer,
+                                      packetBytes);
     http.end();
     return success;
 }
 
 // Walks im19FrameMap for runs of missing frames and re-requests just those byte
 // ranges from the source URL, instead of re-streaming the entire firmware image.
-static bool im19StreamMissingRanges(const char * url)
+static bool im19StreamMissingRanges(const char * url,
+                                    uint8_t * buffer,
+                                    size_t packetBytes)
 {
+    bool success = true;
+
     uint32_t totalMissingFrames = 0;
     for (uint32_t i = 0; i < im19TotalFrames; i++)
     {
@@ -465,10 +473,17 @@ static bool im19StreamMissingRanges(const char * url)
                      (unsigned long)runStart, (unsigned long)(frame - 1), (unsigned long)(endByte - startByte + 1),
                      (unsigned long)(missingRateTenthsPct / 10), (unsigned long)(missingRateTenthsPct % 10));
 
-        if (!im19StreamRange(url, startByte, endByte))
-            return false;
+        success = im19StreamRange(url,
+                                  startByte,
+                                  endByte,
+                                  buffer,
+                                  packetBytes);
+
+        // Stop upon error
+        if (success == false)
+            break;
     }
-    return true;
+    return success;
 }
 
 // Confirms the new firmware is running by polling for a response to AT+VERSION.
@@ -501,6 +516,7 @@ void im19InitUart()
     SerialForTilt->begin(115200, SERIAL_8N1, pin_IMU_RX, pin_IMU_TX);
 }
 
+//----------------------------------------
 // Updates the IM19 module firmware from the given URL over WiFi.
 //
 // Structure (see the header comment at the top of the .ino for the general pattern):
@@ -510,7 +526,10 @@ void im19InitUart()
 //   4. im19UpdateFirmwareEnd() asks the IM19 what it's missing. If anything, re-request
 //      only those byte ranges (im19StreamMissingRanges) and ask again - up to a few
 //      attempts - rather than re-streaming the whole binary.
-bool im19FirmwareUpdate(const char * url)
+//----------------------------------------
+bool im19FirmwareUpdate(const char * url,
+                        uint8_t * buffer,
+                        size_t packetBytes)
 {
     const char * cert;
     NetworkClientSecure client;
@@ -627,8 +646,8 @@ bool im19FirmwareUpdate(const char * url)
         im19NextFrameID = 0;
         if (im19StreamFirmware(stream,
                                fileBytes,
-                               rxBuffer,
-                               sizeof(rxBuffer)))
+                               buffer,
+                               packetBytes) == false)
         {
             errorMsg = "IM19 firmware update failed during transfer";
             break;
@@ -653,7 +672,7 @@ bool im19FirmwareUpdate(const char * url)
 
             // IM19_UPDATE_RETRY - the IM19 told us exactly which frames it's missing.
             systemPrintf("Attempt %d: IM19 reports missing frames.\r\n", attempt);
-            if (!im19StreamMissingRanges(url))
+            if (!im19StreamMissingRanges(url, buffer, packetBytes))
             {
                 errorMsg = "IM19 firmware update failed while requesting missing frames.";
                 break;
