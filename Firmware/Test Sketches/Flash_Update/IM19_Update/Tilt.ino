@@ -385,10 +385,10 @@ static bool im19StreamFirmware(NetworkClient * stream,
     return success;
 }
 
-// Re-downloads only [startByte, endByte] (inclusive) and streams it to the IM19.
+// Re-downloads the range and streams it to the IM19.
 static bool im19StreamRange(const char * url,
                             size_t startByte,
-                            size_t endByte,
+                            size_t numBytes,
                             uint8_t * buffer,
                             size_t packetBytes)
 {
@@ -410,7 +410,7 @@ static bool im19StreamRange(const char * url,
     }
 
     char rangeHeader[48];
-    snprintf(rangeHeader, sizeof(rangeHeader), "bytes=%lu-%lu", (unsigned long)startByte, (unsigned long)endByte);
+    snprintf(rangeHeader, sizeof(rangeHeader), "bytes=%lu-%lu", startByte, startByte + numBytes - 1);
     http.addHeader("Range", rangeHeader);
 
     int httpCode = http.GET();
@@ -426,7 +426,7 @@ static bool im19StreamRange(const char * url,
 
     im19NextFrameID = startByte / IM19_FRAME_PAYLOAD_SIZE;
     bool success = im19StreamFirmware(http.getStreamPtr(),
-                                      endByte - startByte + 1,
+                                      numBytes,
                                       buffer,
                                       packetBytes);
     http.end();
@@ -495,12 +495,12 @@ static bool im19StreamMissingRanges(const char * url,
         uint32_t endByte = min(frame * IM19_FRAME_PAYLOAD_SIZE, otaFileBytes) - 1;
 
         systemPrintf("Requesting missing frames %lu-%lu (%lu bytes) from source (failure rate: %lu.%lu%%).\r\n",
-                     (unsigned long)runStart, (unsigned long)(frame - 1), (unsigned long)(endByte - startByte + 1),
+                     runStart, (frame - 1), (unsigned long)(endByte - startByte),
                      (unsigned long)(missingRateTenthsPct / 10), (unsigned long)(missingRateTenthsPct % 10));
 
         success = im19StreamRange(url,
                                   startByte,
-                                  endByte,
+                                  endByte - startByte,
                                   buffer,
                                   packetBytes);
 
