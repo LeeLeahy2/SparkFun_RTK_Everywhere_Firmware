@@ -1158,7 +1158,7 @@ void imuReset()
 // tune it empirically on hardware: lower it, then watch how many frames the IM19
 // reports missing at the end. The existing retry path only re-fetches what's missing,
 // so occasional drops are safe; a delay set too low just means more retry passes.
- static const uint32_t IM19_FRAME_PACING_MS = 100; // Works - 0.1% frame failure.
+static const uint32_t IM19_FRAME_PACING_MS = 100; // Works - 0.1% frame failure.
 // static const uint32_t IM19_FRAME_PACING_MS = 75; // Works - 42% frame failure.
 // static const uint32_t IM19_FRAME_PACING_MS = 50; // Original mfg timeout. 87% frame failure.
 //  static const uint32_t IM19_FRAME_PACING_MS = 30; // Works - 94% frame failure.
