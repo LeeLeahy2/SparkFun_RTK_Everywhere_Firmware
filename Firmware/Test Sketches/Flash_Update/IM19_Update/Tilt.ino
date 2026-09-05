@@ -394,41 +394,93 @@ static bool im19StreamRange(const char * url,
 {
     const char * cert;
     NetworkClientSecure client;
-
-    cert = getCertFromUrl(url);
-    if (!securelyConnectToServer(url, client, cert))
-    {
-        systemPrintln("Failed to securely connect to GitHub.");
-        return false;
-    }
-
     HTTPClient http;
-    if (!http.begin(client, url))
+    const char * ipAddress;
+    String ipAddressString;
+    const char * server;
+    String serverString;
+    NetworkClient * stream;
+    bool success;
+
+    // Display the parameters
+    if (settings.debugFirmwareUpdate && otaDebugVerbose)
     {
-        systemPrintln("Unable to begin HTTP request.");
-        return false;
+        systemPrintf("startByte: 0x%08x (%d)\r\n", startByte, startByte);
+        systemPrintf("numBytes: 0x%08x (%d)\r\n", numBytes, numBytes);
+        systemPrintf("packetBytes: %d\r\n", packetBytes);
     }
-
-    char rangeHeader[48];
-    snprintf(rangeHeader, sizeof(rangeHeader), "bytes=%lu-%lu", startByte, startByte + numBytes - 1);
-    http.addHeader("Range", rangeHeader);
-
-    int httpCode = http.GET();
-    if (httpCode != HTTP_CODE_PARTIAL_CONTENT)
+    do
     {
-        // A 200 here means the server ignored our Range request and is about to send
-        // the whole file from byte 0 - streaming that into this offset would corrupt
-        // the image, so bail rather than guess.
-        systemPrintf("HTTP range request failed, code: %d\r\n", httpCode);
-        http.end();
-        return false;
-    }
+        success = false;
+        if (url)
+        {
+            // Locate the server for this URL
+            serverString = getServerFromUrl(url);
+            if (serverString.length() == 0)
+            {
+                systemPrintln("IM19 firmware update failed to find server name in URL string");
+                break;
+            }
+            server = serverString.c_str();
 
-    im19NextFrameID = startByte / IM19_FRAME_PAYLOAD_SIZE;
-    bool success = im19StreamFirmware(http.getStreamPtr(),
-                                      numBytes,
-                                      buffer,
-                                      packetBytes);
+            // Translate the server name into an IP address
+            ipAddressString = getServerIpAddress(server);
+            if (ipAddressString.length() == 0)
+            {
+                systemPrintln("Failed to get the IP address for the server");
+                break;
+            }
+            ipAddress = ipAddressString.c_str();
+
+            cert = getCertFromUrl(url);
+            if (cert)
+            {
+                if (!securelyConnectToServer(url, client, cert))
+                {
+                    systemPrintf("Failed to securely connect to %s (%s)", server, ipAddress);
+                    break;
+                }
+
+                if (!http.begin(client, url))
+                {
+                    systemPrintln("IM19 firmware update unable to begin HTTPS request.");
+                    break;
+                }
+            }
+            else if (!http.begin(url))
+            {
+                systemPrintln("IM19 firmware update unable to begin HTTP request.");
+                break;
+            }
+
+            char rangeHeader[48];
+            snprintf(rangeHeader, sizeof(rangeHeader), "bytes=%lu-%lu", startByte, startByte + numBytes - 1);
+            http.addHeader("Range", rangeHeader);
+
+            int httpCode = http.GET();
+            if (httpCode != HTTP_CODE_PARTIAL_CONTENT)
+            {
+                // A 200 here means the server ignored our Range request and is about to send
+                // the whole file from byte 0 - streaming that into this offset would corrupt
+                // the image, so bail rather than guess.
+                systemPrintf("HTTP range request failed, code: %d\r\n", httpCode);
+                break;
+            }
+
+            // Get the data stream
+            stream = http.getStreamPtr();
+            success = true;
+        }
+
+        im19NextFrameID = startByte / IM19_FRAME_PAYLOAD_SIZE;
+
+        // Stream the data
+        if (success)
+            success = im19StreamFirmware(stream,
+                                         numBytes,
+                                         buffer,
+                                         packetBytes);
+    } while (0);
     http.end();
     return success;
 }
