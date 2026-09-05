@@ -71,7 +71,7 @@ static const int IM19_CPL_RESPONSE_RETRIES = 10; // up to IM19_CPL_RESPONSE_RETR
 
 static uint8_t im19FrameMap[IM19_FRAME_MAP_SIZE]; // bit set = IM19 has confirmed receipt of that frame
 static uint32_t im19TotalFrames;
-static uint32_t im19NextFrameID; // frame ID that the next assembled byte belongs to
+static uint32_t im19NextFrameID;
 
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -218,7 +218,6 @@ bool im19UpdateFirmwareBegin(size_t fileBytes)
     memset(im19FrameMap, 0, IM19_FRAME_MAP_SIZE);
     im19TotalFrames = totalFrames;
     otaFileBytes = fileBytes;
-    im19NextFrameID = 0;
 
     for (int retry = 0; retry < 3; retry++)
     {
@@ -471,8 +470,6 @@ static bool im19StreamRange(const char * url,
             stream = http.getStreamPtr();
             success = true;
         }
-
-        im19NextFrameID = startByte / IM19_FRAME_PAYLOAD_SIZE;
 
         // Stream the data
         if (success)
