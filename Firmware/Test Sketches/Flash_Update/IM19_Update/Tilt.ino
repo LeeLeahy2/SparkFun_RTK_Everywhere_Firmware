@@ -254,19 +254,6 @@ bool im19UpdateFirmware(const uint8_t * data, uint32_t numBytes)
     return true;
 }
 
-// Confirms the new firmware is running by polling for a response to AT+VERSION.
-static bool im19VerifyFirmwareRunning()
-{
-    delay(5000); // Give the IM19 time to flash and boot the new image
-    for (int retry = 0; retry < 3; retry++)
-    {
-        if (im19SendATCommand("AT+VERSION\r\n", "Version:", 1))
-            return true;
-        delay(100);
-    }
-    return false;
-}
-
 // Tells the IM19 "that's every frame I have" and handles its reply. Returns SUCCESS
 // once the IM19 confirms it received everything and has booted the new image, RETRY
 // if it reports missing frames (caller should re-request just those and call again),
@@ -482,6 +469,19 @@ static bool im19StreamMissingRanges(const char * url)
             return false;
     }
     return true;
+}
+
+// Confirms the new firmware is running by polling for a response to AT+VERSION.
+static bool im19VerifyFirmwareRunning()
+{
+    delay(5000); // Give the IM19 time to flash and boot the new image
+    for (int retry = 0; retry < 3; retry++)
+    {
+        if (im19SendATCommand("AT+VERSION\r\n", "Version:", 1))
+            return true;
+        delay(100);
+    }
+    return false;
 }
 
 //----------------------------------------
