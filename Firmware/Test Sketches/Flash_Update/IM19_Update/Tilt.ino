@@ -500,6 +500,23 @@ static bool im19StreamMissingRanges(const char * url)
     return true;
 }
 
+//----------------------------------------
+// Initialize the UART that communicates with the IM19
+//----------------------------------------
+void im19InitUart()
+{
+    // Initialize the UART communicating with the IM19
+    if (SerialForTilt == nullptr)
+    {
+        SerialForTilt = new HardwareSerial(2);
+        if (SerialForTilt == nullptr)
+            reportFatalError("Failed to allocate the SerialForTilt port!");
+    }
+    else
+        SerialForTilt->end();
+    SerialForTilt->begin(115200, SERIAL_8N1, pin_IMU_RX, pin_IMU_TX);
+}
+
 // Updates the IM19 module firmware from the given URL over WiFi.
 //
 // Structure (see the header comment at the top of the .ino for the general pattern):
@@ -519,6 +536,10 @@ bool im19FirmwareUpdate(const char * url)
     do
     {
         errorMsg = nullptr;
+
+        // Initialize the UART communicating with the IM19
+        im19InitUart();
+
         im19FrameMap = nullptr;
         if (!im19AllocateBuffers())
         {
@@ -635,11 +656,8 @@ bool im19GetVersionString()
         imuReset();
         delay(5000);
 
-        // Use UART2 on the ESP32 to receive IMU corrections
-        // Shown as UART2 on these schematics: Torch, Facet FP
-        beginUart2Serial();
-        if (SerialForTilt == nullptr)
-            break;
+        // Initialize the UART communicating with the IM19
+        im19InitUart();
 
         tiltSensor = new IM19();
         if (tiltSensor == nullptr)

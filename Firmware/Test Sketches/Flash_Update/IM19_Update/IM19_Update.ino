@@ -74,62 +74,36 @@ const char * url_6_1 = "https://raw.githubusercontent.com/sparkfun/SparkFun_RTK_
 
 char imuVersion[96];
 
+//----------------------------------------
+// Test entry point
+//----------------------------------------
 void setup()
 {
+    // Common setup
     Serial.begin(115200);
     delay(250);
 
-    systemPrintln("IM19 bootloader test over WiFi");
-
-    pin_I2C0_SDA = 15;
-    pin_I2C0_SCL = 4;
-
-    pin_muxA = -1;
-    pin_muxB = -1;
-    pin_GNSS_DR_Reset = 22; // Torch only. Push low to reset GNSS/DR
-    pin_IMU_RX = 14;        // Pins used both on Torch and FP.
-    pin_IMU_TX = 17;
-
-    Wire.begin(pin_I2C0_SDA, pin_I2C0_SCL);
-    i2c_0 = &Wire;
-
-    // Basic test to tell platform
-    if (i2cIsDevicePresent(i2c_0, 0x21))
-    {
-        systemPrintln("FP detected");
-        productVariant = RTK_FACET_FP;
-    }
-    else
-    {
-        systemPrintln("Torch detected");
-        productVariant = RTK_TORCH;
-    }
+    identifyBoard(); // Determine what hardware platform we are running on.
+    beginBoard();    // Set all pin numbers and pin initial states
+    beginMux();      // Must come before I2C activity to avoid external
+                     // devices from corrupting the bus. See issue 474
+                     //  https://github.com/sparkfun/SparkFun_RTK_Firmware/issues/474
+    peripheralsOn(); // Enable power for the display, SD, etc
+    beginI2C();      // Requires settings and peripheral power (if applicable).
 
     if (productVariant == RTK_TORCH)
-    {
-        pin_muxA = 18; // Controls U12 switch between ESP UART1 to UM980 UART3 or LoRa UART0
-        pin_muxB = 12; // Controls U18 switch between ESP UART0 to LoRa UART2 or UM980 UART1
-        pinMode(pin_muxA, OUTPUT);
-        pinMode(pin_muxB, OUTPUT);
-
-        pinMode(pin_GNSS_DR_Reset, OUTPUT);
         imuReset();
-    }
     else if (productVariant == RTK_FACET_FP)
     {
-        present.gpioExpanderSwitches = true;
         beginGpioExpanderSwitches();
-
         gpioExpanderSelectImu(); // On FP, confirm SW3 is in the correct position
     }
     else
     {
-        Serial.println("Unknown product variant. Freezing...");
+        Serial.println("Product variant does not support IM19. Freezing...");
         while (true)
             delay(1000);
     }
-
-    beginUart2Serial(); // Init the UART that communicates between the ESP32 and the IM19.
 
     im19GetVersionString();
 
