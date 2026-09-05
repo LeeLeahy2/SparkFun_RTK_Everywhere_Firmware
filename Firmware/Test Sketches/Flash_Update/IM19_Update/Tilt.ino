@@ -815,7 +815,10 @@ bool im19GetVersionString()
             tiltSensor->enableDebugging(); // Print all debug to Serial
 
         if (tiltSensor->begin(*SerialForTilt) == false) // Give the serial port over to the library
+        {
+            systemPrintln("IM19 firmware version not available");
             break;
+        }
 
         success = true;
         success &= tiltSensor->getAppVersion(imuFirmwareVersionInt);
