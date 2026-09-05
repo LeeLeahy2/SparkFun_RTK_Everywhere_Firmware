@@ -69,29 +69,11 @@ static const uint32_t IM19_FRAME_PACING_MS = 100; // Works - 0.1% frame failure.
 static const uint32_t IM19_CPL_RESPONSE_TIMEOUT_MS = 500;
 static const int IM19_CPL_RESPONSE_RETRIES = 10; // up to IM19_CPL_RESPONSE_RETRIES * IM19_CPL_RESPONSE_TIMEOUT_MS total
 
-static uint8_t *im19FrameMap; // bit set = IM19 has confirmed receipt of that frame
+static uint8_t im19FrameMap[IM19_FRAME_MAP_SIZE]; // bit set = IM19 has confirmed receipt of that frame
 static uint32_t im19TotalFrames;
 static uint32_t im19NextFrameID; // frame ID that the next assembled byte belongs to
 
 static uint8_t rxBuffer[IM19_FRAME_PAYLOAD_SIZE];
-
-static void im19ReleaseBuffers()
-{
-    if (im19FrameMap != nullptr)
-    {
-        free(im19FrameMap);
-        im19FrameMap = nullptr;
-    }
-}
-
-static bool im19AllocateBuffers()
-{
-    im19FrameMap = (uint8_t *)malloc(IM19_FRAME_MAP_SIZE);
-    if (im19FrameMap == nullptr)
-        return false;
-
-    return true;
-}
 
 static uint16_t im19BufToUint16(const uint8_t *buffer)
 {
@@ -540,13 +522,6 @@ bool im19FirmwareUpdate(const char * url)
         // Initialize the UART communicating with the IM19
         im19InitUart();
 
-        im19FrameMap = nullptr;
-        if (!im19AllocateBuffers())
-        {
-            errorMsg = "IM19 firmware update unable to allocate buffers.";
-            break;
-        }
-
         NetworkClientSecure client;
         cert = getCertFromUrl(url);
         if (!securelyConnectToServer(url, client, cert))
@@ -639,7 +614,6 @@ bool im19FirmwareUpdate(const char * url)
 
     // Release the resources
     http.end();
-    im19ReleaseBuffers();
     return success;
 }
 
