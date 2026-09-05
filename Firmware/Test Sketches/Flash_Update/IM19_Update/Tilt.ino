@@ -513,48 +513,108 @@ void im19InitUart()
 bool im19FirmwareUpdate(const char * url)
 {
     const char * cert;
+    NetworkClientSecure client;
     const char * errorMsg;
+    size_t fileBytes;
     HTTPClient http;
-    char msgBuffer[40];
+    String ipAddressString;
+    const char * ipAddress;
+    char msgBuffer[128];
+    const char * server;
+    String serverString;
+    NetworkClient * stream;
 
     do
     {
         errorMsg = nullptr;
 
+        // Verify that a URL was specified
+        if(settings.debugFirmwareUpdate)
+            systemPrintf("URL: %s\r\n", url ? url : "[nullptr]");
+        if ((url == nullptr) || (strlen(url) == 0))
+        {
+            errorMsg = "ERROR: No URL was specified!";
+            break;
+        }
+
         // Initialize the UART communicating with the IM19
         im19InitUart();
 
-        NetworkClientSecure client;
+        // Locate the server for this URL
+        serverString = getServerFromUrl(url);
+        if (serverString.length() == 0)
+        {
+            errorMsg = "ERROR: Failed to find server name in URL string";
+            break;
+        }
+        server = serverString.c_str();
+
+        // Translate the server name into an IP address
+        ipAddressString = getServerIpAddress(server);
+        if (ipAddressString.length() == 0)
+        {
+            errorMsg = "Failed to get the IP address for the server\r\n";
+            break;
+        }
+        ipAddress = ipAddressString.c_str();
+
+        // Determine if the certificate is known for this server
         cert = getCertFromUrl(url);
-        if (!securelyConnectToServer(url, client, cert))
-        {
-            errorMsg = "IM19 firmware update failed to securely connect to GitHub.";
-            break;
-        }
-
         if(settings.debugFirmwareUpdate)
-            systemPrintf("URL: %s\r\n", url);
+            systemPrintf("Certificate: %s\r\n", cert ? "available" : "none");
 
-        if (!http.begin(client, url))
+        // Use an encrypted and verified connection when possible
+        http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+        if (cert)
         {
-            errorMsg = "IM19 firmware update unable to begin HTTP request.";
+            // Verify the server using the certificate
+            if (!securelyConnectToServer(url, client, cert))
+            {
+                //                           1         2         3         4         5         6         7         8         9
+                //                  123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
+                sprintf(msgBuffer, "ERROR: Failed to securely connect to %s (%s)", server, ipAddress);
+                errorMsg = msgBuffer;
+                break;
+            }
+
+            // Request the URL from the web server
+            if (!http.begin(client, url))
+            {
+                errorMsg = "ERROR: unable to begin HTTPS request.";
+                break;
+            }
+        }
+
+        // Request the URL from the web server
+        else if (!http.begin(url))
+        {
+            errorMsg = "ERROR: Unable to begin HTTP request.";
             break;
         }
 
+        // Get the web server's response
         int httpCode = http.GET();
         if (httpCode != HTTP_CODE_OK)
         {
-            sprintf(msgBuffer, "IM19 firmware update failed HTTP GET request, code: %d", httpCode);
+            //                           1         2         3         4         5         6         7         8         9
+            //                  123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
+            sprintf(msgBuffer, "ERROR: Update failed HTTP GET request, code: %d", httpCode);
             errorMsg = msgBuffer;
             break;
         }
 
-        size_t fileBytes = http.getSize();
+        // Get the file size
+        fileBytes = http.getSize();
+        if (settings.debugFirmwareUpdate)
+            systemPrintf("File size: %d (0x%08x) bytes\r\n", fileBytes, fileBytes);
         if (fileBytes <= 0)
         {
-            errorMsg = "IM19 firmware update, web server did not report a firmware size.";
+            errorMsg = "ERROR: Web server did not report a file size.";
             break;
         }
+
+        // Get the connection to the file data
+        stream = http.getStreamPtr();
 
         if (!im19UpdateFirmwareBegin(fileBytes))
         {
@@ -565,13 +625,12 @@ bool im19FirmwareUpdate(const char * url)
         // Now that the IM19 is in its bootloader and waiting, stream the already-open
         // response body straight to it.
         im19NextFrameID = 0;
-        bool streamed = im19StreamFirmware(http.getStreamPtr(),
-                                           fileBytes,
-                                           rxBuffer,
-                                           sizeof(rxBuffer));
-        if (!streamed)
+        if (im19StreamFirmware(stream,
+                               fileBytes,
+                               rxBuffer,
+                               sizeof(rxBuffer)))
         {
-            errorMsg = "IM19 firmware update failed during initial WiFi download.";
+            errorMsg = "IM19 firmware update failed during transfer";
             break;
         }
 
@@ -596,7 +655,7 @@ bool im19FirmwareUpdate(const char * url)
             systemPrintf("Attempt %d: IM19 reports missing frames.\r\n", attempt);
             if (!im19StreamMissingRanges(url))
             {
-                errorMsg = "IM19 firmware update failed while re-requesting missing frames.";
+                errorMsg = "IM19 firmware update failed while requesting missing frames.";
                 break;
             }
         }
