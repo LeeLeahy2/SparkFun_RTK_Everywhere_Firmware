@@ -53,10 +53,6 @@ const uint8_t logoSparkPNT[] = {0};
 #define rtkMalloc(bytes, description)       malloc(bytes)
 #define rtkFree(buffer, description)        free(buffer)
 
-// Timer for firmware update duration
-unsigned long firmwareUpdateStartTime = 0;
-unsigned long firmwareUpdateElapsed = 0;
-
 //----------------------------------------
 // Test specific declarations
 //----------------------------------------
@@ -77,6 +73,44 @@ char imuVersion[96];
 static uint8_t rxBuffer[256];
 
 //----------------------------------------
+// Connects to the configured SSID and blocks until connected or the attempt times out.
+//----------------------------------------
+bool wifiConnect()
+{
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(wifiSSID, wifiPassword);
+    return wifiWaitUntilConnected();
+}
+
+//----------------------------------------
+// Wait for the WiFi connection
+//----------------------------------------
+bool wifiWaitUntilConnected()
+{
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        systemPrint("Connecting to WiFi SSID: ");
+        systemPrintln(wifiSSID);
+
+        unsigned long start = millis();
+        while (WiFi.status() != WL_CONNECTED)
+        {
+            if ((millis() - start) > 20000)
+            {
+                systemPrintln("WiFi connection timed out.");
+                return false;
+            }
+            delay(250);
+            systemPrint(".");
+        }
+
+        systemPrint("WiFi connected, IP address: ");
+        systemPrintln(WiFi.localIP());
+    }
+    return true;
+}
+
+//----------------------------------------
 // Test entry point
 //----------------------------------------
 void setup()
@@ -92,7 +126,11 @@ void setup()
                      //  https://github.com/sparkfun/SparkFun_RTK_Firmware/issues/474
     peripheralsOn(); // Enable power for the display, SD, etc
     beginI2C();      // Requires settings and peripheral power (if applicable).
+    if (wifiConnect() == false)
+        reportFatalError("WiFi network not found!");
 
+    // Test specific setup
+    systemPrintln("IM19 bootloader tests");
     if (productVariant == RTK_TORCH)
         imuReset();
     else if (productVariant == RTK_FACET_FP)
@@ -109,104 +147,96 @@ void setup()
 
     im19GetVersionString();
 
-    wifiConnect();
-
     displayMenu();
 }
 
+//----------------------------------------
+// Test serial menu
+//----------------------------------------
 void displayMenu()
 {
     systemPrintln();
     systemPrintln("Menu:");
+
+    // Test specific menu items
     systemPrintln("o) Update IM19 to 6.1");
     systemPrintln("p) Update IM19 to 11.1");
     systemPrintln("u) Update IM19 to 11.4.1");
-    systemPrintln("r) Reset");
     systemPrintln("e) Enter URL");
+
+    // Common menu items
+    systemPrintln("r) Reset");
     systemPrintf("d) Debug: %s\r\n", settings.debugFirmwareUpdate ? "Enabled" : "Disabled");
     systemPrintf("v) Verbose output: %s\r\n", otaDebugVerbose ? "Enabled" : "Disabled");
     systemPrint("Make selection: ");
 }
 
+//----------------------------------------
+// Process user input
+//----------------------------------------
 void loop()
 {
+    // Loop common code
+    wifiWaitUntilConnected();
     if (Serial.available())
     {
+        // Get and echo the user input
         byte incoming = Serial.read();
         Serial.printf("%c\r\n", incoming);
+
+        // Process the menu item
         if (incoming == 'r')
-        {
             ESP.restart();
-        }
         else if (incoming == 'd')
         {
             settings.debugFirmwareUpdate ^= 1;
             otaDebugVerbose = false;
         }
+        else if (incoming == 'v')
+            otaDebugVerbose ^= 1;
+
+        // Test specific menu items
         else if (incoming == 'e')
         {
             // Get the URL
             systemPrint("Enter URL: ");
             String urlString = systemGetStringFromUser();
-            firmwareUpdate(urlString.c_str());
+            flashUpdate(urlString.c_str());
         }
         else if (incoming == 'o')
-            firmwareUpdate(url_6_1);
+            flashUpdate(url_6_1);
         else if (incoming == 'p')
-            firmwareUpdate(url_11_1);
+            flashUpdate(url_11_1);
         else if (incoming == 'u')
-            firmwareUpdate(url_11_4_1);
-        else if (incoming == 'v')
-            otaDebugVerbose ^= 1;
+            flashUpdate(url_11_4_1);
+
+        // Display the menu again
         displayMenu();
     }
 }
 
-// Perform the firmware update
-void firmwareUpdate(const char * url)
+//----------------------------------------
+// Perform the flash update and display duration
+//----------------------------------------
+void flashUpdate(const char * url)
 {
-    // Verify the url
-    if ((url == nullptr) || (strlen(url) == 0))
-        systemPrintf("No URL specified\r\n");
-    else
+    // Start timer before erase
+    uint32_t flashUpdateStartTime = millis();
+
+    // Attempt to update the firmware
+    if ((url != nullptr) && (im19FirmwareUpdate(url, rxBuffer, sizeof(rxBuffer)) == true))
     {
-        // Start timer before erase
-        firmwareUpdateStartTime = millis();
-
-        // Attempt to update the firmware
-        if (im19FirmwareUpdate(url, rxBuffer, sizeof(rxBuffer)) == true)
-        {
-            // Stop timer and print elapsed time
-            firmwareUpdateElapsed = millis() - firmwareUpdateStartTime;
-            systemPrint("Firmware update time: ");
-            systemPrint(firmwareUpdateElapsed / 1000.0, 3);
-            systemPrintln(" seconds");
-        }
-    }
-}
-
-// Connects to the configured SSID and blocks until connected or the attempt times out.
-bool wifiConnect()
-{
-    systemPrint("Connecting to WiFi SSID: ");
-    systemPrintln(wifiSSID);
-
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(wifiSSID, wifiPassword);
-
-    unsigned long start = millis();
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        if ((millis() - start) > 20000)
-        {
-            systemPrintln("WiFi connection timed out.");
-            return false;
-        }
-        delay(250);
-        systemPrint(".");
+        // Stop timer and print elapsed time
+        uint32_t flashUpdateElapsed = millis() - flashUpdateStartTime;
+        systemPrint("Firmware update time: ");
+        systemPrint(flashUpdateElapsed / 1000.0, 3);
+        systemPrint(" seconds, ");
+        systemPrint(otaFileBytes);
+        systemPrint(" bytes, ");
+        systemPrint((int)(otaFileBytes / ((flashUpdateElapsed + 500) / 1000)));
+        systemPrintln(" bytes/second");
     }
 
-    systemPrint("WiFi connected, IP address: ");
-    systemPrintln(WiFi.localIP());
-    return true;
+    // Always reboot the system
+    ESP.restart();
 }
