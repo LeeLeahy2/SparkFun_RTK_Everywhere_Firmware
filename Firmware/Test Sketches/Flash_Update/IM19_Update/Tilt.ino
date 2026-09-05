@@ -281,18 +281,14 @@ Im19UpdateResult im19UpdateFirmwareEnd()
         int response = im19CheckResponse(im19FrameMap, IM19_CPL_RESPONSE_TIMEOUT_MS);
 
         if (response == IM19_FRAME_TYPE_RDY)
-        {
-            Im19UpdateResult result = im19VerifyFirmwareRunning() ? IM19_UPDATE_SUCCESS : IM19_UPDATE_FAILED;
-            return result;
-        }
+            return im19VerifyFirmwareRunning() ? IM19_UPDATE_SUCCESS : IM19_UPDATE_FAILED;
 
         if (response == IM19_FRAME_TYPE_REQ)
         {
             if (im19AllFramesPresent(im19FrameMap, im19TotalFrames))
             {
                 im19SendCmdFrame(IM19_FRAME_TYPE_RDY, im19TotalFrames);
-                Im19UpdateResult result = im19VerifyFirmwareRunning() ? IM19_UPDATE_SUCCESS : IM19_UPDATE_FAILED;
-                return result;
+                return im19VerifyFirmwareRunning() ? IM19_UPDATE_SUCCESS : IM19_UPDATE_FAILED;
             }
             return IM19_UPDATE_RETRY;
         }
