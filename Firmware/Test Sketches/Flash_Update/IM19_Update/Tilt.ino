@@ -296,67 +296,92 @@ static bool im19StreamFirmware(NetworkClient * stream,
                                uint8_t * buffer,
                                size_t packetBytes)
 {
-    // Display the parameters
-    if (settings.debugFirmwareUpdate && otaDebugVerbose)
-    {
-        systemPrintf("fileBytes: %d\r\n", fileBytes);
-        systemPrintf("packetBytes: %d\r\n", packetBytes);
-    }
+    bool success;
 
-    // Initialize the progress bar
-    firmwareUpdateProgressReset(fileBytes);
-
-    unsigned long lastDataTime = millis();
-    size_t validData = 0;
-    if (settings.debugFirmwareUpdate)
-        systemPrintf("stream->connected(): %d\r\n", stream->connected());
-    while (stream->connected() && (fileBytes > 0))
+    do
     {
-        // Wait until some data is available
-        size_t availableBytes = stream->available();
-        if (availableBytes == 0)
+        success = false;
+
+        // Display the parameters
+        if (settings.debugFirmwareUpdate && otaDebugVerbose)
         {
-            if ((millis() - lastDataTime) > OTA_DATA_TIMEOUT)
+            systemPrintf("fileBytes: %d\r\n", fileBytes);
+            systemPrintf("packetBytes: %d\r\n", packetBytes);
+        }
+
+        // Initialize the progress bar
+        firmwareUpdateProgressReset(fileBytes);
+
+        // Loop until all data has been transferred or another error occurs.
+        // HTTPS conections remain open even after the data has been transferred
+        // and HTTP connections close after data has been transferred but some
+        // may still be available.  Only test the network connection when no
+        // data is available.
+        unsigned long lastDataTime = millis();
+        size_t validData = 0;
+        while (fileBytes > 0)
+        {
+            // Wait until some data is available
+            size_t availableBytes = stream->available();
+            if (availableBytes == 0)
             {
-                systemPrintf("IM19 firmware update timed out waiting for data\r\n");
+                // Verify network connection
+                if (stream->connected() == false)
+                {
+                    systemPrintln("ERROR: lost connection to network server");
+                    break;
+                }
+
+                // Check for network timeout
+                if ((millis() - lastDataTime) > OTA_DATA_TIMEOUT)
+                {
+                    systemPrintf("ERROR: Timed out waiting for data\r\n");
+                    break;
+                }
+                yield();
+                continue;
+            }
+            if (settings.debugFirmwareUpdate && otaDebugVerbose)
+                systemPrintf("availableBytes: %d\r\n", availableBytes);
+
+            // Read the received data
+            size_t bytesToRead = min(availableBytes, packetBytes - validData);
+            int bytesRead = stream->readBytes(&buffer[validData], bytesToRead);
+            if (settings.debugFirmwareUpdate && otaDebugVerbose)
+                systemPrintf("bytesRead: %d\r\n", bytesRead);
+            if (bytesRead <= 0)
+            {
+                systemPrintln("ERROR: Failed reading data from network");
                 break;
             }
-            delay(1);
-            continue;
+            validData += bytesRead;
+
+            // Fill the packet
+            if ((validData < packetBytes) && (validData != fileBytes))
+                continue;
+
+            // Update this portion of the firmware
+            if (im19UpdateFirmware(buffer, validData) == false)
+            {
+                systemPrintln("ERROR: Failed during write");
+                break;
+            }
+
+            // Display the progress
+            firmwareUpdateProgressCallback("IM19", validData);
+
+            // Account for this data
+            fileBytes -= validData;
+            lastDataTime = millis();
+            validData = 0;
         }
-        if (settings.debugFirmwareUpdate && otaDebugVerbose)
-            systemPrintf("availableBytes: %d\r\n", availableBytes);
-
-        // Read the received data
-        size_t bytesToRead = min(availableBytes, packetBytes - validData);
-        int bytesRead = stream->readBytes(&buffer[validData], bytesToRead);
-        if (settings.debugFirmwareUpdate && otaDebugVerbose)
-            systemPrintf("bytesRead: %d\r\n", bytesRead);
-        if (bytesRead <= 0)
+        if (fileBytes)
             break;
-        validData += bytesRead;
+        success = true;
+    } while (0);
 
-        // Fill the packet
-        if ((validData < packetBytes) && (validData != fileBytes))
-            continue;
-
-        // Update this portion of the firmware
-        if (im19UpdateFirmware(buffer, validData) == false)
-        {
-            systemPrintln("IM19 firmware update failed during write");
-            break;
-        }
-
-        // Display the progress
-        firmwareUpdateProgressCallback("IM19", validData);
-
-        // Account for this data
-        fileBytes -= validData;
-        lastDataTime = millis();
-        validData = 0;
-    }
-
-    bool success = (fileBytes == 0);
+    if (fileBytes && settings.debugFirmwareUpdate)
+        systemPrintf("fileBytes: %d\r\n", fileBytes);
     return success;
 }
 
