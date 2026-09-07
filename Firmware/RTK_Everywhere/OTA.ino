@@ -334,6 +334,16 @@ bool otaFirmwareUpdate(const OTA_TARGET * target, const OTA_SUBSYSTEM_INFO * sub
 }
 
 //----------------------------------------
+// Get chip name from chip ID
+//----------------------------------------
+const char * otaGetChipNameFromChipId(uint8_t chipId)
+{
+    if (chipId < otaChipNameEntries)
+        return otaChipName[chipId];
+    return "Unknown";
+}
+
+//----------------------------------------
 // Determine the product subsystem support
 //----------------------------------------
 OTA_SUBSYSTEM_MASK otaGetProductSubsystemSupport()
