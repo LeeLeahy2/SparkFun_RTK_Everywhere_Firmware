@@ -25,9 +25,11 @@
                             raw.githubusercontent.com using http://
     4) e    6.1 --> 11.1    Connect to somewhere other than
                             raw.githubusercontent.com using https://
-    5) o    11.1 --> 6.1
-    6) p    6.1 --> 11.1
-    7) u    11.1 --> 11.4.1
+    5) L
+       0    11.1 --> 11.4.1
+    6) o    11.4.1 --> 6.1
+    7) p    6.1 --> 11.1
+    8) u    11.1 --> 11.4.1
 */
 
 //----------------------------------------
@@ -79,6 +81,10 @@ const char * url_11_1 = "https://raw.githubusercontent.com/sparkfun/SparkFun_RTK
 
 // v6.1
 const char * url_6_1 = "https://raw.githubusercontent.com/sparkfun/SparkFun_RTK_Everywhere_Firmware_Binaries/main/imu/im19/20230419111130_VH2_B2.2_A6.1_2eea4d4c024538bf5ed52.enc";
+
+const char * ulrFileServer = "https://raw.githubusercontent.com/sparkfun/SparkFun_RTK_Everywhere_Firmware_Binaries/main/imu/im19/";
+
+const char * urlDirectory = "https://github.com/sparkfun/SparkFun_RTK_Everywhere_Firmware_Binaries/tree/main/imu/im19";
 
 #define OTA_FIRMWARE_GITHUB_RAW "raw.githubusercontent.com"
 
@@ -180,6 +186,7 @@ void displayMenu()
     systemPrintln("p) Update IM19 to 11.1");
     systemPrintln("u) Update IM19 to 11.4.1");
     systemPrintln("e) Enter URL");
+    systemPrintln("L) List all versions");
 
     // Common menu items
     systemPrintln("r) Reset");
@@ -193,6 +200,8 @@ void displayMenu()
 //----------------------------------------
 void loop()
 {
+    String urlString;
+
     // Loop common code
     wifiWaitUntilConnected();
     if (Serial.available())
@@ -219,8 +228,26 @@ void loop()
         {
             // Get the URL
             systemPrint("Enter URL: ");
-            String urlString = systemGetStringFromUser();
+            urlString = systemGetStringFromUser();
             flashUpdate(urlString.c_str());
+        }
+        else if (incoming == 'L')
+        {
+            // Get the SparkFun directory page
+            urlString = serverSelectFileNameFromDirectoryListing(urlDirectory,
+                                                                 otaFileTree,
+                                                                 otaListEnd,
+                                                                 otaItems,
+                                                                 otaName,
+                                                                 otaNameEnd,
+                                                                 "_VH",
+                                                                 ".enc",
+                                                                 ulrFileServer);
+            if (urlString.length() != 0)
+            {
+                wifiWaitUntilConnected();
+                flashUpdate(urlString.c_str());
+            }
         }
         else if (incoming == 'o')
             flashUpdate(url_6_1);
