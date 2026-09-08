@@ -249,7 +249,7 @@ void beginBoard()
         pinMode(pin_GNSS_TimePulse, INPUT);
 
         pinMode(pin_GNSS_DR_Reset, OUTPUT);
-        gnssBoot(); // Tell UM980 and IMU to boot
+        gpioGnssBoot(); // Tell UM980 and IMU to boot
 
         pinMode(pin_powerAdapterDetect, INPUT); // Has 10k pullup
 
@@ -265,7 +265,7 @@ void beginBoard()
         settings.dataPortBaud = 115200; // Override settings. Use UM980 at 115200bps.
 
         pinMode(pin_loraRadio_power, OUTPUT);
-        loraPowerOff(); // Keep LoRa powered down for now
+        gpioLoraPowerOff(); // Keep LoRa powered down for now
 
         pinMode(pin_loraRadio_boot, OUTPUT);
         digitalWrite(pin_loraRadio_boot, LOW); // Exit bootloader, run program
@@ -375,7 +375,7 @@ void beginBoard()
         // Disable the microSD card
         DMW_if systemPrintf("pin_microSD_CS: %d\r\n", pin_microSD_CS);
         pinMode(pin_microSD_CS, OUTPUT);
-        sdDeselectCard();
+        gpioSdDeselectCard();
 
         DMW_if systemPrintf("pin_baseStatusLED: %d\r\n", pin_baseStatusLED);
         pinMode(pin_baseStatusLED, OUTPUT);
@@ -555,11 +555,11 @@ void beginBoard()
         pinMode(pin_GNSS_TimePulse, INPUT);
 
         pinMode(pin_GNSS_Reset, OUTPUT);
-        gnssBoot(); // Tell LG290P to boot
+        gpioGnssBoot(); // Tell LG290P to boot
 
         // Disable the microSD card
         pinMode(pin_microSD_CS, OUTPUT);
-        sdDeselectCard();
+        gpioSdDeselectCard();
     }
 
     else if (productVariant == RTK_FACET_FP)
@@ -631,7 +631,7 @@ void beginBoard()
 
         // Disable the microSD card
         pinMode(pin_microSD_CS, OUTPUT);
-        sdDeselectCard();
+        gpioSdDeselectCard();
 
         // Turn on Bluetooth LED to indicate power on
         bluetoothLedOn();
@@ -723,7 +723,7 @@ void beginBoard()
         pinMode(pin_GNSS_TimePulse, INPUT);
 
         pinMode(pin_GNSS_DR_Reset, OUTPUT);
-        gnssBoot(); // Tell GNSS to boot
+        gpioGnssBoot(); // Tell GNSS to boot
 
         pinMode(pin_powerAdapterDetect, INPUT); // Has 10k pullup
 
@@ -732,7 +732,7 @@ void beginBoard()
 
         // LoRa not mounted in X2, but power down to be sure
         pinMode(pin_loraRadio_power, OUTPUT);
-        loraPowerOff(); // Keep LoRa powered down for now
+        gpioLoraPowerOff(); // Keep LoRa powered down for now
     }
 }
 
@@ -958,7 +958,7 @@ void beginSD()
             if (tries == maxTries)
             {
                 systemPrintln("microSD init failed. Is card formatted? Marking card offline.");
-                sdDeselectCard();
+                gpioSdDeselectCard();
 
                 present.microSd = false; // Stop attempting to use SD
 

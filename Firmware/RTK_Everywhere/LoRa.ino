@@ -103,7 +103,7 @@ void updateLora()
     if (settings.enableLora == false && (loraState >= LORA_IDLE && loraState < LORA_STATE_MAX))
     {
         loraHangup();   // On Facet FP, select external radio and restore baud rate
-        loraPowerOff(); // Leave serial inteface in place
+        gpioLoraPowerOff(); // Leave serial inteface in place
         loraState = LORA_DISABLED;
     }
 
@@ -122,8 +122,8 @@ void updateLora()
                          // mode.
             if (settings.enableLora == false)
             {
-                loraHangup();   // On Facet FP, select external radio and restore baud rate
-                loraPowerOff(); // Power off system. Leave serial inteface in place
+                loraHangup();       // On Facet FP, select external radio and restore baud rate
+                gpioLoraPowerOff(); // Power off system. Leave serial inteface in place
                 loraState = LORA_DISABLED;
             }
             else
@@ -134,7 +134,7 @@ void updateLora()
     case (LORA_DISABLED):
         if (settings.enableLora == true)
         {
-            loraPowerOn();
+            gpioLoraPowerOn();
             loraState = LORA_IDLE;
         }
         break;
@@ -402,7 +402,7 @@ void beginLora()
             systemPrintln("Begin LoRa");
 
         loraDisableBootloader(); // Disables BOOT pin
-        loraPowerOn();           // Power STM32/radio
+        gpioLoraPowerOn();       // Power STM32/radio
 
         delay(50); // Give LoRa radio time to power stabilize
 
@@ -425,78 +425,7 @@ void loraStop()
         if (settings.debugLora == true)
             systemPrintln("Stopping LoRa");
 
-        loraPowerOff(); // Power down STM32/radio
-    }
-}
-
-void muxSelectUm980()
-{
-    // On a possible Facet FP UM980 variant, UM980 UART1 will be hardwired to ESP32 UART0. No muxes to change
-    if (productVariant == RTK_TORCH)
-        digitalWrite(pin_muxA,
-                     LOW); // Control U18: Connect ESP UART1 to UM980 UART3. Control U11: Connect U18-B1 to LoRa UART2.
-}
-
-void muxSelectUsb()
-{
-    if (productVariant == RTK_TORCH)
-    {
-        pinMode(pin_muxB, OUTPUT); // Make really sure we can control this pin
-        digitalWrite(pin_muxA,
-                     LOW); // Control U12: Connect ESP UART1 to UM980 UART3. Control U11: Connect U18-B1 to LoRa UART2
-        digitalWrite(pin_muxB, LOW); // Control U18: Connect ESP UART0 to CH340 Serial
-
-        usbSerialIsSelected = true; // Let other print operations know we are connected to the CH34x
-    }
-}
-
-// Connect ESP32 to LoRa for regular transmissions on Torch
-// On Facet, startLoRaConfigureCommunicationOnFacet() is called separately
-void muxSelectLoRaCommunication()
-{
-    if (productVariant == RTK_TORCH)
-    {
-        pinMode(pin_muxB, OUTPUT); // Make really sure we can control this pin
-        digitalWrite(pin_muxA,
-                     LOW); // Control U12: Connect ESP UART1 to UM980 UART3. Control U11: Connect U18-B1 to LoRa UART2
-        digitalWrite(pin_muxB, HIGH); // Control U18: Connect ESP UART0 to U11
-
-        usbSerialIsSelected = false; // Let other print operations know we are not connected to the CH34x
-    }
-}
-
-// Connect ESP32 to LoRa for configuration and bootloading
-// This is only called by loraBeginFirmwareUpdate()
-void muxSelectLoRaConfigure()
-{
-    if (productVariant == RTK_TORCH)
-        digitalWrite(pin_muxA,
-                     HIGH); // Control U12: Connect ESP UART1 to LoRa UART0. Control U11: Connect U18-B1 to UM980 UART1
-    else if (productVariant == RTK_FACET_FP)
-        startLoRaConfigureCommunicationOnFacet();
-}
-
-void endLoRaConfigureCommunicationOnFacet()
-{
-    if (productVariant == RTK_FACET_FP)
-    {
-        // On Facet FP only:
-        // We are done talking to LoRa, so it is time to
-        // connect ESP32 UART2 -> SW3 -> GNSS UART3 (IM19 UART1 for Tilt)
-        // The OTA traffic goes direct from GNSS UART2 <-> LoRa UART0
-        gpioExpanderSelectImu();
-    }
-}
-
-void startLoRaConfigureCommunicationOnFacet()
-{
-    if (productVariant == RTK_FACET_FP)
-    {
-        // On Facet FP only:
-        // Connect ESP to LoRa for sending config commands or for firmware update
-        // Connect ESP32 UART2 -> SW3 -> LoRa UART2
-        // The OTA traffic goes direct from GNSS UART2 <-> LoRa UART0
-        gpioExpanderSelectLoraConfigure();
+        gpioLoraPowerOff(); // Power down STM32/radio
     }
 }
 
@@ -551,22 +480,6 @@ void loraReset()
         gpioExpanderLoraEnable();
         delay(50); // 50 ok, 100 ok, 250 too long
     }
-}
-
-void loraPowerOn()
-{
-    if (productVariant == RTK_TORCH)
-        digitalWrite(pin_loraRadio_power, HIGH); // Power STM32/radio
-    else if (productVariant == RTK_FACET_FP)
-        gpioExpanderLoraEnable();
-}
-
-void loraPowerOff()
-{
-    if (productVariant == RTK_TORCH || productVariant == RTK_TORCH_X2)
-        digitalWrite(pin_loraRadio_power, LOW); // Power off STM32/radio
-    else if (productVariant == RTK_FACET_FP)
-        gpioExpanderLoraDisable();
 }
 
 bool loraIsOn()
@@ -641,7 +554,7 @@ void loraBeginFirmwareUpdate()
 
     systemFlush(); // Complete prints
 
-    loraPowerOn();
+    gpioLoraPowerOn();
     delay(500); // Allow power to stabilize
 
     // Change Serial speed of UART0
@@ -1172,7 +1085,7 @@ void loraRxDirectConnectTorch()
 
     serialGNSS->begin(115200, SERIAL_8N1, pin_GnssUart_RX, pin_GnssUart_TX); // Keep this at 115200
 
-    loraPowerOn(); // Power STM32/radio
+    gpioLoraPowerOn(); // Power STM32/radio
 
     delay(500); // Give LoRa radio time to power stabilize
 
@@ -1222,7 +1135,7 @@ void loraRxDirectConnectFacetFP()
     if (SerialForLoRa == nullptr)
         return;
 
-    loraPowerOn(); // Power STM32/radio
+    gpioLoraPowerOn(); // Power STM32/radio
 
     delay(500); // Give LoRa radio time to power stabilize
 
@@ -1326,7 +1239,7 @@ void loraTxDirectConnectTorch()
 
     serialGNSS->begin(115200, SERIAL_8N1, pin_GnssUart_RX, pin_GnssUart_TX); // Keep this at 115200
 
-    loraPowerOn(); // Power STM32/radio
+    gpioLoraPowerOn(); // Power STM32/radio
 
     delay(500); // Give LoRa radio time to power stabilize
 
@@ -1394,7 +1307,7 @@ void loraTxDirectConnectFacetFP()
     if (SerialForLoRa == nullptr)
         return;
 
-    loraPowerOn(); // Power STM32/radio
+    gpioLoraPowerOn(); // Power STM32/radio
 
     delay(500); // Give LoRa radio time to power stabilize
 
@@ -1717,7 +1630,7 @@ bool stm32UpdateFirmwareBegin()
         gpioExpanderSelectLoraConfigure();
     }
 
-    loraPowerOn(); // Regardless of previous state, turn on the STM32
+    gpioLoraPowerOn(); // Regardless of previous state, turn on the STM32
 
     loraEnterBootloader(); // Push boot pin high and reset STM32
 

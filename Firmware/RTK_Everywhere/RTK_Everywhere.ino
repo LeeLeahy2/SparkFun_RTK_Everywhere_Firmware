@@ -176,7 +176,10 @@ RTK_Everywhere.ino
 #include <NetworkClient.h>
 #include <NetworkClientSecure.h>
 #include <NetworkUdp.h>
+#include <arpa/inet.h>
 #include <lwip/sockets.h>
+#include <netdb.h>
+#include <sys/socket.h>
 #endif // COMPILE_NETWORK
 
 #define RTK_MAX_CONNECTION_MSEC (15 * MILLISECONDS_IN_A_MINUTE)
@@ -482,10 +485,6 @@ const char *wifiSoftApPassword = nullptr;
 #define OTA_FIRMWARE_GITHUB_RAW "raw.githubusercontent.com"
 
 bool apConfigFirmwareUpdateInProcess; // Goes true once WiFi is connected and OTA pull begins
-
-// Global variables used by firmwareUpdateProgressCallback, called by all firmware update procedures
-uint32_t firmwareUpdateBytesToProcess = 0;
-uint32_t firmwareUpdateBytesProcessed = 0;
 
 char otaReportedVersion[50];
 bool otaRequestFirmwareVersionCheck = false;
@@ -829,9 +828,6 @@ unsigned long pplKeyExpirationMs = 0; // Milliseconds until the current PPL key 
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #include <SparkFun_I2C_Expander_Arduino_Library.h> // Click here to get the library: http://librarymanager/All#SparkFun_I2C_Expander_Arduino_Library
 
-SFE_PCA95XX io(PCA95XX_PCA9554); // Create a PCA9554, default address 0x20
-
-volatile bool gpioChanged = false; // Set by gpioExpanderISR
 uint8_t gpioExpander_previousState =
     0b00011111; // Buttons start high, card detect starts low. Ignore unconnected GPIO6/7.
 unsigned long gpioExpander_holdStart[8] = {0};
@@ -842,8 +838,6 @@ uint8_t gpioExpander_lastReleased = 255;
 #define GPIO_EXPANDER_BUTTON_RELEASED 1
 #define GPIO_EXPANDER_CARD_INSERTED 1
 #define GPIO_EXPANDER_CARD_REMOVED 0
-
-SFE_PCA95XX *gpioExpanderSwitches = nullptr;
 
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -903,7 +897,6 @@ uint32_t lastBaseLEDupdate; // Controls the blinking of the Base LED
 
 uint32_t lastFileReport = 0;  // When logging, print file record stats every few seconds
 long lastStackReport;         // Controls the report rate of stack highwater mark within a task
-uint32_t lastHeapReport;      // Report heap every 1s if option enabled
 uint32_t lastTaskHeapReport;  // Report task heap every 1s if option enabled
 uint32_t lastCasterLEDupdate; // Controls the cycling of position LEDs during casting
 uint32_t lastRTCAttempt;      // Wait 1000ms between checking GNSS for current date/time
