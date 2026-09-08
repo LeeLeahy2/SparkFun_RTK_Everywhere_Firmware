@@ -8,7 +8,9 @@ OTA.h
 #ifndef __OTA_H__
 #define __OTA_H__
 
-#ifdef COMPILE_OTA_AUTO
+typedef uint8_t OTA_SUBSYSTEM_MASK;
+
+#ifdef COMPILE_FIRMWARE_UPDATE
 
 //----------------------------------------
 // Constants
@@ -54,10 +56,6 @@ enum OTA_FIRMWARE_UPDATE_REQUEST
 #define OTA_DEVICE_LORA         (1 << OTA_SUBSYSTEM_LORA)
 #define OTA_DEVICE_IMU          (1 << OTA_SUBSYSTEM_IMU)
 
-#define OTA_DATA_TIMEOUT        (15 * MILLISECONDS_IN_A_SECOND)
-
-const char * otaEqualSigns = "==================================================";
-
 //----------------------------------------
 // Globals
 //----------------------------------------
@@ -68,8 +66,6 @@ char otaFirmwareCsvUrl[OTA_FIRMWARE_CSV_URL_LENGTH];
 //----------------------------------------
 // Subsystem support
 //----------------------------------------
-
-typedef uint8_t OTA_SUBSYSTEM_MASK;
 
 typedef bool (*OTA_FIRMWARE_UPDATE)(const struct _OTA_TARGET * target,
                                     const struct _OTA_SUBSYSTEM_INFO * subsystemInfo,
