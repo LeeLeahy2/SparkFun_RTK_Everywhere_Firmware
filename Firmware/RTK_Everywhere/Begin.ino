@@ -75,6 +75,10 @@ uint16_t readBoardIdValue()
 // used in tests accordingly.
 void identifyBoard()
 {
+    uint16_t idValue = 0;
+    char line[128];
+    const productProperties * prop;
+
 #if ENABLE_DEVELOPER && defined(DEVELOPER_MAC_ADDRESS)
     static const uint8_t developerMacAddress[] = {DEVELOPER_MAC_ADDRESS};
     esp_base_mac_addr_set(developerMacAddress);
@@ -97,32 +101,30 @@ void identifyBoard()
     if (productVariant == RTK_UNKNOWN)
     {
         // Use ADC to check the resistor divider
-        uint16_t idValue = readBoardIdValue();
-        char adcId[50];
-        snprintf(adcId, sizeof(adcId), "Board ADC ID (mV): %d", idValue);
-        for (int i = 0; i < strlen(adcId); i++)
-            systemPrint("=");
-        systemPrintln();
-        systemPrintln(adcId);
-        for (int i = 0; i < strlen(adcId); i++)
-            systemPrint("=");
-        systemPrintln();
+        idValue = readBoardIdValue();
 
-        // Walk the list of products
-        for (int i = 0; i < productPropertiesEntries; i++)
-        {
-            const productProperties *prop = &productPropertiesTable[i];
-            if ((prop->tolerancePercentage != 0.) &&
-                (idWithAdc(idValue, prop->r1, prop->r2, prop->tolerancePercentage)))
-            {
-                productVariant = prop->productVariant;
-                break;
-            }
-        }
+        // Lookup the product ID
+        prop = getProductPropertiesFromAdcValue(idValue);
+        if (prop)
+            productVariant = prop->productVariant;
     }
 
-    if (ENABLE_DEVELOPER)
-        systemPrintf("Identified variant: %s\r\n", productVariantProperties->name);
+    // Lookup the product properties
+    String productNameString = buildBaseProductName(productVariant);
+    const char * productName = productNameString.c_str();
+
+    // Display the product
+    if (idValue)
+        snprintf(line, sizeof(line), "%s (ADC ID %d mV)", productName, idValue);
+    else
+        snprintf(line, sizeof(line), "%s\r\n", productName);
+    for (int i = 0; i < strlen(line); i++)
+        systemPrint("=");
+    systemPrintln();
+    systemPrintln(line);
+    for (int i = 0; i < strlen(line); i++)
+        systemPrint("=");
+    systemPrintln();
 }
 
 // Turn on power for the display before beginDisplay
@@ -799,9 +801,8 @@ void beginVersion()
     espFirmwareVersionGet(versionString, sizeof(versionString), true);
 
     // The GNSS and Tilt could be unknown. Show the generic name only
-    char title[50];
-    snprintf(title, sizeof(title), "%s %s%s %s", getBrandAttributeFromProductVariant(productVariant)->name,
-             productVariantProperties->rtkPrefix ? "RTK " : "", productVariantProperties->name, versionString);
+    String productNameString = buildBaseProductName(productVariant);
+    const char * title = productNameString.c_str();
     for (int i = 0; i < strlen(title); i++)
         systemPrint("=");
     systemPrintln();

@@ -1330,6 +1330,22 @@ void assembleDeviceName()
     }
 }
 
+
+const productProperties * getProductPropertiesFromAdcValue(uint16_t mvMeasured)
+{
+    // Walk the list of products
+    for (int i = 0; i < productPropertiesEntries; i++)
+    {
+        const productProperties *prop = &productPropertiesTable[i];
+        if ((prop->tolerancePercentage != 0.) &&
+            (idWithAdc(mvMeasured, prop->r1, prop->r2, prop->tolerancePercentage)))
+        {
+            return prop;
+        }
+    }
+    return nullptr;
+}
+
 const productProperties *getProductPropertiesFromVariant(ProductVariant variant)
 {
     for (int i = 0; i < productPropertiesEntries; i++)
@@ -1357,6 +1373,22 @@ const productHousingProperties *getProductHousingPropertiesFromVariant(ProductVa
 {
     const productProperties *properties = getProductPropertiesFromVariant(variant);
     return &productHousingPropertiesTable[properties->housing];
+}
+
+// Construct the base product name
+String buildBaseProductName(ProductVariant variant)
+{
+    const productProperties * prop = getProductPropertiesFromVariant(variant);
+
+    // Get the product name
+    const char * brand = getBrandAttributeFromBrand(prop->brand)->name;
+    const char * product = prop->name;
+    String productName = String(brand);
+    productName += " ";
+    if (prop->rtkPrefix)
+        productName += "RTK ";
+    productName += product;
+    return productName;
 }
 
 // Used to report delay until next WiFi/NTRIP/etc connection attempt
