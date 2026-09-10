@@ -497,9 +497,6 @@ volatile bool forwardGnssDataToUsbSerial;
 // entered then no changes are made and the +++ sequence must be re-entered.
 #define PLUS_PLUS_PLUS_TIMEOUT (2 * 1000) // Milliseconds
 
-HardwareSerial *serialGNSS = nullptr;  // Don't instantiate until we know what gnssPlatform we're on
-HardwareSerial *serial2GNSS = nullptr; // Don't instantiate until we know what gnssPlatform we're on
-
 volatile bool inDirectConnectMode = false; // Global state to indicate if GNSS/LoRa has direct connection for update
 
 #define SERIAL_SIZE_TX 512
