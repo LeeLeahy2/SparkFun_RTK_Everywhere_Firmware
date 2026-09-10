@@ -124,6 +124,7 @@ const char * getCertName(const char * cert)
 //----------------------------------------
 // Get an IP address associated with server
 //----------------------------------------
+#ifdef COMPILE_NETWORK
 String getServerIpAddress(const char * server)
 {
     struct addrinfo hints, * res, * p;
@@ -173,11 +174,13 @@ String getServerIpAddress(const char * server)
     }
     return ipAddress;
 }
+#endif // COMPILE_NETWORK
 
 //----------------------------------------
 // Returns true if we successfully establish a secure connection to the
 // server or false upon failure.
 //----------------------------------------
+#ifdef COMPILE_NETWORK
 bool securelyConnectToServer(const char * url,
                              NetworkClientSecure &client,
                              const char * cert)
@@ -232,6 +235,7 @@ bool securelyConnectToServer(const char * url,
     client.stop();
     return true;
 }
+#endif // COMPILE_NETWORK
 
 //----------------------------------------
 // Extract the web server from the URL
@@ -309,6 +313,7 @@ bool bufferExpand(const char * description,
 //----------------------------------------
 // Get the next network file name
 //----------------------------------------
+#ifdef COMPILE_NETWORK
 bool serverGetNextFileName(NetworkClient * stream,
                            const char * dirSuffix,
                            const char * filePrefix,
@@ -390,6 +395,7 @@ bool serverGetNextFileName(NetworkClient * stream,
     } while (0);
     return false;
 }
+#endif // COMPILE_NETWORK
 
 //----------------------------------------
 // Sort the list of files
@@ -412,6 +418,7 @@ void serverSortFileList(const char ** nameArray, int * sortArray, int fileCount)
 //----------------------------------------
 // Select a URL from a web site directory listing
 //----------------------------------------
+#ifdef COMPILE_NETWORK
 String serverSelectFileNameFromDirectoryListing(const char * url,
                                                 const char * dirPrefix,
                                                 const char * dirSuffix,
@@ -569,6 +576,7 @@ file_menu:
     http.end();
     return selectedEntry;
 }
+#endif // COMPILE_NETWORK
 
 //============================ I2C Support ============================
 

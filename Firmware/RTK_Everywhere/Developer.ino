@@ -612,8 +612,6 @@ bool loraCheckRxDirectFile() {return false;}
 void loraRxDirectConnect() {}
 bool loraCheckTxDirectFile() {return false;}
 void loraTxDirectConnect() {}
-void muxSelectUm980() {}
-void muxSelectUsb() {}
 void updateLora() {}
 bool stm32StreamFirmware(char *relativeFirmwareFileLocation) {return false;}
 #endif  // COMPILE_LORA
