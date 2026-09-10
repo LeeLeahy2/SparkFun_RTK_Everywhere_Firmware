@@ -279,7 +279,7 @@ void correctionPriorityIncrease(CORRECTION_ID_T oldPriority)
 // Correction API
 //----------------------------------------
 
-#ifdef  COMPILE_MENU_CORRECTIONS
+#ifdef COMPILE_MENU_CORRECTIONS
 
 //----------------------------------------
 // Set the priority of all correction sources
@@ -339,7 +339,7 @@ void menuCorrectionsPriorities()
     clearBuffer(); // Empty buffer of any newline chars
 }
 
-#endif  // COMPILE_MENU_CORRECTIONS
+#endif // COMPILE_MENU_CORRECTIONS
 
 //----------------------------------------
 // Display the correction priority table
@@ -664,9 +664,9 @@ void correctionUpdateSource()
             // gnssExternalCorrectionsSelected returns true if corrections have been selected
             // and returns the type via the lora reference
             bool lora;
-            if(gnssExternalCorrectionsSelected(lora))
+            if (gnssExternalCorrectionsSelected(lora))
                 correctionLastSeen(lora ? CORR_RADIO_LORA : CORR_RADIO_EXT);
-            
+
             // Tell the display about the incoming corrections
             // Only display the arrow if corrections are truly arriving
             gnssExternalIncomingRtcm = activity > 1;
@@ -701,9 +701,9 @@ void correctionUpdateSource()
         // disable RTCM if CORR_RADIO_EXT / CORR_RADIO_LORA is not the highest priority;
         // ensure RTCM is enabled if the priority of CORR_RADIO_EXT / CORR_RADIO_LORA is
         // higher than that of the current source.
-    
+
         bool lora;
-        if(gnssExternalCorrectionsSelected(lora))
+        if (gnssExternalCorrectionsSelected(lora))
         {
             // Update the input protocols, based on the active correction source
             // *** setExternalCorrections will only communicate with the GNSS if things have changed ***
@@ -711,8 +711,8 @@ void correctionUpdateSource()
             // If no correction source is active, ensure the protocol is enabled
             if (correctionGetSource() >= CORR_NUM)
             {
-                gnss->setExternalCorrections(getGnssExternalCorrectionsPort(), true,
-                    false, "correctionUpdateSource no active source"); // Don't force
+                gnss->setExternalCorrections(getGnssExternalCorrectionsPort(), true, false,
+                                             "correctionUpdateSource no active source"); // Don't force
             }
             // Else if the priority of LoRa is higher than the priority of the active correction source
             // then ensure the protocol is enabled
@@ -720,8 +720,8 @@ void correctionUpdateSource()
             // Use <= because the current source could be LoRa
             else if (lora && (correctionGetPriority(CORR_RADIO_LORA) <= correctionGetPriority(correctionGetSource())))
             {
-                gnss->setExternalCorrections(getGnssExternalCorrectionsPort(), true,
-                    false, "correctionUpdateSource lora priority"); // Don't force
+                gnss->setExternalCorrections(getGnssExternalCorrectionsPort(), true, false,
+                                             "correctionUpdateSource lora priority"); // Don't force
             }
             // Else if the priority of External Radio is higher than the priority of the active correction source
             // then ensure the protocol is enabled
@@ -729,21 +729,21 @@ void correctionUpdateSource()
             // Use <= because the current source could be External Radio
             else if (!lora && (correctionGetPriority(CORR_RADIO_EXT) <= correctionGetPriority(correctionGetSource())))
             {
-                gnss->setExternalCorrections(getGnssExternalCorrectionsPort(), true,
-                    false, "correctionUpdateSource radio ext priority"); // Don't force
+                gnss->setExternalCorrections(getGnssExternalCorrectionsPort(), true, false,
+                                             "correctionUpdateSource radio ext priority"); // Don't force
             }
             // Else disable the protocol to disable the corrections
             else
             {
-                gnss->setExternalCorrections(getGnssExternalCorrectionsPort(), false,
-                    false, "correctionUpdateSource no priority"); // Don't force
+                gnss->setExternalCorrections(getGnssExternalCorrectionsPort(), false, false,
+                                             "correctionUpdateSource no priority"); // Don't force
             }
         }
         else
         {
             // External corrections not selected. Ensure the protocol is disabled
-            gnss->setExternalCorrections(getGnssExternalCorrectionsPort(), false,
-                false, "correctionUpdateSource not selected"); // Don't force
+            gnss->setExternalCorrections(getGnssExternalCorrectionsPort(), false, false,
+                                         "correctionUpdateSource not selected"); // Don't force
         }
     }
 }
@@ -784,7 +784,7 @@ void markPppCorrectionsPresent()
             systemPrintln("PPP signal detected, but it is not the top priority");
             lastPrint = millis();
         }
-    }    
+    }
 }
 
 // Return true if external corrections (external radio or LoRa) are enabled
@@ -901,7 +901,11 @@ uint8_t getGnssExternalCorrectionsPort()
             systemPrintln("getGnssExternalCorrectionsPort: Uncaught ZED platform");
     }
     else
-        systemPrintln("getGnssExternalCorrectionsPort: Uncaught GNSS");
+    {
+        // We don't need to report an uncaught error if we don't know what the receiver is
+        if (settings.detectedGnssReceiver != GNSS_RECEIVER_UNKNOWN)
+            systemPrintln("getGnssExternalCorrectionsPort: Uncaught GNSS");
+    }
 
     return radioUart;
 }
