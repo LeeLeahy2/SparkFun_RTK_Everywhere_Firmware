@@ -617,20 +617,6 @@ bool networkConsumerIsConnected(NETCONSUMER_t consumer)
     // Validate the consumer
     networkConsumerValidate(consumer);
 
-    // if (consumer == NETCONSUMER_NTRIP_SERVER_1)
-    // {
-    //     index = networkIndexTable[networkPriority];
-    //     systemPrintf("NETCONSUMER_NTRIP_SERVER_1: %ld %d %d %d %d\r\n",
-    //         networkHasInternet_bm,
-    //         networkConsumerPriority[consumer],
-    //         networkPriority,
-    //         index,
-    //         networkInterfaceHasInternet(index)
-    //         );
-    // }
-
-    // NETCONSUMER_NTRIP_SERVER_1: 2 3 3 3 0
-
     // If the client is using the highest priority network and that
     // network is still available then continue as normal
     if (networkHasInternet_bm && (networkConsumerPriority[consumer] == networkPriority))
@@ -774,7 +760,24 @@ void networkConsumerRemove(NETCONSUMER_t consumer, NetIndex_t network, const cha
             }
 
             // Update the network priority
+            // Self-managed interfaces (e.g. WiFi Station) have no stop routine in
+            // networkInterfaceTable and are not touched by the loop above, so they can
+            // still be online here. Forcing networkPriority to NETWORK_OFFLINE in that
+            // case leaves it permanently out of sync with networkHasInternet_bm: the
+            // interface keeps its internet access, but networkConsumerIsConnected()
+            // reports every future consumer as disconnected forever (until reboot)
+            // because it never has a reason to re-evaluate networkPriority again.
+            // Instead, fall back to the highest priority interface that is still online.
             networkPriority = NETWORK_OFFLINE;
+            for (priority = 0; priority < NETWORK_OFFLINE; priority += 1)
+            {
+                index = networkIndexTable[priority];
+                if (networkInterfaceHasInternet(index))
+                {
+                    networkPriority = priority;
+                    break;
+                }
+            }
 
             // Let other tasks handle the network failure
             delay(100);
