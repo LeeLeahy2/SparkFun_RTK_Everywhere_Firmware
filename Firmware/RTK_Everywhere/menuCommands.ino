@@ -180,12 +180,6 @@ void commandSendChangedSettings()
     snprintf(settingType, sizeof(settingType), "char[%d]", strlen(printGnssModuleInfo()));
     commandSendExecuteListResponse("gnssModuleInfo", settingType, printGnssModuleInfo());
 
-    if (variantHousingProperties->tiltPossible)
-    {
-        snprintf(settingValue, sizeof(settingValue), "%d", (int)tiltState);
-        commandSendExecuteListResponse("tiltState", "TiltState", settingValue);
-    }
-
     for (int i = 0; i < numRtkSettingsEntries; i++)
     {
         const RTK_Settings_Entry &entry = rtkSettingsEntries[i];
