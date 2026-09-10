@@ -920,8 +920,6 @@ bool loadSystemSettingsFromFileSD(char *fileName,
 {
     if ((findMe != nullptr) && (found != nullptr))
         *found = 0; // If searching, set found to NULL
-    else if (settings.debugSettings)
-        systemPrintf("Loading system settings from SD:%s\r\n", fileName);
 
     bool gotSemaphore = false;
     bool status = false; // Return false - until file is opened
@@ -931,6 +929,16 @@ bool loadSystemSettingsFromFileSD(char *fileName,
     wasSdCardOnline = online.microSD;
     if (online.microSD != true)
         beginSD();
+
+    if (online.microSD != true)
+    {
+        if ((findMe == nullptr) && settings.debugSettings)
+            systemPrintln("SD card not present");
+        return false;
+    }
+
+    if ((findMe == nullptr) && settings.debugSettings)
+        systemPrintf("Loading system settings from SD:%s\r\n", fileName);
 
     while (online.microSD == true)
     {
