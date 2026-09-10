@@ -80,6 +80,9 @@ void bluetoothUpdate()
         {
             systemPrintln("BT client disconnected");
 
+            // Provide audible feedback when a Bluetooth connection is disconnected
+            beepMultiple(3, 100, 50);
+
             btPrintEcho = false;
             forceMenuExit = true; // Force exit all config menus and/or command modes
             printEndpoint = PRINT_ENDPOINT_SERIAL;
