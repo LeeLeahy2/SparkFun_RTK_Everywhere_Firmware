@@ -1808,7 +1808,8 @@ bool stm32UpdateFirmwareEnd()
 //----------------------------------------
 // Update the STM32 firmware
 //----------------------------------------
-bool stm32StreamFirmware(NetworkClient * stream,
+bool stm32StreamFirmware(const char * chip,
+                         NetworkClient * stream,
                          size_t fileBytes,
                          uint32_t expectedCrc,
                          uint8_t * buffer,

@@ -312,7 +312,8 @@ bool otaFirmwareUpdate(const OTA_TARGET * target, const OTA_SUBSYSTEM_INFO * sub
 
         // Perform the update for the current target
         systemPrintf("Updating %s\r\n", otaSubsystem[subsystemIndex]);
-        success = subsystemInfo->_streamFirmware(stream,
+        success = subsystemInfo->_streamFirmware(otaChipName[subsystemInfo->_chip],
+                                                 stream,
                                                  target->_fileBytes,
                                                  target->_crc,
                                                  otaFirmwareBuffer,

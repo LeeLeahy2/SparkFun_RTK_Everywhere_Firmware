@@ -660,7 +660,8 @@ bool otaEsp32FirmwareUpdateEnd()
 //----------------------------------------
 // Update the ESP32 firmware
 //----------------------------------------
-bool otaEsp32StreamFirmware(NetworkClient * stream,
+bool otaEsp32StreamFirmware(const char * chip,
+                            NetworkClient * stream,
                             size_t fileBytes,
                             uint32_t expectedCrc,
                             uint8_t * buffer,
