@@ -161,12 +161,17 @@ bool loadSettingsUsingTempSetting(bool startFromDefault)
 
     // Load the settings from the SD card
     // This will fail if no SD is present. That's OK.
-    loadSuccessful = loadSystemSettingsFromFileSD(settingsFileName, tempSettings);
-    if ((loadSuccessful == false) && (settings.debugSettings == false))
+    // Skip entirely on platforms with no microSD slot so we don't print a misleading failure reason.
+    loadSuccessful = false;
+    if (present.microSd)
     {
-        settings.debugSettings = true;
-        loadSystemSettingsFromFileSD(settingsFileName, tempSettings);
-        settings.debugSettings = false;
+        loadSuccessful = loadSystemSettingsFromFileSD(settingsFileName, tempSettings);
+        if ((loadSuccessful == false) && (settings.debugSettings == false))
+        {
+            settings.debugSettings = true;
+            loadSystemSettingsFromFileSD(settingsFileName, tempSettings);
+            settings.debugSettings = false;
+        }
     }
     if (settingsAllocated)
     {
