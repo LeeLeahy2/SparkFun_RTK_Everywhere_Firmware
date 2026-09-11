@@ -1031,6 +1031,13 @@ void otaStateFirmwareUpdate()
 
         online.otaClient = true;
 
+        // Stop tasks that absorb serial data from the GNSS
+        tasksStopGnssUart();
+
+        // Display the remaining tasks
+        if (settings.debugFirmwareUpdate && otaDebugVerbose)
+            rtkTaskList(&Serial);
+
         success = true;
         productSubsystems = otaGetProductSubsystemSupport();
         for (subsystemIndex = OTA_SUBSYSTEM_MAX - 1; subsystemIndex >= 0; subsystemIndex--)
@@ -1093,7 +1100,7 @@ void otaStateFirmwareUpdate()
                 success &= subsystemInfo->_firmwareUpdate(target,
                                                           subsystemInfo,
                                                           otaFirmwareBuffer,
-                                                          OTA_BUFFER_BYTES);
+                                                          subsystemInfo->_packetBytes);
                 // Display the performance
                 if (success)
                     otaDisplayPerformance(subsystemIndex,
