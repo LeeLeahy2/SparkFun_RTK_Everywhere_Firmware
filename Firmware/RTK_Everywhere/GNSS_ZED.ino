@@ -2237,7 +2237,13 @@ bool GNSS_ZED::setMessagesNMEA()
             if (groupMessageClass != thisMessageClass)
                 groupMessageClass = thisMessageClass;
 
-            if (messageSupported(messageNumber))
+            // RTCM output rates are exclusively owned by setMessagesRTCMBase() (Base mode) and
+            // setMessagesRTCMRover() (Rover mode), using settings.ubxMessageRatesBase[].
+            // settings.ubxMessageRates[] is deliberately zero for RTCM messages (see the
+            // defaults reset in menuSupport.ino), so without this skip, running this loop
+            // while in Base mode (eg triggered by GNSS_CONFIG_MESSAGE_RATE_NMEA, which is
+            // requested whenever LoRa is toggled) would silently zero out RTCM on UART1.
+            if (messageSupported(messageNumber) && ubxMessages[messageNumber].msgClass != UBX_RTCM_MSB)
             {
                 uint8_t rate = settings.ubxMessageRates[messageNumber];
 
