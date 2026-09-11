@@ -3844,7 +3844,11 @@ bool lg290pFirmwareUpdateEnd()
 //----------------------------------------
 // Update the LG290P firmware
 //----------------------------------------
-bool lg290pStreamFirmware(NetworkClient *stream, size_t fileBytes, uint32_t expectedCrc, uint8_t *buffer,
+bool lg290pStreamFirmware(const char * chip,
+                          NetworkClient *stream,
+                          size_t fileBytes,
+                          uint32_t expectedCrc,
+                          uint8_t *buffer,
                           size_t packetBytes)
 {
     uint32_t crc = 0;

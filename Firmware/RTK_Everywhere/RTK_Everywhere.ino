@@ -659,8 +659,6 @@ static NetPriority_t networkPriorityForDisplay = NETWORK_NONE; // Reduce calls t
 // IM19 Tilt Compensation
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #ifdef COMPILE_IM19_IMU
-#include <SparkFun_IM19_IMU_Arduino_Library.h> //http://librarymanager/All#SparkFun_IM19_IMU
-IM19 *tiltSensor;
 unsigned long lastTiltCheck;   // Limits polling on IM19 to 1Hz
 bool tiltFailedBegin;          // Goes true if IMU fails beginTilt()
 unsigned long lastTiltBeepMs;  // Emit a beep every 10s if tilt is active

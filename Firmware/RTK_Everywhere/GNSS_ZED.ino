@@ -4319,7 +4319,8 @@ bool x20pFirmwareUpdateEnd()
  *
  * Returns true upon successful firmware update and false upon failure.
  */
-bool x20pStreamFirmware(NetworkClient * stream,
+bool x20pStreamFirmware(const char * chip,
+                        NetworkClient * stream,
                         size_t fileBytes,
                         uint32_t expectedCrc,
                         uint8_t * buffer,
