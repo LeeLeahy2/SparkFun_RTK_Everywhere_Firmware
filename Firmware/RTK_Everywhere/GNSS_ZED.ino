@@ -758,6 +758,17 @@ bool GNSS_ZED::fixedBaseStart()
     if (currentMode == 3 && settings.fixedBaseCoordinateType == COORD_TYPE_GEODETIC)
         return (true); // No changes needed
 
+    // If a previous Survey-In left the receiver's TMODE survey state active/valid, switching
+    // straight to Fixed mode (a single VALSET below) does not clear it. surveyInStart() always
+    // clears this state first (see needSurveyReset there); fixedBaseStart() never has, so a unit
+    // that was ever surveyed-in can get stuck with TMODE_MODE correctly set to Fixed but RTCM
+    // output suppressed. Clear it here the same way surveyInReset() does.
+    if (_zed->getSurveyInActive(100) || _zed->getSurveyInValid(100))
+    {
+        systemPrintln("Clearing previous survey-in state before starting Fixed Base");
+        surveyInReset();
+    }
+
     if (settings.fixedBaseCoordinateType == COORD_TYPE_ECEF)
     {
         // Break ECEF into main and high precision parts
