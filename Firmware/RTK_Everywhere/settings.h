@@ -346,6 +346,20 @@ const char * const correctionsSourceNames[CORR_NUM] =
 };
 const int correctionsSourceNamesEntries = sizeof(correctionsSourceNames) / sizeof(correctionsSourceNames[0]);
 
+// Base mode - outgoing correction broadcast methods
+// Used by Display.ino to show which method(s) are currently transmitting corrections
+typedef enum
+{
+    BCAST_ESPNOW = 0,   // ESPNOW.ino
+    BCAST_RADIO_LORA,   // LoRa.ino
+    BCAST_NTRIP_SERVER, // NtripServer.ino
+    BCAST_NTRIP_CASTER, // TcpServer.ino
+    // Add new broadcast methods just above this line
+    BCAST_NUM
+} broadcastSource;
+
+typedef uint8_t BCAST_ID_T; // Type holding a broadcast method ID
+
 // Setup Buttons
 typedef struct
 {
@@ -1844,7 +1858,7 @@ const RTK_Settings_Entry rtkSettingsEntries[] =
     { 0, 0, 0, 1, 1, 1, 1, ALL, 1, _bool,     0, & settings.debugWebServer, "debugWebServer", nullptr, },
     { 0, 0, 0, 1, 1, 1, 1, ALL, 1, _bool,     0, & settings.debugWifiState, "debugWifiState", nullptr, },
     { 0, 0, 0, 1, 1, 1, 1, ALL, 1, _bool,     0, & settings.enableCaptivePortal, "enableCaptivePortal", nullptr, },
-    { 0, 1, 0, 1, 1, 1, 1, ALL, 1, _uint8_t,  0, & settings.wifiChannel, "wifiChannel", nullptr, },
+    { 0, 0, 0, 1, 1, 1, 1, ALL, 1, _uint8_t,  0, & settings.wifiChannel, "wifiChannel", nullptr, },
     { 1, 0, 0, 1, 1, 1, 1, ALL, 1, _bool,     0, & settings.wifiConfigOverAP, "wifiConfigOverAP", nullptr, },
     { 1, 1, 1, 1, 1, 1, 1, ALL, 1, tWiFiNet,  MAX_WIFI_NETWORKS, & settings.wifiNetworks, "wifiNetwork_", nullptr, },
     { 0, 0, 0, 1, 1, 1, 1, ALL, 1, _uint32_t, 0, & settings.wifiConnectTimeoutMs, "wifiConnectTimeoutMs", nullptr, },

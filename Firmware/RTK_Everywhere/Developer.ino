@@ -317,6 +317,7 @@ uint8_t tcpServerRead() {return 0;}
 int tcpServerWrite(const uint8_t *buffer, int length) {return 0;}
 bool tcpServerInRemoteConfig() {return false;}
 void tcpServerDisableEndpoint() {}
+bool tcpServerNtripCasterActive() {return false;}
 
 #endif  // COMPILE_TCP_SERVER
 
@@ -614,4 +615,5 @@ bool loraCheckTxDirectFile() {return false;}
 void loraTxDirectConnect() {}
 void updateLora() {}
 bool stm32StreamFirmware(char *relativeFirmwareFileLocation) {return false;}
+bool loraIsTransmitting() {return false;}
 #endif  // COMPILE_LORA

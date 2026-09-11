@@ -2102,6 +2102,20 @@ correctionIconAttribute correctionIconAttributes[CORR_NUM] = {
     {0, 0, 15, 14, Corr_IP_Icon},
 };
 
+/*
+    Base broadcast (outgoing corrections) icons - shown next to the Logging icon, bottom right:
+    BCAST_ESPNOW       : ESPNOW_Symbol_3 [8, 13]
+    BCAST_RADIO_LORA   : Corr_Radio_LoRa [15, 14]
+    BCAST_NTRIP_SERVER : Corr_TCP_Icon   [15, 14]
+    BCAST_NTRIP_CASTER : Corr_IP_Icon    [15, 14]
+*/
+correctionIconAttribute broadcastIconAttributes[BCAST_NUM] = {
+    {3, 0, ESPNOW_Symbol_Width, ESPNOW_Symbol_Height, ESPNOW_Symbol_3},
+    {0, 0, 15, 14, Corr_Radio_LoRa},
+    {0, 0, 15, 14, Corr_TCP_Icon},
+    {0, 0, 15, 14, Corr_IP_Icon},
+};
+
 // Display.ino uses a vector (list) of iconPropertyBlinking to define which icons are displayed where.
 
 typedef struct
@@ -2304,9 +2318,9 @@ const uint8_t SIVIconYPos128x64 = 26;
 const uint8_t SIVIconXPos184x88 = 95;
 const uint8_t SIVIconYPos184x88 = 34;
 const uint8_t BaseSIVIconXPos128x64 = 66; // Move SIV info below the 'Xmitting RTCM' text on 128x64
-const uint8_t BaseSIVIconYPos128x64 = (26 + 14); // Assume font height 16 ignoring descenders
+const uint8_t BaseSIVIconYPos128x64 = (26 + 14 - 6); // Assume font height 16 ignoring descenders. Shifted up 6px for base broadcast icon stacking room
 const uint8_t BaseSIVIconXPos184x88 = 95; // Move SIV info below the 'Xmitting RTCM' text on 184x88
-const uint8_t BaseSIVIconYPos184x88 = (34 + 14); // Assume font height 16 ignoring descenders
+const uint8_t BaseSIVIconYPos184x88 = (34 + 14 - 6); // Assume font height 16 ignoring descenders. Shifted up 6px for base broadcast icon stacking room
 
 const int SIVTextStartXPosOffset[DISPLAY_MAX_NONE] = { -2, -2, -2 }; // This is a bodge to allow the paintBaseTempSurveyStarted text to be printed in the correct place
 

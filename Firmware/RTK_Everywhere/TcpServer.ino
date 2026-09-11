@@ -212,6 +212,15 @@ int32_t tcpServerClientSendData(int index, uint8_t *data, uint16_t length)
 }
 
 //----------------------------------------
+// Determine if the NTRIP Caster is actively serving RTCM to at least one connected client
+// Used by Display.ino to show the outgoing corrections icon in Base mode
+//----------------------------------------
+bool tcpServerNtripCasterActive()
+{
+    return (settings.enableNtripCaster && online.tcpServer && (tcpServerClientConnected != 0));
+}
+
+//----------------------------------------
 // Determine if the TCP server may be enabled
 //----------------------------------------
 bool tcpServerEnabled(const char **line)

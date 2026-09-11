@@ -1205,6 +1205,64 @@ void paintBatteryLevel(std::vector<iconPropertyBlinking> *iconList)
 
 */
 
+// Total pixel width needed to show every currently active base broadcast icon, gaps included.
+// Used both to size the icon zone and to know how much room is left for the IP address text.
+uint16_t baseBroadcastIconsTotalWidth()
+{
+    if (!inBaseMode())
+        return 0;
+
+    static const BCAST_ID_T priority[BCAST_NUM] = {BCAST_ESPNOW, BCAST_RADIO_LORA, BCAST_NTRIP_SERVER,
+                                                    BCAST_NTRIP_CASTER};
+    const uint8_t iconGap = 2;
+
+    uint16_t width = 0;
+    for (uint8_t i = 0; i < BCAST_NUM; i++)
+        if (baseBroadcastIsActive(priority[i]))
+            width += broadcastIconAttributes[priority[i]].width + iconGap;
+    return width;
+}
+
+// Show which method(s) are currently being used to broadcast corrections out (Base mode only)
+// Icons pack right-to-left, using each icon's real width (not a fixed nominal box) plus a small
+// gap, so multiple active icons fit in the tight zone available. If there isn't enough
+// horizontal room, the lowest priority icons are dropped.
+void paintBaseBroadcastIcons(std::vector<iconPropertyBlinking> *iconList, uint8_t zoneRightEdge,
+                              uint8_t zoneLeftEdge, uint8_t rowBottomEdge)
+{
+    iconPropertyBlinking prop;
+    prop.duty = 0b11111111;
+
+    // Priority order - most locally relevant (ESP-NOW) is placed closest to the Logging icon
+    static const BCAST_ID_T priority[BCAST_NUM] = {BCAST_ESPNOW, BCAST_RADIO_LORA, BCAST_NTRIP_SERVER,
+                                                    BCAST_NTRIP_CASTER};
+
+    const uint8_t iconGap = 2; // Buffer between the Logging icon and stacked icons, and between each other
+
+    uint8_t cellRight = zoneRightEdge;
+    for (uint8_t i = 0; i < BCAST_NUM; i++)
+    {
+        BCAST_ID_T id = priority[i];
+        if (!baseBroadcastIsActive(id))
+            continue;
+
+        const correctionIconAttribute *attr = &broadcastIconAttributes[id];
+
+        int16_t cellLeft = (int16_t)cellRight - attr->width - iconGap;
+        if (cellLeft < zoneLeftEdge)
+            break; // Out of horizontal room - drop the remaining (lower priority) icons
+
+        prop.icon.bitmap = attr->pointer;
+        prop.icon.width = attr->width;
+        prop.icon.height = attr->height;
+        prop.icon.xPos = cellLeft;
+        prop.icon.yPos = rowBottomEdge - attr->height;
+        iconList->push_back(prop);
+
+        cellRight = cellLeft; // Next icon goes immediately to the left, minus the gap
+    }
+}
+
 // Turn on various icons in the Radio area
 // ie: Bluetooth, WiFi, ESP Now, Mode indicators, as well as sub states of each (MAC, Blinking, Arrows, etc), depending
 // on connection state This function has all the logic to determine how a shared icon spot should act. ie: if we need an
@@ -1298,6 +1356,11 @@ void setRadioIcons(std::vector<iconPropertyBlinking> *iconList)
                     prop.icon.yPos = correctionsIconYPos + correctionIconAttributes[correctionSource].yOffset;
                     iconList->push_back(prop);
                 }
+            }
+            else if (inBaseMode() == true)
+            {
+                // Show outgoing correction broadcast icon(s), hugging the Logging icon. No room to stack on this display.
+                paintBaseBroadcastIcons(iconList, LoggingIconXPos64x48, correctionsIconXPos, 48);
             }
         }
         else if (present.display_type == DISPLAY_128x64)
@@ -1502,7 +1565,7 @@ void setRadioIcons(std::vector<iconPropertyBlinking> *iconList)
 
             // On 128x64: put the corrections source icon on the bottom, right of the IP address
             static bool correctionsIconPosCalculated = false;
-            const uint8_t correctionsIconXPos = 96;
+            const uint8_t correctionsIconXPos = 90; // Matches IP address max width, widened to fit stacked base broadcast icons
             static uint8_t correctionsIconYPos = 64;
             // Calculate the highest (lowest!) Y position for the corrections icon
             // Do it only once...
@@ -1529,6 +1592,12 @@ void setRadioIcons(std::vector<iconPropertyBlinking> *iconList)
                     prop.icon.yPos = correctionsIconYPos + correctionIconAttributes[correctionSource].yOffset;
                     iconList->push_back(prop);
                 }
+            }
+            else if (inBaseMode() == true)
+            {
+                // Size the icon zone exactly to fit every active broadcast icon so none are dropped
+                uint8_t zoneLeftEdge = LoggingIconXPos128x64 - baseBroadcastIconsTotalWidth();
+                paintBaseBroadcastIcons(iconList, LoggingIconXPos128x64, zoneLeftEdge, 64);
             }
         }
         else if (present.display_type == DISPLAY_184x88)
@@ -1751,6 +1820,12 @@ void setRadioIcons(std::vector<iconPropertyBlinking> *iconList)
                     prop.icon.yPos = correctionsIconYPos + correctionIconAttributes[correctionSource].yOffset;
                     iconList->push_back(prop);
                 }
+            }
+            else if (inBaseMode() == true)
+            {
+                // Size the icon zone exactly to fit every active broadcast icon so none are dropped
+                uint8_t zoneLeftEdge = LoggingIconXPos184x88 - baseBroadcastIconsTotalWidth();
+                paintBaseBroadcastIcons(iconList, LoggingIconXPos184x88, zoneLeftEdge, 88);
             }
         }
     }
@@ -2746,24 +2821,24 @@ void paintLogging(std::vector<iconPropertyBlinking> *iconList, bool pulse, bool 
 }
 
 const paintBaseStats_t paintBaseStats[] = {
-    { DISPLAY_64x48, "Mean:", AccuracyIconXPos64x48, AccuracyIconYPos64x48 + 5, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos64x48 + 29, AccuracyIconYPos64x48 + 2, QW_FONT_8X16, QW_EP_FONT_10X20, },
-    { DISPLAY_128x64, "Mean:", AccuracyIconXPos128x64, AccuracyIconYPos128x64 + 5, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos128x64 + 29, AccuracyIconYPos128x64 + 2, QW_FONT_8X16, QW_EP_FONT_10X20, },
-    { DISPLAY_184x88, "Mean:", AccuracyIconXPos184x88, AccuracyIconYPos184x88 + 2, QW_FONT_5X7, QW_EP_FONT_8X16, AccuracyIconXPos184x88 + 42, AccuracyIconYPos184x88 - 2, QW_FONT_8X16, QW_EP_FONT_10X20, },
-    { DISPLAY_64x48, "Time:", SIVIconXPos64x48 - 2, SIVIconYPos64x48 + 4, QW_FONT_5X7, QW_EP_FONT_10X20, SIVIconXPos64x48 + 28, SIVIconYPos64x48 + 1, QW_FONT_8X16, QW_EP_FONT_10X20, },
-    { DISPLAY_128x64, "Time:", SIVIconXPos128x64 - 2, SIVIconYPos128x64 + 4, QW_FONT_5X7, QW_EP_FONT_10X20, SIVIconXPos128x64 + 28, SIVIconYPos128x64 + 1, QW_FONT_8X16, QW_EP_FONT_10X20, },
-    { DISPLAY_184x88, "Time:", SIVIconXPos184x88 - 2, SIVIconYPos184x88 + 2, QW_FONT_5X7, QW_EP_FONT_8X16, SIVIconXPos184x88 + 42, SIVIconYPos184x88 - 2, QW_FONT_8X16, QW_EP_FONT_10X20, },
+    { DISPLAY_64x48, "Mean:", AccuracyIconXPos64x48, AccuracyIconYPos64x48 - 1, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos64x48 + 29, AccuracyIconYPos64x48 - 4, QW_FONT_8X16, QW_EP_FONT_10X20, },
+    { DISPLAY_128x64, "Mean:", AccuracyIconXPos128x64, AccuracyIconYPos128x64 - 1, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos128x64 + 29, AccuracyIconYPos128x64 - 4, QW_FONT_8X16, QW_EP_FONT_10X20, },
+    { DISPLAY_184x88, "Mean:", AccuracyIconXPos184x88, AccuracyIconYPos184x88 - 4, QW_FONT_5X7, QW_EP_FONT_8X16, AccuracyIconXPos184x88 + 42, AccuracyIconYPos184x88 - 8, QW_FONT_8X16, QW_EP_FONT_10X20, },
+    { DISPLAY_64x48, "Time:", SIVIconXPos64x48 - 2, SIVIconYPos64x48 - 2, QW_FONT_5X7, QW_EP_FONT_10X20, SIVIconXPos64x48 + 28, SIVIconYPos64x48 - 5, QW_FONT_8X16, QW_EP_FONT_10X20, },
+    { DISPLAY_128x64, "Time:", SIVIconXPos128x64 - 2, SIVIconYPos128x64 - 2, QW_FONT_5X7, QW_EP_FONT_10X20, SIVIconXPos128x64 + 28, SIVIconYPos128x64 - 5, QW_FONT_8X16, QW_EP_FONT_10X20, },
+    { DISPLAY_184x88, "Time:", SIVIconXPos184x88 - 2, SIVIconYPos184x88 - 4, QW_FONT_5X7, QW_EP_FONT_8X16, SIVIconXPos184x88 + 42, SIVIconYPos184x88 - 8, QW_FONT_8X16, QW_EP_FONT_10X20, },
     { DISPLAY_64x48, "BaseCast", AccuracyIconXPos64x48 + 4, AccuracyIconYPos64x48 - 1, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos64x48 + 29, AccuracyIconYPos64x48 + 2, QW_FONT_8X16, QW_EP_FONT_10X20, },
-    { DISPLAY_128x64, "BaseCast", AccuracyIconXPos128x64 + 4, AccuracyIconYPos128x64, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos128x64 + 29, AccuracyIconYPos128x64 + 2, QW_FONT_8X16, QW_EP_FONT_10X20, },
-    { DISPLAY_184x88, "BaseCast", AccuracyIconXPos184x88 + 4, AccuracyIconYPos184x88 - 2, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos184x88 + 80, AccuracyIconYPos184x88 - 2, QW_FONT_8X16, QW_EP_FONT_10X20, },
+    { DISPLAY_128x64, "BaseCast", AccuracyIconXPos128x64 + 4, AccuracyIconYPos128x64 - 6, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos128x64 + 29, AccuracyIconYPos128x64 - 4, QW_FONT_8X16, QW_EP_FONT_10X20, },
+    { DISPLAY_184x88, "BaseCast", AccuracyIconXPos184x88 + 4, AccuracyIconYPos184x88 - 8, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos184x88 + 80, AccuracyIconYPos184x88 - 8, QW_FONT_8X16, QW_EP_FONT_10X20, },
     { DISPLAY_64x48, "Casting", AccuracyIconXPos64x48 + 4, AccuracyIconYPos64x48 - 1, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos64x48 + 29, AccuracyIconYPos64x48 + 2, QW_FONT_8X16, QW_EP_FONT_10X20, },
-    { DISPLAY_128x64, "Casting", AccuracyIconXPos128x64 + 4, AccuracyIconYPos128x64, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos128x64 + 29, AccuracyIconYPos128x64 + 2, QW_FONT_8X16, QW_EP_FONT_10X20, },
-    { DISPLAY_184x88, "Casting", AccuracyIconXPos184x88 + 4, AccuracyIconYPos184x88 - 2, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos184x88 + 80, AccuracyIconYPos184x88 - 2, QW_FONT_8X16, QW_EP_FONT_10X20, },
+    { DISPLAY_128x64, "Casting", AccuracyIconXPos128x64 + 4, AccuracyIconYPos128x64 - 6, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos128x64 + 29, AccuracyIconYPos128x64 - 4, QW_FONT_8X16, QW_EP_FONT_10X20, },
+    { DISPLAY_184x88, "Casting", AccuracyIconXPos184x88 + 4, AccuracyIconYPos184x88 - 8, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos184x88 + 80, AccuracyIconYPos184x88 - 8, QW_FONT_8X16, QW_EP_FONT_10X20, },
     { DISPLAY_64x48, "Xmitting", AccuracyIconXPos64x48, AccuracyIconYPos64x48 - 1, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos64x48 + 29, AccuracyIconYPos64x48 + 2, QW_FONT_8X16, QW_EP_FONT_10X20, },
-    { DISPLAY_128x64, "Xmitting", AccuracyIconXPos128x64, AccuracyIconYPos128x64, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos128x64 + 29, AccuracyIconYPos128x64 + 2, QW_FONT_8X16, QW_EP_FONT_10X20, },
-    { DISPLAY_184x88, "Xmitting", AccuracyIconXPos184x88, AccuracyIconYPos184x88 - 2, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos184x88 + 80, AccuracyIconYPos184x88 - 2, QW_FONT_8X16, QW_EP_FONT_10X20, },
+    { DISPLAY_128x64, "Xmitting", AccuracyIconXPos128x64, AccuracyIconYPos128x64 - 6, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos128x64 + 29, AccuracyIconYPos128x64 - 4, QW_FONT_8X16, QW_EP_FONT_10X20, },
+    { DISPLAY_184x88, "Xmitting", AccuracyIconXPos184x88, AccuracyIconYPos184x88 - 8, QW_FONT_5X7, QW_EP_FONT_10X20, AccuracyIconXPos184x88 + 80, AccuracyIconYPos184x88 - 8, QW_FONT_8X16, QW_EP_FONT_10X20, },
     { DISPLAY_64x48, "RTCM:", SIVIconXPos64x48 - 2, SIVIconYPos64x48 + 4, QW_FONT_5X7, QW_EP_FONT_10X20, SIVIconXPos64x48 + 28, SIVIconYPos64x48 + 1, QW_FONT_8X16, QW_EP_FONT_10X20, },
-    { DISPLAY_128x64, "RTCM:", SIVIconXPos128x64 - 2, SIVIconYPos128x64 + 4, QW_FONT_5X7, QW_EP_FONT_10X20, SIVIconXPos128x64 + 28, SIVIconYPos128x64 + 1, QW_FONT_8X16, QW_EP_FONT_10X20, },
-    { DISPLAY_184x88, "RTCM:", SIVIconXPos184x88, SIVIconYPos184x88 - 3, QW_FONT_5X7, QW_EP_FONT_10X20, SIVIconXPos184x88 + 50, SIVIconYPos184x88 - 3, QW_FONT_8X16, QW_EP_FONT_10X20, },
+    { DISPLAY_128x64, "RTCM:", SIVIconXPos128x64 - 2, SIVIconYPos128x64 - 2, QW_FONT_5X7, QW_EP_FONT_10X20, SIVIconXPos128x64 + 28, SIVIconYPos128x64 - 5, QW_FONT_8X16, QW_EP_FONT_10X20, },
+    { DISPLAY_184x88, "RTCM:", SIVIconXPos184x88, SIVIconYPos184x88 - 9, QW_FONT_5X7, QW_EP_FONT_10X20, SIVIconXPos184x88 + 50, SIVIconYPos184x88 - 9, QW_FONT_8X16, QW_EP_FONT_10X20, },
 };
 
 const size_t numPaintBaseStats = sizeof(paintBaseStats) / sizeof(paintBaseStats[0]);
@@ -2966,12 +3041,63 @@ void paintIPAddress()
     }
 }
 
+// Print text at (xPos,yPos), statically if it fits within maxWidthPixels. Otherwise slowly
+// shuttle a maxWidthPixels-wide window back and forth through the text so all of it is visible.
+void printFittedText(const char *text, uint8_t xPos, uint8_t yPos, uint8_t charWidthPixels, uint8_t maxWidthPixels)
+{
+    int maxChars = maxWidthPixels / charWidthPixels;
+    if (maxChars < 1)
+        maxChars = 1;
+
+    int textLen = strlen(text);
+
+    theDisplay->setCursor(xPos, yPos);
+
+    // Fits - print it statically
+    if (textLen <= maxChars)
+    {
+        theDisplay->print(text);
+        return;
+    }
+
+    // Too long to fit - slowly shuttle a maxChars-wide window back and forth through the text
+    static uint32_t lastShuttleUpdateMs = 0;
+    static int startPos = 0;
+    const uint32_t shuttleIntervalMs = 400; // Slow scroll
+
+    int extras = textLen - maxChars;
+    int shuttleLen = (2 * extras) + 2; // Wait for a double state at each end
+
+    if (millis() - lastShuttleUpdateMs >= shuttleIntervalMs)
+    {
+        lastShuttleUpdateMs = millis();
+        startPos++;
+        if (startPos >= shuttleLen)
+            startPos = 0;
+    }
+
+    int shuttle[shuttleLen];
+    shuttle[0] = 0;
+    int x;
+    for (x = 0; x <= extras; x++)
+        shuttle[x + 1] = x;
+    shuttle[extras + 2] = extras;
+    x += 2;
+    for (int y = extras - 1; y > 0; y--)
+        shuttle[x++] = y;
+
+    char printThis[maxChars + 1];
+    snprintf(printThis, maxChars + 1, "%s", &text[shuttle[startPos]]);
+    theDisplay->print(printThis);
+}
+
 void displayFullIPAddress(std::vector<iconPropertyBlinking> *iconList) // Bottom left - 128x64 only
 {
     static IPAddress ipAddress;
     NetPriority_t priority;
 
-    // Max width: 15*6 = 90 pixels (6 pixels per character, nnn.nnn.nnn.nnn)
+    // Reserve room for any active base broadcast icons - only the space left over is available
+    // for the IP address, which shuttles into view if it doesn't fit
     if (present.display_type == DISPLAY_128x64)
     {
         char myAddress[16];
@@ -2992,12 +3118,13 @@ void displayFullIPAddress(std::vector<iconPropertyBlinking> *iconList) // Bottom
                 snprintf(myAddress, sizeof(myAddress), "%s", ipAddress.toString().c_str());
 
                 theDisplay->setFont(QW_FONT_5X7, QW_EP_FONT_5X7); // Set font to smallest
-                theDisplay->setCursor(0, 55);
-                theDisplay->print(myAddress);
+                uint16_t iconZoneWidth = baseBroadcastIconsTotalWidth();
+                uint8_t maxWidthPixels =
+                    (LoggingIconXPos128x64 > iconZoneWidth) ? (LoggingIconXPos128x64 - iconZoneWidth) : 0;
+                printFittedText(myAddress, 0, 55, 6, maxWidthPixels); // 6 pixels per character
             }
         }
     }
-    // Max width: 15*6 = 90 pixels (6 pixels per character, nnn.nnn.nnn.nnn)
     else if (present.display_type == DISPLAY_184x88)
     {
         char myAddress[16];
@@ -3018,8 +3145,10 @@ void displayFullIPAddress(std::vector<iconPropertyBlinking> *iconList) // Bottom
                 snprintf(myAddress, sizeof(myAddress), "%s", ipAddress.toString().c_str());
 
                 theDisplay->setFont(QW_FONT_8X16, QW_EP_FONT_10X20);
-                theDisplay->setCursor(0, 68);
-                theDisplay->print(myAddress);
+                uint16_t iconZoneWidth = baseBroadcastIconsTotalWidth();
+                uint8_t maxWidthPixels =
+                    (LoggingIconXPos184x88 > iconZoneWidth) ? (LoggingIconXPos184x88 - iconZoneWidth) : 0;
+                printFittedText(myAddress, 0, 68, 8, maxWidthPixels); // 8 pixels per character
             }
         }
     }

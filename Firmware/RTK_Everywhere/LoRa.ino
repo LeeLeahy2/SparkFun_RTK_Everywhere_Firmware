@@ -495,6 +495,15 @@ bool loraIsOn()
     return (false);
 }
 
+//----------------------------------------
+// Determine if the LoRa radio is actively transmitting corrections (Base mode)
+// Used by Display.ino to show the outgoing corrections icon
+//----------------------------------------
+bool loraIsTransmitting()
+{
+    return (loraState == LORA_TX);
+}
+
 // Force UART connection to LoRa radio for firmware update on the next boot by creating updateLoraFirmware.txt in
 // LittleFS
 bool loraCreatePassthroughFile()
