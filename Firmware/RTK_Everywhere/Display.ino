@@ -422,7 +422,7 @@ bool HYBRID_DISPLAY::isBusy(void)
             // This will return true while the e-paper is busy or in deep sleep
             return _epaper->isBusy();
         }
-        
+
         // If we don't perform the isBusy check, return true to avoid calling deepSleep early
         return true;
     }
@@ -765,7 +765,7 @@ void displayUpdate()
                     displayRTKAccuracy(&iconPropertyList, &CrossHairPppConvergedProperties, false); // Crosshair with P, blink
                 else
                     displayHorizontalAccuracy(&iconPropertyList, &CrossHairProperties, 0b11111111); // Single crosshair, no blink
-                    
+
                 paintLogging(&iconPropertyList);
                 displaySivVsOpenShort(&iconPropertyList);
                 displayTiltIcon(&iconPropertyList);
@@ -776,7 +776,7 @@ void displayUpdate()
             case (STATE_ROVER_RTK_FLOAT):
                 // displayHorizontalAccuracy(&iconPropertyList, &CrossHairDualProperties,
                 //                           0b01010101); // Dual crosshair, blink
-                
+
                 //LG290P will be in RTK 'Float' once PPP is converged
                 if(gnss->isPppConverged() == true)
                     displayRTKAccuracy(&iconPropertyList, &CrossHairPppConvergedProperties, true); // Crosshair with P, no blink
@@ -1158,20 +1158,20 @@ void paintBatteryLevel(std::vector<iconPropertyBlinking> *iconList)
      |-----4 digit MAC-----|  |--BT-|  |---WiFi----|  |--Cellular-|  |--ESP-|  |-Down-| |--Up--| |-Dynamic/Base|  |--Battery / ETH--|
 
 
-            *                                                                                                          ***         
-         *******                                                        **   *                                        ****         
-        *   *   *                                                       * * *                                        ****          
-       *    *    *                                                      *  *   *                                    ****           
-       *    *    *                                                      *   * *                                     *** *          
-       *    *    *                                                       *   *   *                                  **   *         
-     ******* ******* |----- Horiz Acc (5 chars) (8x16) -----|            *    * *    |---- SIV (3 chars) ---|             *        
-       *    *    *                                                        *    *                                           *       
-       *    *    *                                                        **    *                                           *      
-       *    *    *                                                        ****   *                                         * *     
-        *   *   *                                                         **  ****                                      **    *    
-         *******                                                          **                                           *       *   
-            *                                                           ******                                         *        *  
-            *                                                                                                         *          * 
+            *                                                                                                          ***
+         *******                                                        **   *                                        ****
+        *   *   *                                                       * * *                                        ****
+       *    *    *                                                      *  *   *                                    ****
+       *    *    *                                                      *   * *                                     *** *
+       *    *    *                                                       *   *   *                                  **   *
+     ******* ******* |----- Horiz Acc (5 chars) (8x16) -----|            *    * *    |---- SIV (3 chars) ---|             *
+       *    *    *                                                        *    *                                           *
+       *    *    *                                                        **    *                                           *
+       *    *    *                                                        ****   *                                         * *
+        *   *   *                                                         **  ****                                      **    *
+         *******                                                          **                                           *       *
+            *                                                           ******                                         *        *
+            *                                                                                                         *          *
                                                                                                                     ***************
 
      |------------------------------------------ IP ------------------------------------------|      |-Corr Source-|       |Logging|
@@ -1184,20 +1184,20 @@ void paintBatteryLevel(std::vector<iconPropertyBlinking> *iconList)
      |-------------------- 6 digit MAC (10x20) -----------------|    |--BT-|    |---WiFi----|    |--Cellular-|    |--ESP-|    |-Down-|   |--Up--|   |-Dynamic/Base|      |--Battery / ETH--|
 
 
-            *                                                                                                                                                                    ***         
-         *******                                                                                     **   *                                                                     ****         
-        *   *   *                                                                                    * * *                                                                     ****          
-       *    *    *                                                                                   *  *   *                                                                 ****           
-       *    *    *                                                                                   *   * *                                                                  *** *          
-       *    *    *                                                                                    *   *   *                                                               **   *         
-     ******* ******* |---------- Horiz Acc (5 chars) (10x20) ---------|                               *    * *    |--- SIV (3 chars) (10x20) ---|                                   *        
-       *    *    *                                                                                     *    *                                                                        *       
-       *    *    *                                                                                     **    *                                                                        *      
-       *    *    *                                                                                     ****   *                                                                      * *     
-        *   *   *                                                                                      **  ****                                                                   **    *    
-         *******                                                                                       **                                                                        *       *   
-            *                                                                                        ******                                                                      *        *  
-            *                                                                                                                                                                   *          * 
+            *                                                                                                                                                                    ***
+         *******                                                                                     **   *                                                                     ****
+        *   *   *                                                                                    * * *                                                                     ****
+       *    *    *                                                                                   *  *   *                                                                 ****
+       *    *    *                                                                                   *   * *                                                                  *** *
+       *    *    *                                                                                    *   *   *                                                               **   *
+     ******* ******* |---------- Horiz Acc (5 chars) (10x20) ---------|                               *    * *    |--- SIV (3 chars) (10x20) ---|                                   *
+       *    *    *                                                                                     *    *                                                                        *
+       *    *    *                                                                                     **    *                                                                        *
+       *    *    *                                                                                     ****   *                                                                      * *
+        *   *   *                                                                                      **  ****                                                                   **    *
+         *******                                                                                       **                                                                        *       *
+            *                                                                                        ******                                                                      *        *
+            *                                                                                                                                                                   *          *
                                                                                                                                                                               ***************
 
 
@@ -2976,7 +2976,7 @@ void paintRTCM(std::vector<iconPropertyBlinking> *iconList)
         theDisplay->setCursor(baseStats->xPosOfData + xAdjust, baseStats->yPosOfData);
     else
         // x, y - Push towards colon to make room for log icon
-        theDisplay->setCursor(baseStats->xPosOfData, baseStats->yPosOfData); 
+        theDisplay->setCursor(baseStats->xPosOfData, baseStats->yPosOfData);
 
     theDisplay->setFont(baseStats->theFontOfData, baseStats->theEpFontOfData);  // Set font
     theDisplay->print(rtcmPacketsSent); // rtcmPacketsSent is controlled in processRTCM()
