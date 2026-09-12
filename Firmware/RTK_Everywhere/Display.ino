@@ -3496,19 +3496,36 @@ void displayFirmwareUpdateProgress(int percentComplete)
     {
         theDisplay->erase(); // Clear the display's internal buffer
 
-        int yPos = 3;
-        int fontHeight = 8;
+        if (present.display_type == DISPLAY_64x48)
+        {
+            int yPos = 3;
+            int fontHeight = 8;
 
-        printTextCenter("Firmware", yPos, QW_FONT_5X7, QW_EP_FONT_5X7, 1, false); // text, y, font type, kerning, inverted
+            printTextCenter("Firmware", yPos, QW_FONT_5X7, QW_EP_FONT_5X7, 1, false); // text, y, font type, kerning, inverted
 
-        yPos = yPos + fontHeight + 1;
-        printTextCenter("Update", yPos, QW_FONT_5X7, QW_EP_FONT_5X7, 1, false); // text, y, font type, kerning, inverted
+            yPos = yPos + fontHeight + 1;
+            printTextCenter("Update", yPos, QW_FONT_5X7, QW_EP_FONT_5X7, 1, false); // text, y, font type, kerning, inverted
 
-        yPos = yPos + fontHeight + 3;
-        char temp[50];
-        snprintf(temp, sizeof(temp), "%d%%", percentComplete);
-        printTextCenter(temp, yPos, QW_FONT_8X16, QW_EP_FONT_8X16, 1, false); // text, y, font type, kerning, inverted
+            yPos = yPos + fontHeight + 3;
+            char temp[50];
+            snprintf(temp, sizeof(temp), "%d%%", percentComplete);
+            printTextCenter(temp, yPos, QW_FONT_8X16, QW_EP_FONT_8X16, 1, false); // text, y, font type, kerning, inverted
+        }
+        else
+        {
+            int yPos = 0;
+            int fontHeight = 8;
 
+            printTextCenter("Firmware", yPos, QW_FONT_5X7, QW_EP_FONT_5X7, 1, false); // text, y, font type, kerning, inverted
+
+            yPos = yPos + fontHeight + 1;
+            printTextCenter("Update %", yPos, QW_FONT_5X7, QW_EP_FONT_5X7, 1, false); // text, y, font type, kerning, inverted
+
+            yPos = yPos + fontHeight + 1;
+            char temp[50];
+            snprintf(temp, sizeof(temp), "%d%%", percentComplete);
+            printTextCenter(temp, yPos, QW_FONT_LARGENUM, QW_EP_FONT_LARGENUM, 1, false); // text, y, font type, kerning, inverted
+        }
         theDisplay->displayMessage(); // Push internal buffer to display
     }
 }
